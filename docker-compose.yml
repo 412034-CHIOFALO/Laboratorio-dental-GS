@@ -1,0 +1,44 @@
+services:
+  # Base de Datos MySQL
+  mysql:
+    image: mysql:8.0
+    container_name: gys-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: db_laboratorio # Esquema por defecto
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+
+  # RabbitMQ para mensajería asíncrona (incluye panel de control)
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: gys-rabbitmq
+    ports:
+      - "5672:5672"   # Puerto de conexión
+      - "15672:15672" # Puerto del panel web administrativo
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    restart: unless-stopped
+
+  # MinIO para guardar los archivos 3D y comprobantes
+  minio:
+    image: minio/minio
+    container_name: gys-minio
+    ports:
+      - "9000:9000"   # Puerto de la API
+      - "9001:9001"   # Puerto de la consola web
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  minio_data:

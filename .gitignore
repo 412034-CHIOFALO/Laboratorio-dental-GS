@@ -1,0 +1,41 @@
+# ── Maven / Spring Boot ────────────────────────────────────
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+spring-boot-*.log
+
+# ── IntelliJ IDEA ──────────────────────────────────────────
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# ── VS Code ────────────────────────────────────────────────
+.vscode/
+.vs/
+
+# ── Angular / Node ─────────────────────────────────────────
+frontend-app/node_modules/
+frontend-app/dist/
+frontend-app/.angular/
+frontend-app/*.js.map
+
+# ── Variables de entorno / secretos ────────────────────────
+.env
+*.env.local
+application-prod.properties
+
+# ── Sistema operativo ──────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Docker volúmenes locales ───────────────────────────────
+docker-volumes/
+
+# ── Backup interno del vault Obsidian ──────────────────────
+_obsidian-backup/
