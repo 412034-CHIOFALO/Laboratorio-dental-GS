@@ -1,0 +1,144 @@
+<div class="home-view">
+  <div class="home-header">
+    <div>
+      <h1>Bienvenido, <span class="accent">{{ username }}</span></h1>
+      <p class="home-sub">Panel de gestión — GS Ortodoncia</p>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon green">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">—</span>
+        <span class="stat-label">Pedidos activos</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon blue">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+          <polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">—</span>
+        <span class="stat-label">En producción</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">—</span>
+        <span class="stat-label">Saldo pendiente</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon red">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <span class="stat-value">—</span>
+        <span class="stat-label">Alertas de stock</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-grid">
+    <a routerLink="/dashboard/pedidos" class="module-card">
+      <div class="module-icon green">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+        </svg>
+      </div>
+      <div class="module-info">
+        <h3>Pedidos</h3>
+        <p>Registrar y seguir trabajos de odontólogos</p>
+      </div>
+      <span class="module-badge coming">Sprint 3</span>
+    </a>
+
+    <a routerLink="/dashboard/produccion" class="module-card">
+      <div class="module-icon blue">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+        </svg>
+      </div>
+      <div class="module-info">
+        <h3>Producción</h3>
+        <p>Tablero Kanban por estación de trabajo</p>
+      </div>
+      <span class="module-badge coming">Sprint 3</span>
+    </a>
+
+    <a routerLink="/dashboard/catalogo" class="module-card">
+      <div class="module-icon teal">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+        </svg>
+      </div>
+      <div class="module-info">
+        <h3>Catálogo</h3>
+        <p>Tipos de trabajo y precios del laboratorio</p>
+      </div>
+      <span class="module-badge coming">Sprint 2</span>
+    </a>
+
+    <a routerLink="/dashboard/finanzas" class="module-card">
+      <div class="module-icon orange">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+        </svg>
+      </div>
+      <div class="module-info">
+        <h3>Finanzas</h3>
+        <p>Cuentas corrientes y gestión de caja</p>
+      </div>
+      <span class="module-badge coming">Sprint 4</span>
+    </a>
+
+    <a routerLink="/dashboard/stock" class="module-card">
+      <div class="module-icon red">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+        </svg>
+      </div>
+      <div class="module-info">
+        <h3>Stock</h3>
+        <p>Inventario de materiales y alertas</p>
+      </div>
+      <span class="module-badge coming">Sprint 5</span>
+    </a>
+
+    @if (isAdmin) {
+      <a routerLink="/dashboard/usuarios" class="module-card">
+        <div class="module-icon purple">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+        </div>
+        <div class="module-info">
+          <h3>Usuarios</h3>
+          <p>Crear y gestionar cuentas del sistema</p>
+        </div>
+        <span class="module-badge active">Disponible</span>
+      </a>
+    }
+  </div>
+</div>

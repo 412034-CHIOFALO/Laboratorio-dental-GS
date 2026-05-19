@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons+Outlined');
+@import url('https://fonts.googleapis.com/icon?family=Material+Icons');
+
+/* ═══════════════════════════════════════════════
+   DESIGN SYSTEM — G&S Laboratorio Dental
+   Paleta: Dark Navy + Emerald + Cyan
+═══════════════════════════════════════════════ */
+
+:root {
+  /* Green — del logo G&S, más vibrante */
+  --gs-green:        #22c55e;
+  --gs-green-dark:   #16a34a;
+  --gs-green-darker: #15803d;
+  --gs-green-light:  #4ade80;
+  --gs-green-soft:   rgba(34, 197, 94, 0.10);
+  --gs-green-glow:   rgba(34, 197, 94, 0.20);
+  --gs-green-border: rgba(34, 197, 94, 0.25);
+
+  /* Cyan — acento secundario, sensación médica/tech */
+  --gs-cyan:         #06b6d4;
+  --gs-cyan-light:   #22d3ee;
+  --gs-cyan-soft:    rgba(6, 182, 212, 0.10);
+
+  /* Amber — urgente y warnings */
+  --gs-amber:        #f59e0b;
+  --gs-amber-light:  #fbbf24;
+  --gs-amber-soft:   rgba(245, 158, 11, 0.10);
+
+  /* Rose — peligro y errores */
+  --gs-rose:         #f43f5e;
+  --gs-rose-soft:    rgba(244, 63, 94, 0.10);
+
+  /* Purple — estados especiales */
+  --gs-purple:       #a855f7;
+  --gs-purple-soft:  rgba(168, 85, 247, 0.10);
+
+  /* Blue */
+  --gs-blue:         #3b82f6;
+  --gs-blue-soft:    rgba(59, 130, 246, 0.10);
+
+  /* Backgrounds — dark navy */
+  --gs-bg:           #080d18;
+  --gs-surface:      #0d1424;
+  --gs-card:         #111827;
+  --gs-card-2:       #162035;
+  --gs-card-hover:   #1a2845;
+
+  /* Borders */
+  --gs-border:       rgba(255, 255, 255, 0.06);
+  --gs-border-md:    rgba(255, 255, 255, 0.10);
+  --gs-border-green: rgba(34, 197, 94, 0.20);
+
+  /* Text */
+  --gs-text:         #e2e8f0;
+  --gs-text-muted:   #94a3b8;
+  --gs-text-dim:     #475569;
+  --gs-white:        #ffffff;
+
+  /* Gradients */
+  --gs-gradient-green: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  --gs-gradient-cyan:  linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+  --gs-gradient-brand: linear-gradient(135deg, #22c55e 0%, #06b6d4 100%);
+  --gs-gradient-dark:  linear-gradient(180deg, #111827 0%, #0d1424 100%);
+
+  /* Shadows */
+  --gs-shadow-green: 0 4px 20px rgba(34, 197, 94, 0.25);
+  --gs-shadow-card:  0 4px 24px rgba(0, 0, 0, 0.40);
+  --gs-shadow-lg:    0 8px 40px rgba(0, 0, 0, 0.50);
+
+  /* Sidebar */
+  --sidebar-w:           240px;
+  --sidebar-collapsed-w: 64px;
+  --topbar-h:            56px;
+}
+
+/* ── Reset ── */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+  background-color: var(--gs-bg);
+  color: var(--gs-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* ── Scrollbar global ── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.20); }
+
+/* ── Utilidades globales ── */
+.text-green  { color: var(--gs-green); }
+.text-cyan   { color: var(--gs-cyan); }
+.text-amber  { color: var(--gs-amber); }
+.text-rose   { color: var(--gs-rose); }
+.text-muted  { color: var(--gs-text-muted); }
+
+.badge-green  { background: var(--gs-green-soft);  color: var(--gs-green);  border: 1px solid var(--gs-green-border); }
+.badge-amber  { background: var(--gs-amber-soft);  color: var(--gs-amber); }
+.badge-rose   { background: var(--gs-rose-soft);   color: var(--gs-rose); }
+.badge-cyan   { background: var(--gs-cyan-soft);   color: var(--gs-cyan); }
+.badge-purple { background: var(--gs-purple-soft); color: var(--gs-purple); }
+
+/* ── Spinner ── */
+.spinner-sm {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+.spinner-lg {
+  width: 36px; height: 36px;
+  border: 3px solid var(--gs-green-soft);
+  border-top-color: var(--gs-green);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Alert error global ── */
+.alert-error {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--gs-rose-soft);
+  border: 1px solid rgba(244, 63, 94, 0.25);
+  color: #fda4af;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  font-size: 0.875rem;
+}

@@ -1,0 +1,42 @@
+import { Routes } from '@angular/router';
+import { LandingPage } from './pages/landing-page/landing-page';
+import { LoginComponent } from './pages/login/login';
+import { DashboardComponent } from './pages/dashboard/dashboard';
+import { DashboardHomeComponent } from './pages/dashboard/home/dashboard-home';
+import { UsuariosComponent } from './pages/dashboard/usuarios/usuarios';
+import { PedidosComponent } from './pages/dashboard/pedidos/pedidos';
+import { ProduccionComponent } from './pages/dashboard/produccion/produccion';
+import { CatalogoComponent } from './pages/dashboard/catalogo/catalogo';
+import { FinanzasComponent } from './pages/dashboard/finanzas/finanzas';
+import { StockComponent } from './pages/dashboard/stock/stock';
+import { EntregasComponent } from './pages/dashboard/entregas/entregas';
+import { ReportesComponent } from './pages/dashboard/reportes/reportes';
+import { DocumentosComponent } from './pages/dashboard/documentos/documentos';
+import { EscaneosComponent } from './pages/dashboard/escaneos/escaneos';
+import { AuditoriaComponent } from './pages/dashboard/auditoria/auditoria';
+import { authGuard } from './guards/auth.guard';
+
+export const routes: Routes = [
+  { path: '', component: LandingPage },
+  { path: 'login', component: LoginComponent },
+  {
+    path: 'dashboard',
+    component: DashboardComponent,
+    canActivate: [authGuard],
+    children: [
+      { path: '',            component: DashboardHomeComponent },
+      { path: 'pedidos',     component: PedidosComponent },
+      { path: 'produccion',  component: ProduccionComponent },
+      { path: 'entregas',    component: EntregasComponent },
+      { path: 'catalogo',    component: CatalogoComponent },
+      { path: 'stock',       component: StockComponent },
+      { path: 'finanzas',    component: FinanzasComponent },
+      { path: 'reportes',    component: ReportesComponent },
+      { path: 'documentos',  component: DocumentosComponent },
+      { path: 'escaneos',    component: EscaneosComponent },
+      { path: 'auditoria',   component: AuditoriaComponent },
+      { path: 'usuarios',    component: UsuariosComponent },
+    ]
+  },
+  { path: '**', redirectTo: '' }
+];
