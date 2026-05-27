@@ -29,6 +29,14 @@ frontend-app/*.js.map
 *.env.local
 application-prod.properties
 
+# ── Claves criptográficas (NUNCA commitear) ────────────────
+*.p12
+*.jks
+*.key
+*.pem
+**/keys/*.p12
+**/keys/*.jks
+
 # ── Sistema operativo ──────────────────────────────────────
 .DS_Store
 Thumbs.db
