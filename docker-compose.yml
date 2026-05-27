@@ -4,12 +4,18 @@ services:
     image: mysql:8.0
     container_name: gys-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: db_laboratorio # Esquema por defecto
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: db_laboratorio
     ports:
-      - "3306:3306"
+      # Exponer solo en loopback para evitar acceso externo
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   # RabbitMQ para mensajería asíncrona (incluye panel de control)
@@ -17,11 +23,11 @@ services:
     image: rabbitmq:3-management
     container_name: gys-rabbitmq
     ports:
-      - "5672:5672"   # Puerto de conexión
-      - "15672:15672" # Puerto del panel web administrativo
+      - "127.0.0.1:5672:5672"    # Puerto de conexión (solo loopback)
+      - "127.0.0.1:15672:15672"  # Panel web solo accesible desde el servidor
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     restart: unless-stopped
 
   # MinIO para guardar los archivos 3D y comprobantes
@@ -29,11 +35,11 @@ services:
     image: minio/minio
     container_name: gys-minio
     ports:
-      - "9000:9000"   # Puerto de la API
-      - "9001:9001"   # Puerto de la consola web
+      - "127.0.0.1:9000:9000"  # API (solo loopback)
+      - "127.0.0.1:9001:9001"  # Consola web (solo loopback)
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password123
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data

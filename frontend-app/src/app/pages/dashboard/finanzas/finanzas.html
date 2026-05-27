@@ -1,17 +1,93 @@
-<div class="stub-page">
-  <div class="stub-icon orange">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23"/>
-      <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-    </svg>
+<div class="fin-page">
+
+  <div class="page-header">
+    <div class="header-left">
+      <div class="page-icon orange">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+        </svg>
+      </div>
+      <div><h1>Finanzas</h1><p class="subtitle">Cuentas corrientes, cajas y pagos triangulados</p></div>
+    </div>
+    <button class="btn-pago">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Registrar pago
+    </button>
   </div>
-  <h1>Finanzas</h1>
-  <p>Cuentas corrientes por odontólogo, registro de pagos, pagos triangulados y generación de resúmenes de deuda en PDF para enviar por WhatsApp.</p>
-  <div class="stub-features">
-    <div class="feat"><span class="dot"></span>Saldo actual por odontólogo (debe / haber)</div>
-    <div class="feat"><span class="dot"></span>Registro de pagos directos y triangulados (proveedor)</div>
-    <div class="feat"><span class="dot"></span>Resumen de deuda exportable en PDF</div>
-    <div class="feat"><span class="dot"></span>Integración con MinIO para archivos de comprobantes</div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    @for (k of kpis; track k.label) {
+      <div class="kpi-card" [attr.data-color]="k.color">
+        <span class="kpi-val">{{ k.valor }}</span>
+        <span class="kpi-label">{{ k.label }}</span>
+      </div>
+    }
   </div>
-  <span class="sprint-badge">Sprint 4 — 29/06/2026</span>
+
+  <!-- Cajas -->
+  <div class="cajas-row">
+    @for (c of cajas; track c.label) {
+      <div class="caja-card" [attr.data-color]="c.color">
+        <div class="caja-header">
+          <span class="caja-label">{{ c.label }}</span>
+          @if (c.color === 'amber' && c.valor !== 0) {
+            <span class="alert-dot" title="No cerró en cero">⚠</span>
+          }
+        </div>
+        <span class="caja-valor" [attr.data-color]="c.color">{{ formatPeso(c.valor) }}</span>
+        <span class="caja-desc">{{ c.desc }}</span>
+      </div>
+    }
+  </div>
+
+  <!-- Clientes -->
+  <div class="section-title">Cuentas por cobrar — Odontólogos</div>
+  <div class="table-wrap">
+    <table class="fin-table">
+      <thead>
+        <tr>
+          <th>Odontólogo</th>
+          <th>Deuda actual</th>
+          <th>Último pago</th>
+          <th>Monto último pago</th>
+          <th>Pedidos activos</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (c of clientes; track c.id) {
+          <tr>
+            <td class="nombre-cell">{{ c.nombre }}</td>
+            <td>
+              <span class="deuda-chip" [attr.data-color]="colorDeuda(c.deuda, diasDesde(c.ultimoPago))">
+                {{ formatPeso(c.deuda) }}
+              </span>
+            </td>
+            <td class="date-cell">
+              Hace {{ diasDesde(c.ultimoPago) }}d
+              @if (diasDesde(c.ultimoPago) > 30) {
+                <span class="mora-tag">mora</span>
+              }
+            </td>
+            <td class="price-cell">{{ formatPeso(c.ultimoPagoMonto) }}</td>
+            <td class="center-cell">{{ c.pedidosPendientes }}</td>
+            <td class="action-cell">
+              <button class="btn-cobrar">Cobrar</button>
+              <button class="btn-ver-cuenta">Ver cuenta</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="triangulado-banner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <div>
+      <strong>Pagos triangulados:</strong> el dinero va directo del odontólogo al proveedor o empleado, sin pasar por caja.
+      Esta funcionalidad completa estará disponible en Sprint 5.
+    </div>
+  </div>
+
 </div>

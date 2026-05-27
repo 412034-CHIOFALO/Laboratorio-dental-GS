@@ -1,18 +1,92 @@
-<div class="stub-page">
-  <div class="stub-icon blue">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
-      <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-    </svg>
+<div class="pedidos-page">
+
+  <div class="page-header">
+    <div class="header-left">
+      <div class="page-icon blue">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+        </svg>
+      </div>
+      <div><h1>Pedidos</h1><p class="subtitle">Todos los trabajos del laboratorio</p></div>
+    </div>
+    <div class="header-actions">
+      @if (borradores > 0) {
+        <div class="alert-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {{ borradores }} borrador{{ borradores > 1 ? 'es' : '' }} pendiente{{ borradores > 1 ? 's' : '' }} de validar
+        </div>
+      }
+      <button class="btn-nuevo">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nuevo pedido
+      </button>
+    </div>
   </div>
-  <h1>Pedidos</h1>
-  <p>Registro y seguimiento de trabajos enviados por los odontólogos. Los pedidos ingresarán por WhatsApp o manualmente y pasarán por el flujo de producción.</p>
-  <div class="stub-features">
-    <div class="feat"><span class="dot"></span>Nuevo pedido con datos del odontólogo y trabajo solicitado</div>
-    <div class="feat"><span class="dot"></span>Seguimiento de estado: Recibido → En producción → Terminado → Entregado</div>
-    <div class="feat"><span class="dot"></span>Adjuntar archivos .stl y órdenes de trabajo</div>
-    <div class="feat"><span class="dot"></span>Historial de pedidos por odontólogo</div>
+
+  <!-- Filtros -->
+  <div class="filter-bar">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Buscar pedido, paciente, odontólogo..." [(ngModel)]="busqueda" (ngModelChange)="filtrar()" class="search-input"/>
+    </div>
+    <div class="estado-tabs">
+      @for (e of estados; track e.valor) {
+        <button class="estado-tab" [class.active]="estadoFiltro === e.valor"
+                (click)="estadoFiltro = e.valor; filtrar()">
+          {{ e.label }}
+        </button>
+      }
+    </div>
   </div>
-  <span class="sprint-badge">Sprint 3 — 15/06/2026</span>
+
+  <!-- Tabla -->
+  <div class="table-wrap">
+    <table class="pedidos-table">
+      <thead>
+        <tr>
+          <th>Pedido</th>
+          <th>Estado</th>
+          <th>Paciente</th>
+          <th>Odontólogo</th>
+          <th>Trabajo</th>
+          <th>Canal</th>
+          <th>Ingreso</th>
+          <th>Entrega</th>
+          <th>Precio</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (p of filtrados; track p.id) {
+          <tr [class.urgente]="p.prioridad === 'URGENTE'">
+            <td class="nro-cell">
+              <span class="nro">{{ p.nroPedido }}</span>
+              @if (p.prioridad === 'URGENTE') {
+                <span class="urgente-dot" title="Urgente">⚡</span>
+              }
+            </td>
+            <td><span class="estado-chip" [attr.data-color]="colorEstado(p.estado)">{{ labelEstado(p.estado) }}</span></td>
+            <td class="text-cell">{{ p.paciente }}</td>
+            <td class="text-cell muted">{{ p.odontologo }}</td>
+            <td class="text-cell small">{{ p.tipoTrabajo }}</td>
+            <td class="canal-cell">{{ labelCanal(p.canal) }}</td>
+            <td class="date-cell">{{ formatFecha(p.fechaIngreso) }}</td>
+            <td class="date-cell">{{ formatFecha(p.fechaEntrega) }}</td>
+            <td class="price-cell">{{ formatPrecio(p.precio) }}</td>
+            <td class="action-cell">
+              @if (p.estado === 'BORRADOR') {
+                <button class="btn-validar">Validar</button>
+              } @else {
+                <button class="btn-ver">Ver</button>
+              }
+            </td>
+          </tr>
+        }
+        @empty {
+          <tr><td colspan="10" class="empty-row">No se encontraron pedidos.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
 </div>

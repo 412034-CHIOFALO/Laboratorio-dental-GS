@@ -1,16 +1,20 @@
 export const environment = {
   production: false,
 
-  // 🎬 MODO DEMO — usar mocks en lugar de hacer peticiones HTTP.
-  // Cuando es true: el login es fake (admin/admin123), los services
-  // devuelven datos hardcodeados y no se requiere ningún backend.
-  // Útil para presentaciones al cliente con compu sin recursos.
+  // ─── MODO ────────────────────────────────────────────────────────────────────
+  // true  → mocks en memoria (demo sin backend, login: admin/admin123)
+  // false → backend real a través del api-gateway (requiere todos los ms corriendo)
   useMocks: true,
 
-  // En dev apuntamos directo a cada microservicio (sin gateway)
-  apiUrl: 'http://localhost:8083',         // ms-catalogo
-  produccionUrl: 'http://localhost:8084',  // ms-produccion
-  pedidosUrl: 'http://localhost:8082',     // ms-pedidos
-  finanzasUrl: 'http://localhost:8085',    // ms-finanzas
-  stockUrl: 'http://localhost:8086',       // ms-stock
+  // ─── GATEWAY ─────────────────────────────────────────────────────────────────
+  // Todos los microservicios se acceden a través del gateway en puerto 8080.
+  // Para usar el backend real: cambiar useMocks a false y levantar los servicios.
+  gatewayUrl: 'http://localhost:8080',
+
+  // Aliases por ms — apuntan todos al gateway (el gateway rutea internamente)
+  apiUrl:        'http://localhost:8080',  // → ms-catalogo  (/api/catalogo/**)
+  produccionUrl: 'http://localhost:8080',  // → ms-produccion (/api/produccion/**)
+  pedidosUrl:    'http://localhost:8080',  // → ms-pedidos    (/api/pedidos/**)
+  finanzasUrl:   'http://localhost:8080',  // → ms-finanzas   (/api/finanzas/**)
+  stockUrl:      'http://localhost:8080',  // → ms-stock      (/api/stock/**)
 };
