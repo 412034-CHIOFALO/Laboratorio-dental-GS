@@ -326,8 +326,10 @@
   width: 100%;
   max-width: 640px;
   max-height: 90vh;
-  display: flex;
-  flex-direction: column;
+  /* Grid layout: header (auto) + body (1fr, scrollea) + footer (auto) ─ */
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   animation: slidein 0.18s ease;
 }
@@ -371,11 +373,10 @@
 .modal-body {
   padding: 1.25rem 1.5rem;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  /* ── Bug fix flex+overflow: sin estas dos líneas el body no scrollea ── */
-  flex: 1 1 auto;
   min-height: 0;
 }
 
@@ -498,7 +499,6 @@ select.form-input { cursor: pointer; }
   background: rgba(245, 158, 11, 0.05);
   border: 1.5px dashed rgba(245, 158, 11, 0.35);
   border-radius: 10px;
-  overflow: hidden;
   transition: border-color 0.18s;
 }
 .nuevo-odon-panel.abierto {
