@@ -1,8 +1,12 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { clonar, MOCK_PEDIDOS, MockPedido } from '../../../services/mock-data';
+import {
+  PedidosService, PedidoResponse, PedidoRequest, EstadoPedido, Prioridad
+} from '../../../services/pedidos.service';
+import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
+import { CatalogoService, TipoTrabajoResponse } from '../../../services/catalogo.service';
 
-type EstadoPedido = MockPedido['estado'] | '';
+type FiltroEstado = EstadoPedido | 'TODOS';
 
 @Component({
   selector: 'app-pedidos',
@@ -11,64 +15,351 @@ type EstadoPedido = MockPedido['estado'] | '';
   templateUrl: './pedidos.html',
   styleUrls: ['./pedidos.css'],
 })
-export class PedidosComponent {
-  pedidos: MockPedido[];
-  filtrados: MockPedido[];
-  busqueda = '';
-  estadoFiltro: EstadoPedido = '';
+export class PedidosComponent implements OnInit {
 
-  readonly estados: { valor: EstadoPedido; label: string }[] = [
-    { valor: '',              label: 'Todos'             },
-    { valor: 'BORRADOR',      label: 'Borrador (bot)'    },
-    { valor: 'RECEPCIONADO',  label: 'Recepcionado'      },
-    { valor: 'EN_PRODUCCION', label: 'En producción'     },
-    { valor: 'LISTO',         label: 'Listo'             },
-    { valor: 'ENTREGADO',     label: 'Entregado'         },
-    { valor: 'CANCELADO',     label: 'Cancelado'         },
+  // ── Estado de la lista ───────────────────────────────────────
+  pedidos: PedidoResponse[] = [];
+  filtrados: PedidoResponse[] = [];
+  loading = false;
+  error = '';
+
+  // ── Filtros ──────────────────────────────────────────────────
+  busqueda = '';
+  estadoActivo: FiltroEstado = 'TODOS';
+
+  readonly estados: { valor: FiltroEstado; label: string }[] = [
+    { valor: 'TODOS',      label: 'Todos'        },
+    { valor: 'RECIBIDO',   label: 'Recibidos'    },
+    { valor: 'EN_PROCESO', label: 'En proceso'   },
+    { valor: 'CONTROL',    label: 'Control'      },
+    { valor: 'LISTO',      label: 'Listos'       },
+    { valor: 'ENTREGADO',  label: 'Entregados'   },
+    { valor: 'CANCELADO',  label: 'Cancelados'   },
   ];
 
-  constructor() {
-    this.pedidos  = clonar(MOCK_PEDIDOS).sort((a: MockPedido, b: MockPedido) =>
-      new Date(b.fechaIngreso).getTime() - new Date(a.fechaIngreso).getTime());
-    this.filtrados = this.pedidos;
-  }
+  // ── Modal Nuevo / Editar ─────────────────────────────────────
+  showModal = false;
+  editMode = false;
+  saving = false;
+  pedidoEditandoId: number | null = null;
 
-  filtrar(): void {
-    const q = this.busqueda.toLowerCase();
-    this.filtrados = this.pedidos.filter(p => {
-      const matchEstado = !this.estadoFiltro || p.estado === this.estadoFiltro;
-      const matchText   = !q || [p.nroPedido, p.paciente, p.odontologo, p.tipoTrabajo].some(s => s.toLowerCase().includes(q));
-      return matchEstado && matchText;
+  form: {
+    odontologoId: number | null;
+    odontologoNombre: string;
+    paciente: string;
+    catalogoTrabajoId: number | null;
+    trabajo: string;
+    fechaEntrega: string;
+    prioridad: Prioridad;
+    precioAcordado: number | null;
+    observaciones: string;
+  } = this.formVacio();
+
+  // Autocomplete odontólogo
+  odontologosSugeridos: OdontologoResponse[] = [];
+  mostrandoSugerencias = false;
+  buscandoOdontologo = false;
+
+  // Catálogo (para el dropdown del modal)
+  catalogo: TipoTrabajoResponse[] = [];
+
+  // ── Detalle ──────────────────────────────────────────────────
+  detalleAbierto: PedidoResponse | null = null;
+
+  // ── Confirmar cancelar ───────────────────────────────────────
+  cancelConfirmId: number | null = null;
+
+  constructor(
+    private pedidosService: PedidosService,
+    private odontologosService: OdontologosService,
+    private catalogoService: CatalogoService,
+  ) {}
+
+  ngOnInit(): void {
+    this.cargar();
+    this.catalogoService.listar().subscribe({
+      next: cat => this.catalogo = cat.filter(t => t.activo),
+      error: err => console.error('No se pudo cargar el catálogo:', err),
     });
   }
 
-  colorEstado(e: string): string {
-    const m: Record<string, string> = {
-      BORRADOR: 'purple', RECEPCIONADO: 'blue', EN_PRODUCCION: 'amber',
-      LISTO: 'green', ENTREGADO: 'cyan', CANCELADO: 'rose',
-    };
-    return m[e] ?? 'muted';
+  // ─────────────────────────────────────────────────────────────
+  // CARGA Y FILTROS
+  // ─────────────────────────────────────────────────────────────
+
+  private cargar(): void {
+    this.loading = true;
+    this.error = '';
+    this.pedidosService.listarTodos().subscribe({
+      next: data => {
+        this.pedidos = data.sort((a, b) =>
+          new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
+        this.filtrar();
+        this.loading = false;
+      },
+      error: err => {
+        this.error = 'No se pudieron cargar los pedidos. ¿ms-pedidos está corriendo?';
+        this.loading = false;
+        console.error(err);
+      },
+    });
   }
 
-  labelEstado(e: string): string {
-    const m: Record<string, string> = {
-      BORRADOR: 'Borrador', RECEPCIONADO: 'Recepcionado', EN_PRODUCCION: 'En producción',
-      LISTO: 'Listo', ENTREGADO: 'Entregado', CANCELADO: 'Cancelado',
+  filtrar(): void {
+    const q = this.busqueda.trim().toLowerCase();
+    this.filtrados = this.pedidos.filter(p => {
+      const matchEstado = this.estadoActivo === 'TODOS' || p.estado === this.estadoActivo;
+      const matchTexto = !q || [
+        p.nroPedido, p.paciente, p.odontologoNombre, p.trabajo,
+      ].some(s => s?.toLowerCase().includes(q));
+      return matchEstado && matchTexto;
+    });
+  }
+
+  setEstadoActivo(e: FiltroEstado): void {
+    this.estadoActivo = e;
+    this.filtrar();
+  }
+
+  countByEstado(e: FiltroEstado): number {
+    return e === 'TODOS' ? this.pedidos.length : this.pedidos.filter(p => p.estado === e).length;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // MODAL NUEVO / EDITAR
+  // ─────────────────────────────────────────────────────────────
+
+  abrirCrear(): void {
+    this.editMode = false;
+    this.pedidoEditandoId = null;
+    this.form = this.formVacio();
+    this.showModal = true;
+  }
+
+  abrirEditar(p: PedidoResponse): void {
+    this.editMode = true;
+    this.pedidoEditandoId = p.id;
+    this.form = {
+      odontologoId: p.odontologoId,
+      odontologoNombre: p.odontologoNombre,
+      paciente: p.paciente,
+      catalogoTrabajoId: p.catalogoTrabajoId,
+      trabajo: p.trabajo,
+      fechaEntrega: p.fechaEntrega,
+      prioridad: p.prioridad,
+      precioAcordado: p.precioAcordado,
+      observaciones: p.observaciones ?? '',
+    };
+    this.detalleAbierto = null;
+    this.showModal = true;
+  }
+
+  cerrarModal(): void {
+    this.showModal = false;
+    this.odontologosSugeridos = [];
+    this.mostrandoSugerencias = false;
+  }
+
+  private formVacio(): typeof this.form {
+    const hoy = new Date();
+    hoy.setDate(hoy.getDate() + 7);
+    return {
+      odontologoId: null,
+      odontologoNombre: '',
+      paciente: '',
+      catalogoTrabajoId: null,
+      trabajo: '',
+      fechaEntrega: hoy.toISOString().split('T')[0],
+      prioridad: 'NORMAL',
+      precioAcordado: null,
+      observaciones: '',
+    };
+  }
+
+  get formValido(): boolean {
+    return !!(
+      this.form.odontologoNombre.trim() &&
+      this.form.paciente.trim() &&
+      this.form.trabajo.trim() &&
+      this.form.fechaEntrega
+    );
+  }
+
+  // ── Autocomplete odontólogo ──────────────────────────────────
+
+  onOdontologoInput(): void {
+    // Si el usuario escribe, perdemos el id (puede ser nuevo)
+    this.form.odontologoId = null;
+
+    const q = this.form.odontologoNombre.trim();
+    if (q.length < 2) {
+      this.odontologosSugeridos = [];
+      this.mostrandoSugerencias = false;
+      return;
+    }
+    this.buscandoOdontologo = true;
+    this.odontologosService.buscar(q).subscribe({
+      next: data => {
+        this.odontologosSugeridos = data.slice(0, 6);
+        this.mostrandoSugerencias = this.odontologosSugeridos.length > 0;
+        this.buscandoOdontologo = false;
+      },
+      error: err => {
+        console.error('Error buscando odontólogos:', err);
+        this.buscandoOdontologo = false;
+      },
+    });
+  }
+
+  seleccionarOdontologo(o: OdontologoResponse): void {
+    this.form.odontologoId = o.id;
+    this.form.odontologoNombre = o.nombre;
+    this.odontologosSugeridos = [];
+    this.mostrandoSugerencias = false;
+  }
+
+  ocultarSugerenciasConDelay(): void {
+    // pequeño delay para permitir que el click sobre la sugerencia se procese
+    setTimeout(() => (this.mostrandoSugerencias = false), 200);
+  }
+
+  // ── Selección de tipo de trabajo del catálogo ────────────────
+
+  onCatalogoChange(): void {
+    const t = this.catalogo.find(c => c.id === this.form.catalogoTrabajoId);
+    if (t) {
+      this.form.trabajo = t.nombre;
+      if (this.form.precioAcordado == null || this.form.precioAcordado === 0) {
+        this.form.precioAcordado = t.precio;
+      }
+    }
+  }
+
+  // ── Submit ───────────────────────────────────────────────────
+
+  guardar(): void {
+    if (!this.formValido) return;
+    this.saving = true;
+
+    const request: PedidoRequest = {
+      odontologoId: this.form.odontologoId,
+      odontologoNombre: this.form.odontologoNombre.trim(),
+      paciente: this.form.paciente.trim(),
+      catalogoTrabajoId: this.form.catalogoTrabajoId,
+      trabajo: this.form.trabajo.trim(),
+      fechaEntrega: this.form.fechaEntrega,
+      prioridad: this.form.prioridad,
+      precioAcordado: this.form.precioAcordado,
+      observaciones: this.form.observaciones?.trim() || null,
+    };
+
+    const op$ = this.editMode && this.pedidoEditandoId
+      ? this.pedidosService.actualizar(this.pedidoEditandoId, request)
+      : this.pedidosService.crear(request);
+
+    op$.subscribe({
+      next: res => {
+        if (this.editMode) {
+          const idx = this.pedidos.findIndex(p => p.id === res.id);
+          if (idx !== -1) this.pedidos[idx] = res;
+        } else {
+          this.pedidos.unshift(res);
+        }
+        this.filtrar();
+        this.saving = false;
+        this.cerrarModal();
+      },
+      error: err => {
+        this.saving = false;
+        console.error('Error al guardar el pedido:', err);
+        alert('No se pudo guardar el pedido. Revisá la consola.');
+      },
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // DETALLE
+  // ─────────────────────────────────────────────────────────────
+
+  abrirDetalle(p: PedidoResponse): void {
+    this.detalleAbierto = p;
+  }
+
+  cerrarDetalle(): void {
+    this.detalleAbierto = null;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // ACCIONES DE ESTADO
+  // ─────────────────────────────────────────────────────────────
+
+  pedirConfirmCancelar(id: number): void {
+    this.cancelConfirmId = id;
+  }
+  abortarCancel(): void {
+    this.cancelConfirmId = null;
+  }
+
+  confirmarCancelar(id: number): void {
+    this.pedidosService.actualizarEstado(id, 'CANCELADO').subscribe({
+      next: res => {
+        const idx = this.pedidos.findIndex(p => p.id === id);
+        if (idx !== -1) this.pedidos[idx] = res;
+        this.cancelConfirmId = null;
+        this.filtrar();
+        if (this.detalleAbierto?.id === id) this.detalleAbierto = res;
+      },
+      error: err => {
+        console.error('Error al cancelar:', err);
+        this.cancelConfirmId = null;
+      },
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS DE VISTA
+  // ─────────────────────────────────────────────────────────────
+
+  labelEstado(e: EstadoPedido): string {
+    const m: Record<EstadoPedido, string> = {
+      RECIBIDO: 'Recibido', EN_PROCESO: 'En proceso',
+      CONTROL: 'Control', LISTO: 'Listo',
+      ENTREGADO: 'Entregado', CANCELADO: 'Cancelado',
     };
     return m[e] ?? e;
   }
 
-  labelCanal(c: string): string {
-    return { MANUAL: '🖊 Manual', WHATSAPP: '💬 WhatsApp', EMAIL: '📧 Email' }[c] ?? c;
+  colorEstado(e: EstadoPedido): string {
+    const m: Record<EstadoPedido, string> = {
+      RECIBIDO: 'blue', EN_PROCESO: 'amber',
+      CONTROL: 'purple', LISTO: 'green',
+      ENTREGADO: 'cyan', CANCELADO: 'rose',
+    };
+    return m[e] ?? 'muted';
   }
 
-  formatFecha(iso: string): string {
-    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  formatFecha(iso: string | null): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
-  formatPrecio(n: number): string {
-    return '$' + n.toLocaleString('es-AR');
+  formatPrecio(n: number | null): string {
+    if (n == null) return 'A convenir';
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
   }
 
-  get borradores(): number { return this.pedidos.filter(p => p.estado === 'BORRADOR').length; }
+  diasRestantes(fechaEntrega: string): { dias: number; texto: string; clase: string } {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const fe = new Date(fechaEntrega); fe.setHours(0, 0, 0, 0);
+    const dias = Math.round((fe.getTime() - hoy.getTime()) / 86_400_000);
+    if (dias < 0)  return { dias, texto: `Vencido (${Math.abs(dias)}d)`, clase: 'vencido' };
+    if (dias === 0) return { dias, texto: 'Hoy',                            clase: 'urgente' };
+    if (dias <= 2)  return { dias, texto: `${dias}d`,                       clase: 'urgente' };
+    if (dias <= 7)  return { dias, texto: `${dias}d`,                       clase: 'pronto'  };
+    return { dias, texto: `${dias}d`, clase: 'normal' };
+  }
+
+  get modalTitle(): string {
+    return this.editMode ? 'Editar pedido' : 'Nuevo pedido';
+  }
 }

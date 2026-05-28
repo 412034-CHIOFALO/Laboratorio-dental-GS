@@ -415,6 +415,83 @@ export const MOCK_AUDIT: MockAuditEvent[] = [
   { id: 14, timestamp: tsISO(48),   usuario: 'admin',   accion: 'Stock ajustado',          entidad: 'Yeso Piedra Tipo IV',  detalle: 'Conteo físico: teórico 5 → real 3',                 tipo: 'EDITAR'   },
 ];
 
+// ── ODONTÓLOGOS (alineados con OdontologoResponse del backend) ─
+import type { OdontologoResponse } from './odontologos.service';
+import type { PedidoResponse } from './pedidos.service';
+
+export const MOCK_ODONTOLOGOS: OdontologoResponse[] = [
+  { id: 1, nombre: 'Dr. Martín García',     telefono: '11-4567-8901', email: 'martin.garcia@odontologia.com.ar', matricula: 'MN 12345', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 2, nombre: 'Dra. Laura Sánchez',    telefono: '11-2345-6789', email: 'laura.sanchez@odonto.com.ar',      matricula: 'MN 23456', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 3, nombre: 'Dr. Carlos Ruiz',       telefono: '11-5555-1234', email: 'c.ruiz@dental.com.ar',             matricula: 'MN 34567', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 4, nombre: 'Dra. Verónica Molina',  telefono: '11-6789-0123', email: null,                                matricula: 'MN 45678', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 5, nombre: 'Dr. Roberto Pérez',     telefono: '11-4234-5678', email: 'r.perez@dentista.com.ar',          matricula: 'MN 56789', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 6, nombre: 'Dra. Susana López',     telefono: '11-4123-4567', email: 'susana.lopez@dental.com',          matricula: 'MN 67890', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+];
+
+// ── PEDIDOS (alineados con PedidoResponse del backend) ─────────
+export const MOCK_PEDIDOS_BACKEND: PedidoResponse[] = [
+  {
+    id: 1, nroPedido: 'PED-20260528-0001',
+    odontologoId: 1, odontologoNombre: 'Dr. Martín García',
+    paciente: 'Martín López',
+    catalogoTrabajoId: 1, trabajo: 'Corona Metal-Cerámica',
+    tecnicoId: null, tecnicoNombre: null,
+    fechaEntrega: hoyISO(5), estado: 'RECIBIDO', prioridad: 'URGENTE',
+    precioAcordado: 15000, observaciones: 'Urgente — paciente con cita',
+    fechaCreacion: HOY, fechaUltimaModificacion: HOY,
+  },
+  {
+    id: 2, nroPedido: 'PED-20260528-0002',
+    odontologoId: 1, odontologoNombre: 'Dr. Martín García',
+    paciente: 'Ana Rodríguez',
+    catalogoTrabajoId: 4, trabajo: 'Prótesis Acrílica Total',
+    tecnicoId: 2, tecnicoNombre: 'Carlos López',
+    fechaEntrega: hoyISO(12), estado: 'EN_PROCESO', prioridad: 'NORMAL',
+    precioAcordado: 45000, observaciones: 'Incluir ajuste de mordida',
+    fechaCreacion: HOY, fechaUltimaModificacion: HOY,
+  },
+  {
+    id: 3, nroPedido: 'PED-20260528-0003',
+    odontologoId: 2, odontologoNombre: 'Dra. Laura Sánchez',
+    paciente: 'Luis Fernández',
+    catalogoTrabajoId: 3, trabajo: 'Carilla Porcelana',
+    tecnicoId: 2, tecnicoNombre: 'Carlos López',
+    fechaEntrega: hoyISO(3), estado: 'EN_PROCESO', prioridad: 'NORMAL',
+    precioAcordado: 8000, observaciones: null,
+    fechaCreacion: HOY, fechaUltimaModificacion: HOY,
+  },
+  {
+    id: 4, nroPedido: 'PED-20260528-0004',
+    odontologoId: 2, odontologoNombre: 'Dra. Laura Sánchez',
+    paciente: 'Elena Gómez',
+    catalogoTrabajoId: 6, trabajo: 'Aparato Ortodóntico Móvil',
+    tecnicoId: 2, tecnicoNombre: 'Carlos López',
+    fechaEntrega: hoyISO(1), estado: 'CONTROL', prioridad: 'NORMAL',
+    precioAcordado: 18000, observaciones: 'Verificar alambre labial',
+    fechaCreacion: HOY, fechaUltimaModificacion: HOY,
+  },
+  {
+    id: 5, nroPedido: 'PED-20260528-0005',
+    odontologoId: 1, odontologoNombre: 'Dr. Martín García',
+    paciente: 'Roberto Díaz',
+    catalogoTrabajoId: 7, trabajo: 'Placa Mio-relajante',
+    tecnicoId: 2, tecnicoNombre: 'Carlos López',
+    fechaEntrega: hoyISO(-1), estado: 'LISTO', prioridad: 'NORMAL',
+    precioAcordado: 12000, observaciones: 'Pulido final aprobado',
+    fechaCreacion: HOY, fechaUltimaModificacion: HOY,
+  },
+  {
+    id: 6, nroPedido: 'PED-20260528-0006',
+    odontologoId: 5, odontologoNombre: 'Dr. Roberto Pérez',
+    paciente: 'Sofía Romero',
+    catalogoTrabajoId: 8, trabajo: 'Provisorio Acrílico',
+    tecnicoId: 2, tecnicoNombre: 'Carlos López',
+    fechaEntrega: hoyISO(-1), estado: 'LISTO', prioridad: 'NORMAL',
+    precioAcordado: 15000, observaciones: null,
+    fechaCreacion: HOY, fechaUltimaModificacion: HOY,
+  },
+];
+
 // ── HELPER: clonar mock para no mutar el original ────────────
 export function clonar<T>(data: T): T {
   return JSON.parse(JSON.stringify(data));
