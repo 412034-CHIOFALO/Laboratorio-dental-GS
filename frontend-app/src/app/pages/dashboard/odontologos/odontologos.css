@@ -263,6 +263,7 @@
   gap: 1rem;
   padding: 1.1rem 1.5rem;
   border-bottom: 1px solid var(--gs-border);
+  flex-shrink: 0;
 }
 .modal-header h2 {
   font-size: 1.1rem;
@@ -291,6 +292,8 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .form-section-title {
@@ -367,6 +370,7 @@
   gap: 0.6rem;
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--gs-border);
+  flex-shrink: 0;
 }
 .btn-primary {
   background: var(--gs-gradient-green);

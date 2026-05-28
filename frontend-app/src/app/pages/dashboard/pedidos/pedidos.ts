@@ -219,8 +219,12 @@ export class PedidosComponent implements OnInit {
     return !!(n.dni || n.cuit || n.telefono || n.email || n.matricula || n.clinica || n.direccion);
   }
 
-  togglePanelNuevoOdontologo(): void {
+  togglePanelNuevoOdontologo(panelEl?: HTMLElement): void {
     this.panelNuevoOdontologoAbierto = !this.panelNuevoOdontologoAbierto;
+    // Al abrir, scrolleamos el panel a la vista para que el usuario lo vea entero
+    if (this.panelNuevoOdontologoAbierto && panelEl) {
+      setTimeout(() => panelEl.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+    }
   }
 
   get formValido(): boolean {

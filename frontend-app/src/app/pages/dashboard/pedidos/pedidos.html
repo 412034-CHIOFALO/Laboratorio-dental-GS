@@ -192,8 +192,8 @@
 
         <!-- Panel expandible: datos opcionales del odontólogo nuevo -->
         @if (esOdontologoNuevo) {
-          <div class="nuevo-odon-panel" [class.abierto]="panelNuevoOdontologoAbierto">
-            <button type="button" class="nuevo-odon-toggle" (click)="togglePanelNuevoOdontologo()">
+          <div #nuevoOdonPanel class="nuevo-odon-panel" [class.abierto]="panelNuevoOdontologoAbierto">
+            <button type="button" class="nuevo-odon-toggle" (click)="togglePanelNuevoOdontologo(nuevoOdonPanel)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" [class.rotated]="panelNuevoOdontologoAbierto">
                 <polyline points="9 18 15 12 9 6"/>
               </svg>
