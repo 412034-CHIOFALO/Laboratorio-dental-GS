@@ -53,7 +53,20 @@ export class PedidosComponent implements OnInit {
     prioridad: Prioridad;
     precioAcordado: number | null;
     observaciones: string;
+    // ── Datos opcionales para crear odontólogo nuevo inline ──
+    nuevoOdontologo: {
+      dni: string;
+      cuit: string;
+      telefono: string;
+      email: string;
+      matricula: string;
+      clinica: string;
+      direccion: string;
+    };
   } = this.formVacio();
+
+  /** Controla si el panel "Datos del nuevo odontólogo" está expandido. */
+  panelNuevoOdontologoAbierto = false;
 
   // Autocomplete odontólogo
   odontologosSugeridos: OdontologoResponse[] = [];
@@ -155,6 +168,10 @@ export class PedidosComponent implements OnInit {
       prioridad: p.prioridad,
       precioAcordado: p.precioAcordado,
       observaciones: p.observaciones ?? '',
+      nuevoOdontologo: {
+        dni: '', cuit: '', telefono: '', email: '',
+        matricula: '', clinica: '', direccion: '',
+      },
     };
     this.detalleAbierto = null;
     this.showModal = true;
@@ -182,7 +199,28 @@ export class PedidosComponent implements OnInit {
       prioridad: 'NORMAL',
       precioAcordado: null,
       observaciones: '',
+      nuevoOdontologo: {
+        dni: '', cuit: '', telefono: '', email: '',
+        matricula: '', clinica: '', direccion: '',
+      },
     };
+  }
+
+  /** True cuando el nombre tipeado es nuevo (no matchea ninguno existente). */
+  get esOdontologoNuevo(): boolean {
+    return !this.form.odontologoId &&
+           this.form.odontologoNombre.trim().length >= 2 &&
+           this.tipoMatchOdontologo === 'NOMBRE';
+  }
+
+  /** True cuando el usuario completó al menos un dato extra del odontólogo nuevo. */
+  get tieneDatosNuevoOdontologo(): boolean {
+    const n = this.form.nuevoOdontologo;
+    return !!(n.dni || n.cuit || n.telefono || n.email || n.matricula || n.clinica || n.direccion);
+  }
+
+  togglePanelNuevoOdontologo(): void {
+    this.panelNuevoOdontologoAbierto = !this.panelNuevoOdontologoAbierto;
   }
 
   get formValido(): boolean {
@@ -296,6 +334,39 @@ export class PedidosComponent implements OnInit {
     if (!this.formValido) return;
     this.saving = true;
 
+    // Si es un odontólogo nuevo Y el usuario completó datos extras → crearlo primero
+    if (this.esOdontologoNuevo && this.tieneDatosNuevoOdontologo) {
+      const n = this.form.nuevoOdontologo;
+      this.odontologosService.crear({
+        nombre: this.form.odontologoNombre.trim(),
+        dni: n.dni.trim() || null,
+        cuit: n.cuit.trim() || null,
+        telefono: n.telefono.trim() || null,
+        email: n.email.trim() || null,
+        matricula: n.matricula.trim() || null,
+        clinica: n.clinica.trim() || null,
+        direccion: n.direccion.trim() || null,
+      }).subscribe({
+        next: odon => {
+          this.form.odontologoId = odon.id;
+          this.guardarPedido(); // ahora sí, con el id resuelto
+        },
+        error: err => {
+          this.saving = false;
+          const msg = err?.error?.mensaje ?? 'No se pudo crear el odontólogo nuevo.';
+          alert(msg);
+          console.error(err);
+        },
+      });
+      return;
+    }
+
+    // Caso normal: o es existente, o es nuevo solo con nombre (find-or-create del backend)
+    this.guardarPedido();
+  }
+
+  /** Llama al endpoint de pedidos con el form actual. */
+  private guardarPedido(): void {
     const request: PedidoRequest = {
       odontologoId: this.form.odontologoId,
       odontologoNombre: this.form.odontologoNombre.trim(),

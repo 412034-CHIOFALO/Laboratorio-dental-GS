@@ -12,6 +12,8 @@ public record OdontologoResponse(
         String telefono,
         String email,
         String matricula,
+        String clinica,
+        String direccion,
         Boolean activo,
         LocalDateTime fechaCreacion,
         LocalDateTime fechaModificacion
@@ -25,6 +27,8 @@ public record OdontologoResponse(
                 o.getTelefono(),
                 o.getEmail(),
                 o.getMatricula(),
+                o.getClinica(),
+                o.getDireccion(),
                 o.getActivo(),
                 o.getFechaCreacion(),
                 o.getFechaModificacion()

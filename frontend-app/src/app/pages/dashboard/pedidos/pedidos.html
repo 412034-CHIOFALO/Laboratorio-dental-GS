@@ -190,6 +190,56 @@
           </div>
         </div>
 
+        <!-- Panel expandible: datos opcionales del odontólogo nuevo -->
+        @if (esOdontologoNuevo) {
+          <div class="nuevo-odon-panel" [class.abierto]="panelNuevoOdontologoAbierto">
+            <button type="button" class="nuevo-odon-toggle" (click)="togglePanelNuevoOdontologo()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" [class.rotated]="panelNuevoOdontologoAbierto">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+              <strong>Completar datos del nuevo odontólogo</strong>
+              <span class="badge-opcional">opcional · podés completarlos después</span>
+            </button>
+
+            @if (panelNuevoOdontologoAbierto) {
+              <div class="nuevo-odon-body">
+                <div class="form-grid-2">
+                  <div class="form-row">
+                    <label>DNI</label>
+                    <input type="text" class="form-input" [(ngModel)]="form.nuevoOdontologo.dni" placeholder="28456789" maxlength="8"/>
+                  </div>
+                  <div class="form-row">
+                    <label>CUIT</label>
+                    <input type="text" class="form-input" [(ngModel)]="form.nuevoOdontologo.cuit" placeholder="20-28456789-3"/>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label>Matrícula</label>
+                  <input type="text" class="form-input" [(ngModel)]="form.nuevoOdontologo.matricula" placeholder="MN 12345"/>
+                </div>
+                <div class="form-grid-2">
+                  <div class="form-row">
+                    <label>Teléfono</label>
+                    <input type="text" class="form-input" [(ngModel)]="form.nuevoOdontologo.telefono" placeholder="11-4567-8901"/>
+                  </div>
+                  <div class="form-row">
+                    <label>Email</label>
+                    <input type="email" class="form-input" [(ngModel)]="form.nuevoOdontologo.email" placeholder="odontologo@email.com"/>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label>Clínica / Consultorio</label>
+                  <input type="text" class="form-input" [(ngModel)]="form.nuevoOdontologo.clinica" placeholder="Ej: Clínica Odontológica Norte"/>
+                </div>
+                <div class="form-row">
+                  <label>Dirección</label>
+                  <input type="text" class="form-input" [(ngModel)]="form.nuevoOdontologo.direccion" placeholder="Av. Cabildo 2350, CABA"/>
+                </div>
+              </div>
+            }
+          </div>
+        }
+
         <div class="form-grid-2">
           <div class="form-row">
             <label>Paciente *</label>

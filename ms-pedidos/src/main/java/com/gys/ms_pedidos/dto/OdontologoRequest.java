@@ -30,4 +30,10 @@ public class OdontologoRequest {
 
     @Size(max = 30, message = "La matrícula no puede superar los 30 caracteres")
     private String matricula;
+
+    @Size(max = 200, message = "El nombre de la clínica no puede superar los 200 caracteres")
+    private String clinica;
+
+    @Size(max = 250, message = "La dirección no puede superar los 250 caracteres")
+    private String direccion;
 }

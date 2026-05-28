@@ -47,4 +47,10 @@ public class OdontologoController {
             @Valid @RequestBody OdontologoRequest request) {
         return ResponseEntity.ok(service.actualizar(id, request));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> desactivar(@PathVariable Long id) {
+        service.desactivar(id);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -420,12 +420,12 @@ import type { OdontologoResponse } from './odontologos.service';
 import type { PedidoResponse } from './pedidos.service';
 
 export const MOCK_ODONTOLOGOS: OdontologoResponse[] = [
-  { id: 1, nombre: 'Dr. Martín García',    dni: '28456789', cuit: '20-28456789-3', telefono: '11-4567-8901', email: 'martin.garcia@odontologia.com.ar', matricula: 'MN 12345', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
-  { id: 2, nombre: 'Dra. Laura Sánchez',   dni: '30123456', cuit: '27-30123456-5', telefono: '11-2345-6789', email: 'laura.sanchez@odonto.com.ar',       matricula: 'MN 23456', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
-  { id: 3, nombre: 'Dr. Carlos Ruiz',      dni: '25789012', cuit: '20-25789012-7', telefono: '11-5555-1234', email: 'c.ruiz@dental.com.ar',              matricula: 'MN 34567', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
-  { id: 4, nombre: 'Dra. Verónica Molina', dni: '32654987', cuit: null,            telefono: '11-6789-0123', email: null,                                 matricula: 'MN 45678', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
-  { id: 5, nombre: 'Dr. Roberto Pérez',    dni: '24567890', cuit: '20-24567890-1', telefono: '11-4234-5678', email: 'r.perez@dentista.com.ar',           matricula: 'MN 56789', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
-  { id: 6, nombre: 'Dra. Susana López',    dni: '29876543', cuit: '27-29876543-2', telefono: '11-4123-4567', email: 'susana.lopez@dental.com',           matricula: 'MN 67890', activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 1, nombre: 'Dr. Martín García',    dni: '28456789', cuit: '20-28456789-3', telefono: '11-4567-8901', email: 'martin.garcia@odontologia.com.ar', matricula: 'MN 12345', clinica: 'Clínica Odontológica Norte',     direccion: 'Av. Cabildo 2350, CABA',        activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 2, nombre: 'Dra. Laura Sánchez',   dni: '30123456', cuit: '27-30123456-5', telefono: '11-2345-6789', email: 'laura.sanchez@odonto.com.ar',       matricula: 'MN 23456', clinica: 'Consultorio Dental Belgrano',     direccion: 'Mendoza 1820, CABA',            activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 3, nombre: 'Dr. Carlos Ruiz',      dni: '25789012', cuit: '20-25789012-7', telefono: '11-5555-1234', email: 'c.ruiz@dental.com.ar',              matricula: 'MN 34567', clinica: 'Centro Odontológico Palermo',     direccion: 'Scalabrini Ortiz 950, CABA',    activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 4, nombre: 'Dra. Verónica Molina', dni: '32654987', cuit: null,            telefono: '11-6789-0123', email: null,                                 matricula: 'MN 45678', clinica: 'Odontología Integral San Telmo', direccion: 'Defensa 750, CABA',             activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 5, nombre: 'Dr. Roberto Pérez',    dni: '24567890', cuit: '20-24567890-1', telefono: '11-4234-5678', email: 'r.perez@dentista.com.ar',           matricula: 'MN 56789', clinica: 'Pérez Odontología',               direccion: 'Av. Corrientes 4500, CABA',     activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
+  { id: 6, nombre: 'Dra. Susana López',    dni: '29876543', cuit: '27-29876543-2', telefono: '11-4123-4567', email: 'susana.lopez@dental.com',           matricula: 'MN 67890', clinica: 'Clínica Dental López',            direccion: 'Av. Rivadavia 3200, CABA',      activo: true, fechaCreacion: HOY, fechaModificacion: HOY },
 ];
 
 // ── PEDIDOS (alineados con PedidoResponse del backend) ─────────

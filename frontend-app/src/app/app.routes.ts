@@ -14,6 +14,7 @@ import { ReportesComponent } from './pages/dashboard/reportes/reportes';
 import { DocumentosComponent } from './pages/dashboard/documentos/documentos';
 import { EscaneosComponent } from './pages/dashboard/escaneos/escaneos';
 import { AuditoriaComponent } from './pages/dashboard/auditoria/auditoria';
+import { OdontologosComponent } from './pages/dashboard/odontologos/odontologos';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -26,6 +27,7 @@ export const routes: Routes = [
     children: [
       { path: '',            component: DashboardHomeComponent },
       { path: 'pedidos',     component: PedidosComponent },
+      { path: 'odontologos', component: OdontologosComponent },
       { path: 'produccion',  component: ProduccionComponent },
       { path: 'entregas',    component: EntregasComponent },
       { path: 'catalogo',    component: CatalogoComponent },

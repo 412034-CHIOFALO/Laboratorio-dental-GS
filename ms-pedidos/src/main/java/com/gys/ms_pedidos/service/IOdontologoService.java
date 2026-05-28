@@ -20,6 +20,9 @@ public interface IOdontologoService {
 
     OdontologoResponse actualizar(Long id, OdontologoRequest request);
 
+    /** Desactiva (soft delete) — no se borra para preservar referencias en pedidos. */
+    void desactivar(Long id);
+
     /**
      * Patrón "find or create": busca por nombre exacto (case-insensitive).
      * Si no existe, lo crea con ese nombre y sin datos de contacto.

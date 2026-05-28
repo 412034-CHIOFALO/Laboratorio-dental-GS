@@ -13,6 +13,8 @@ export interface OdontologoResponse {
   telefono: string | null;
   email: string | null;
   matricula: string | null;
+  clinica: string | null;
+  direccion: string | null;
   activo: boolean;
   fechaCreacion: string;
   fechaModificacion: string;
@@ -25,6 +27,8 @@ export interface OdontologoRequest {
   telefono?: string | null;
   email?: string | null;
   matricula?: string | null;
+  clinica?: string | null;
+  direccion?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -98,6 +102,8 @@ export class OdontologosService {
         telefono: request.telefono ?? null,
         email: request.email ?? null,
         matricula: request.matricula ?? null,
+        clinica: request.clinica ?? null,
+        direccion: request.direccion ?? null,
         activo: true,
         fechaCreacion: ahora,
         fechaModificacion: ahora,
@@ -114,14 +120,27 @@ export class OdontologosService {
       if (idx === -1) throw new Error('Odontólogo no encontrado');
       this.mockStore[idx] = {
         ...this.mockStore[idx],
-        ...request,
-        telefono: request.telefono ?? this.mockStore[idx].telefono,
-        email: request.email ?? this.mockStore[idx].email,
-        matricula: request.matricula ?? this.mockStore[idx].matricula,
+        nombre: request.nombre.trim(),
+        dni: request.dni ?? null,
+        cuit: request.cuit ? this.normalizarCuit(request.cuit) : null,
+        telefono: request.telefono ?? null,
+        email: request.email ?? null,
+        matricula: request.matricula ?? null,
+        clinica: request.clinica ?? null,
+        direccion: request.direccion ?? null,
         fechaModificacion: new Date().toISOString(),
       };
       return of(clonar(this.mockStore[idx])).pipe(delay(200));
     }
     return this.http.put<OdontologoResponse>(`${this.base}/${id}`, request);
+  }
+
+  desactivar(id: number): Observable<void> {
+    if (environment.useMocks) {
+      const idx = this.mockStore.findIndex(o => o.id === id);
+      if (idx !== -1) this.mockStore[idx].activo = false;
+      return of(void 0).pipe(delay(180));
+    }
+    return this.http.delete<void>(`${this.base}/${id}`);
   }
 }

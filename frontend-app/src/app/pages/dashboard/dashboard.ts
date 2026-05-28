@@ -39,6 +39,7 @@ export class DashboardComponent implements OnInit {
 
     { type: 'group', label: 'Gestión' },
     { type: 'item', label: 'Catálogo',    icon: 'list',     route: '/dashboard/catalogo' },
+    { type: 'item', label: 'Odontólogos', icon: 'tooth',    route: '/dashboard/odontologos' },
     { type: 'item', label: 'Stock',       icon: 'box',      route: '/dashboard/stock' },
     { type: 'item', label: 'Finanzas',    icon: 'dollar',   route: '/dashboard/finanzas' },
     { type: 'item', label: 'Reportes',    icon: 'chart',    route: '/dashboard/reportes' },

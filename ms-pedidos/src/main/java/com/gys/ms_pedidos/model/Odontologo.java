@@ -54,6 +54,14 @@ public class Odontologo {
     @Column(name = "matricula", length = 30)
     private String matricula;
 
+    /** Clínica u hospital donde atiende. */
+    @Column(name = "clinica", length = 200)
+    private String clinica;
+
+    /** Dirección del consultorio (calle, número, ciudad). */
+    @Column(name = "direccion", length = 250)
+    private String direccion;
+
     @Column(name = "activo", nullable = false)
     @Builder.Default
     private Boolean activo = true;

@@ -56,6 +56,8 @@ public class DevDataInitializer implements CommandLineRunner {
                 .telefono("11-4567-8901")
                 .email("martin.garcia@odontologia.com.ar")
                 .matricula("MN 12345")
+                .clinica("Clínica Odontológica Norte")
+                .direccion("Av. Cabildo 2350, CABA")
                 .build()),
             "sanchez", odontologoRepository.save(Odontologo.builder()
                 .nombre("Dra. Laura Sánchez")
@@ -64,6 +66,8 @@ public class DevDataInitializer implements CommandLineRunner {
                 .telefono("11-2345-6789")
                 .email("laura.sanchez@odonto.com.ar")
                 .matricula("MN 23456")
+                .clinica("Consultorio Dental Belgrano")
+                .direccion("Mendoza 1820, CABA")
                 .build()),
             "ruiz", odontologoRepository.save(Odontologo.builder()
                 .nombre("Dr. Carlos Ruiz")
@@ -72,12 +76,16 @@ public class DevDataInitializer implements CommandLineRunner {
                 .telefono("11-5555-1234")
                 .email("c.ruiz@dental.com.ar")
                 .matricula("MN 34567")
+                .clinica("Centro Odontológico Palermo")
+                .direccion("Scalabrini Ortiz 950, CABA")
                 .build()),
             "molina", odontologoRepository.save(Odontologo.builder()
                 .nombre("Dra. Verónica Molina")
                 .dni("32654987")
                 .telefono("11-6789-0123")
                 .matricula("MN 45678")
+                .clinica("Odontología Integral San Telmo")
+                .direccion("Defensa 750, CABA")
                 .build())
         );
         log.info("[GYS-DEV] {} odontólogos cargados en ms-pedidos.", ods.size());

@@ -118,6 +118,8 @@ public class OdontologoService implements IOdontologoService {
                 .telefono(blankToNull(request.getTelefono()))
                 .email(blankToNull(request.getEmail()))
                 .matricula(blankToNull(request.getMatricula()))
+                .clinica(blankToNull(request.getClinica()))
+                .direccion(blankToNull(request.getDireccion()))
                 .build();
         return OdontologoResponse.from(repository.save(nuevo));
     }
@@ -145,7 +147,19 @@ public class OdontologoService implements IOdontologoService {
         o.setTelefono(blankToNull(request.getTelefono()));
         o.setEmail(blankToNull(request.getEmail()));
         o.setMatricula(blankToNull(request.getMatricula()));
+        o.setClinica(blankToNull(request.getClinica()));
+        o.setDireccion(blankToNull(request.getDireccion()));
         return OdontologoResponse.from(repository.save(o));
+    }
+
+    @Override
+    @Transactional
+    public void desactivar(Long id) {
+        Odontologo o = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Odontologo", id));
+        o.setActivo(false);
+        repository.save(o);
+        log.info("[GYS-PEDIDOS] Odontólogo desactivado: {} (id={})", o.getNombre(), id);
     }
 
     @Override

@@ -57,6 +57,8 @@ public class SecurityConfig {
                     .hasAnyRole("ADMIN", "ADMINISTRATIVO")
                 .requestMatchers(HttpMethod.PUT, "/api/odontologos/**")
                     .hasAnyRole("ADMIN", "ADMINISTRATIVO")
+                // Desactivar odontólogo — solo ADMIN
+                .requestMatchers(HttpMethod.DELETE, "/api/odontologos/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
