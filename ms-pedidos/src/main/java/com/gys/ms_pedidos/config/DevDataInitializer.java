@@ -1,8 +1,10 @@
 package com.gys.ms_pedidos.config;
 
 import com.gys.ms_pedidos.model.EstadoPedido;
+import com.gys.ms_pedidos.model.Odontologo;
 import com.gys.ms_pedidos.model.Pedido;
 import com.gys.ms_pedidos.model.Prioridad;
+import com.gys.ms_pedidos.repository.OdontologoRepository;
 import com.gys.ms_pedidos.repository.PedidoRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,16 +15,14 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Carga 5 pedidos de prueba que cubren todos los estados del flujo:
- *   RECIBIDO → EN_PROCESO → CONTROL → LISTO
+ * Carga datos iniciales en ms-pedidos para desarrollo:
+ *   - 4 odontólogos clientes del lab
+ *   - 5 pedidos cubriendo todos los estados (RECIBIDO → EN_PROCESO → CONTROL → LISTO)
  *
- * IDs de odontólogos (ms-auth DevDataInitializer, mismo orden de creación):
- *   ID 3 = dr_garcia   (Martín García)
- *   ID 4 = dra_sanchez (Laura Sánchez)
- *
- * ID de técnico:
+ * IDs de técnicos (ms-auth DevDataInitializer):
  *   ID 2 = tecnico1 (Carlos López)
  */
 @Component
@@ -30,28 +30,63 @@ import java.util.List;
 public class DevDataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DevDataInitializer.class);
-    private final PedidoRepository repository;
 
-    public DevDataInitializer(PedidoRepository repository) {
-        this.repository = repository;
+    private final PedidoRepository pedidoRepository;
+    private final OdontologoRepository odontologoRepository;
+
+    public DevDataInitializer(PedidoRepository pedidoRepository,
+                              OdontologoRepository odontologoRepository) {
+        this.pedidoRepository = pedidoRepository;
+        this.odontologoRepository = odontologoRepository;
     }
 
     @Override
     public void run(String... args) {
-        if (repository.count() > 0) {
+        if (pedidoRepository.count() > 0) {
             log.info("[GYS-DEV] ms-pedidos ya tiene datos — se omite la carga inicial.");
             return;
         }
 
+        // ── 1. Odontólogos clientes ────────────────────────────────────
+        Map<String, Odontologo> ods = Map.of(
+            "garcia", odontologoRepository.save(Odontologo.builder()
+                .nombre("Dr. Martín García")
+                .telefono("11-4567-8901")
+                .email("martin.garcia@odontologia.com.ar")
+                .matricula("MN 12345")
+                .build()),
+            "sanchez", odontologoRepository.save(Odontologo.builder()
+                .nombre("Dra. Laura Sánchez")
+                .telefono("11-2345-6789")
+                .email("laura.sanchez@odonto.com.ar")
+                .matricula("MN 23456")
+                .build()),
+            "ruiz", odontologoRepository.save(Odontologo.builder()
+                .nombre("Dr. Carlos Ruiz")
+                .telefono("11-5555-1234")
+                .email("c.ruiz@dental.com.ar")
+                .matricula("MN 34567")
+                .build()),
+            "molina", odontologoRepository.save(Odontologo.builder()
+                .nombre("Dra. Verónica Molina")
+                .telefono("11-6789-0123")
+                .matricula("MN 45678")
+                .build())
+        );
+        log.info("[GYS-DEV] {} odontólogos cargados en ms-pedidos.", ods.size());
+
+        // ── 2. Pedidos de prueba ───────────────────────────────────────
         LocalDate hoy = LocalDate.now();
+        Odontologo garcia  = ods.get("garcia");
+        Odontologo sanchez = ods.get("sanchez");
 
         List<Pedido> pedidos = List.of(
 
             // 1. RECIBIDO + URGENTE — corona recién ingresada, pendiente de asignar
             Pedido.builder()
                 .nroPedido("GYS-2025-0001")
-                .odontologoId(3L)
-                .odontologoNombre("Dr. Martín García")
+                .odontologoId(garcia.getId())
+                .odontologoNombre(garcia.getNombre())
                 .paciente("Martín López")
                 .catalogoTrabajoId(1L)
                 .trabajo("Corona Metal-Cerámica")
@@ -65,8 +100,8 @@ public class DevDataInitializer implements CommandLineRunner {
             // 2. EN_PROCESO — prótesis asignada a Carlos
             Pedido.builder()
                 .nroPedido("GYS-2025-0002")
-                .odontologoId(3L)
-                .odontologoNombre("Dr. Martín García")
+                .odontologoId(garcia.getId())
+                .odontologoNombre(garcia.getNombre())
                 .paciente("Ana Rodríguez")
                 .catalogoTrabajoId(4L)
                 .trabajo("Prótesis Total Superior")
@@ -82,8 +117,8 @@ public class DevDataInitializer implements CommandLineRunner {
             // 3. EN_PROCESO — incrustación en proceso
             Pedido.builder()
                 .nroPedido("GYS-2025-0003")
-                .odontologoId(4L)
-                .odontologoNombre("Dra. Laura Sánchez")
+                .odontologoId(sanchez.getId())
+                .odontologoNombre(sanchez.getNombre())
                 .paciente("Luis Fernández")
                 .catalogoTrabajoId(3L)
                 .trabajo("Incrustación Onlay")
@@ -98,8 +133,8 @@ public class DevDataInitializer implements CommandLineRunner {
             // 4. CONTROL — aparato funcional listo para revisión
             Pedido.builder()
                 .nroPedido("GYS-2025-0004")
-                .odontologoId(4L)
-                .odontologoNombre("Dra. Laura Sánchez")
+                .odontologoId(sanchez.getId())
+                .odontologoNombre(sanchez.getNombre())
                 .paciente("Elena Gómez")
                 .catalogoTrabajoId(5L)
                 .trabajo("Aparato Funcional Bimler")
@@ -115,8 +150,8 @@ public class DevDataInitializer implements CommandLineRunner {
             // 5. LISTO — férula entregada, queda facturación
             Pedido.builder()
                 .nroPedido("GYS-2025-0005")
-                .odontologoId(3L)
-                .odontologoNombre("Dr. Martín García")
+                .odontologoId(garcia.getId())
+                .odontologoNombre(garcia.getNombre())
                 .paciente("Roberto Díaz")
                 .catalogoTrabajoId(6L)
                 .trabajo("Férula Miorelajante ATM")
@@ -130,7 +165,7 @@ public class DevDataInitializer implements CommandLineRunner {
                 .build()
         );
 
-        repository.saveAll(pedidos);
+        pedidoRepository.saveAll(pedidos);
         log.info("[GYS-DEV] {} pedidos de prueba cargados en ms-pedidos.", pedidos.size());
         log.info("[GYS-DEV] Estados: RECIBIDO(1) EN_PROCESO(2) CONTROL(1) LISTO(1)");
     }

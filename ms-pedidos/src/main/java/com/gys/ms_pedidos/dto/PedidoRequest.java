@@ -12,7 +12,10 @@ import java.time.LocalDate;
 @Data
 public class PedidoRequest {
 
-    @NotNull(message = "El odontólogo es obligatorio")
+    /**
+     * Opcional. Si viene seteado se usa directamente; si viene null se busca o
+     * crea un odontólogo a partir de {@link #odontologoNombre}.
+     */
     private Long odontologoId;
 
     @NotBlank(message = "El nombre del odontólogo es obligatorio")
