@@ -18,4 +18,13 @@ public interface OdontologoRepository extends JpaRepository<Odontologo, Long> {
 
     /** Match exacto por nombre normalizado — usado por el patrón find-or-create. */
     Optional<Odontologo> findByActivoTrueAndNombreIgnoreCase(String nombre);
+
+    /** Búsqueda exacta por documentos únicos. */
+    Optional<Odontologo> findByActivoTrueAndDni(String dni);
+    Optional<Odontologo> findByActivoTrueAndCuit(String cuit);
+    Optional<Odontologo> findByActivoTrueAndMatriculaIgnoreCase(String matricula);
+
+    /** Validación de unicidad al crear. */
+    boolean existsByDni(String dni);
+    boolean existsByCuit(String cuit);
 }

@@ -17,7 +17,10 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "odontologos", indexes = {
-    @Index(name = "idx_odontologo_nombre", columnList = "nombre")
+    @Index(name = "idx_odontologo_nombre",    columnList = "nombre"),
+    @Index(name = "idx_odontologo_dni",       columnList = "dni"),
+    @Index(name = "idx_odontologo_cuit",      columnList = "cuit"),
+    @Index(name = "idx_odontologo_matricula", columnList = "matricula")
 })
 @Getter
 @Setter
@@ -33,12 +36,21 @@ public class Odontologo {
     @Column(name = "nombre", nullable = false, length = 150)
     private String nombre;
 
+    /** Documento de identidad (solo dígitos, 7-8 caracteres). Único cuando está seteado. */
+    @Column(name = "dni", length = 10, unique = true)
+    private String dni;
+
+    /** CUIT formato XX-XXXXXXXX-X. Único cuando está seteado. */
+    @Column(name = "cuit", length = 13, unique = true)
+    private String cuit;
+
     @Column(name = "telefono", length = 30)
     private String telefono;
 
     @Column(name = "email", length = 100)
     private String email;
 
+    /** Matrícula profesional (ej: "MN 12345", "MP 8901"). */
     @Column(name = "matricula", length = 30)
     private String matricula;
 

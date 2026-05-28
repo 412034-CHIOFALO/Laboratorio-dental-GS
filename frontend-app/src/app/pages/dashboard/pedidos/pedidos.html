@@ -153,14 +153,14 @@
 
       <div class="modal-body">
 
-        <!-- Odontólogo con autocomplete -->
+        <!-- Odontólogo con autocomplete inteligente -->
         <div class="form-row">
-          <label>Odontólogo *</label>
+          <label>Odontólogo * <span class="label-hint">— buscar por nombre, DNI, CUIT o matrícula</span></label>
           <div class="autocomplete-wrap">
             <input
               type="text"
               class="form-input"
-              placeholder="Empezá a tipear el nombre..."
+              placeholder="Ej: Dr. García · 28456789 · 20-28456789-3 · MN 12345"
               [(ngModel)]="form.odontologoNombre"
               (ngModelChange)="onOdontologoInput()"
               (blur)="ocultarSugerenciasConDelay()"
@@ -168,7 +168,9 @@
             />
             @if (form.odontologoId) {
               <span class="autocomplete-badge existente">✓ Existente</span>
-            } @else if (form.odontologoNombre.trim().length >= 2 && !mostrandoSugerencias && !buscandoOdontologo) {
+            } @else if (tipoMatchOdontologo !== 'NOMBRE' && form.odontologoNombre.trim().length > 0 && !mostrandoSugerencias && !buscandoOdontologo) {
+              <span class="autocomplete-badge alerta">⚠ {{ tipoMatchOdontologo }} no encontrado</span>
+            } @else if (form.odontologoNombre.trim().length >= 2 && !mostrandoSugerencias && !buscandoOdontologo && tipoMatchOdontologo === 'NOMBRE') {
               <span class="autocomplete-badge nuevo">+ Se creará nuevo</span>
             }
             @if (mostrandoSugerencias) {
@@ -176,7 +178,11 @@
                 @for (o of odontologosSugeridos; track o.id) {
                   <button type="button" class="autocomplete-item" (mousedown)="seleccionarOdontologo(o)">
                     <strong>{{ o.nombre }}</strong>
-                    @if (o.matricula) { <span class="muted"> · {{ o.matricula }}</span> }
+                    <div class="autocomplete-meta">
+                      @if (o.matricula) { <span>{{ o.matricula }}</span> }
+                      @if (o.dni)       { <span>DNI {{ o.dni }}</span> }
+                      @if (o.cuit)      { <span>CUIT {{ o.cuit }}</span> }
+                    </div>
                   </button>
                 }
               </div>
@@ -195,25 +201,40 @@
           </div>
         </div>
 
-        <!-- Tipo de trabajo del catálogo -->
+        <!-- Trabajo con autocomplete sobre el catálogo -->
         <div class="form-row">
-          <label>Tipo de trabajo *</label>
-          <select class="form-input" [(ngModel)]="form.catalogoTrabajoId" (ngModelChange)="onCatalogoChange()">
-            <option [ngValue]="null">— Personalizado (escribir abajo) —</option>
-            @for (c of catalogo; track c.id) {
-              <option [ngValue]="c.id">{{ c.nombre }} · {{ formatPrecio(c.precio) }}</option>
+          <label>Tipo de trabajo * <span class="label-hint">— escribí y elegí del catálogo o agregá uno personalizado</span></label>
+          <div class="autocomplete-wrap">
+            <input
+              type="text"
+              class="form-input"
+              placeholder="Ej: Corona Metal-Cerámica..."
+              [(ngModel)]="form.trabajo"
+              (ngModelChange)="onTrabajoInput()"
+              (focus)="onTrabajoInput()"
+              (blur)="ocultarSugerenciasTrabajoConDelay()"
+              autocomplete="off"
+            />
+            @if (form.catalogoTrabajoId) {
+              <span class="autocomplete-badge existente">✓ Catálogo</span>
+            } @else if (form.trabajo.trim().length > 0 && !mostrandoSugerenciasTrabajo) {
+              <span class="autocomplete-badge nuevo">Personalizado</span>
             }
-          </select>
-        </div>
-
-        <div class="form-row">
-          <label>Descripción del trabajo *</label>
-          <input
-            type="text"
-            class="form-input"
-            [(ngModel)]="form.trabajo"
-            placeholder="Ej: Corona Metal-Cerámica pieza 16"
-          />
+            @if (mostrandoSugerenciasTrabajo) {
+              <div class="autocomplete-list">
+                @for (t of trabajosSugeridos; track t.id) {
+                  <button type="button" class="autocomplete-item" (mousedown)="seleccionarTrabajo(t)">
+                    <strong>{{ t.nombre }}</strong>
+                    <div class="autocomplete-meta">
+                      <span>{{ formatPrecio(t.precio) }}</span>
+                      <span>{{ t.tiempoEstimadoDias }} días</span>
+                      <span>{{ t.categoria }}</span>
+                    </div>
+                  </button>
+                }
+              </div>
+            }
+          </div>
         </div>
 
         <div class="form-grid-2">
@@ -228,7 +249,19 @@
           </div>
           <div class="form-row">
             <label>Precio acordado</label>
-            <input type="number" class="form-input" [(ngModel)]="form.precioAcordado" placeholder="A convenir"/>
+            <input
+              type="number"
+              class="form-input"
+              [class.invalid]="errorPrecio"
+              [(ngModel)]="form.precioAcordado"
+              (ngModelChange)="onPrecioChange()"
+              min="0"
+              step="100"
+              placeholder="A convenir"
+            />
+            @if (errorPrecio) {
+              <span class="error-inline">{{ errorPrecio }}</span>
+            }
           </div>
         </div>
 

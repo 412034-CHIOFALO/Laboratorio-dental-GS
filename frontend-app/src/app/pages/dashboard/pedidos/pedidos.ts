@@ -59,9 +59,15 @@ export class PedidosComponent implements OnInit {
   odontologosSugeridos: OdontologoResponse[] = [];
   mostrandoSugerencias = false;
   buscandoOdontologo = false;
+  tipoMatchOdontologo: 'NOMBRE' | 'DNI' | 'CUIT' | 'MATRICULA' = 'NOMBRE';
 
-  // Catálogo (para el dropdown del modal)
+  // Autocomplete de trabajo (sobre el catálogo)
   catalogo: TipoTrabajoResponse[] = [];
+  trabajosSugeridos: TipoTrabajoResponse[] = [];
+  mostrandoSugerenciasTrabajo = false;
+
+  // Validación inline
+  errorPrecio = '';
 
   // ── Detalle ──────────────────────────────────────────────────
   detalleAbierto: PedidoResponse | null = null;
@@ -158,6 +164,9 @@ export class PedidosComponent implements OnInit {
     this.showModal = false;
     this.odontologosSugeridos = [];
     this.mostrandoSugerencias = false;
+    this.trabajosSugeridos = [];
+    this.mostrandoSugerenciasTrabajo = false;
+    this.errorPrecio = '';
   }
 
   private formVacio(): typeof this.form {
@@ -177,21 +186,25 @@ export class PedidosComponent implements OnInit {
   }
 
   get formValido(): boolean {
+    const precioOk = this.form.precioAcordado == null || this.form.precioAcordado >= 0;
     return !!(
       this.form.odontologoNombre.trim() &&
       this.form.paciente.trim() &&
       this.form.trabajo.trim() &&
-      this.form.fechaEntrega
+      this.form.fechaEntrega &&
+      precioOk
     );
   }
 
-  // ── Autocomplete odontólogo ──────────────────────────────────
+  // ── Autocomplete odontólogo (con detección de tipo) ──────────
 
   onOdontologoInput(): void {
     // Si el usuario escribe, perdemos el id (puede ser nuevo)
     this.form.odontologoId = null;
 
     const q = this.form.odontologoNombre.trim();
+    this.tipoMatchOdontologo = this.detectarTipoBusqueda(q);
+
     if (q.length < 2) {
       this.odontologosSugeridos = [];
       this.mostrandoSugerencias = false;
@@ -203,6 +216,11 @@ export class PedidosComponent implements OnInit {
         this.odontologosSugeridos = data.slice(0, 6);
         this.mostrandoSugerencias = this.odontologosSugeridos.length > 0;
         this.buscandoOdontologo = false;
+
+        // Match exacto único por documento → autoseleccionar
+        if (this.tipoMatchOdontologo !== 'NOMBRE' && data.length === 1) {
+          this.seleccionarOdontologo(data[0]);
+        }
       },
       error: err => {
         console.error('Error buscando odontólogos:', err);
@@ -211,27 +229,64 @@ export class PedidosComponent implements OnInit {
     });
   }
 
+  /** Detecta si el input parece DNI, CUIT, matrícula o nombre. */
+  private detectarTipoBusqueda(q: string): 'NOMBRE' | 'DNI' | 'CUIT' | 'MATRICULA' {
+    if (/^[0-9]{7,8}$/.test(q))                          return 'DNI';
+    if (/^[0-9]{2}-?[0-9]{8}-?[0-9]{1}$/.test(q))        return 'CUIT';
+    if (/^(MN|MP|MAT)[\s-]*[0-9]+$/i.test(q))            return 'MATRICULA';
+    return 'NOMBRE';
+  }
+
   seleccionarOdontologo(o: OdontologoResponse): void {
     this.form.odontologoId = o.id;
     this.form.odontologoNombre = o.nombre;
     this.odontologosSugeridos = [];
     this.mostrandoSugerencias = false;
+    this.tipoMatchOdontologo = 'NOMBRE';
   }
 
   ocultarSugerenciasConDelay(): void {
-    // pequeño delay para permitir que el click sobre la sugerencia se procese
     setTimeout(() => (this.mostrandoSugerencias = false), 200);
   }
 
-  // ── Selección de tipo de trabajo del catálogo ────────────────
+  // ── Autocomplete del trabajo (busca en el catálogo) ──────────
 
-  onCatalogoChange(): void {
-    const t = this.catalogo.find(c => c.id === this.form.catalogoTrabajoId);
-    if (t) {
-      this.form.trabajo = t.nombre;
-      if (this.form.precioAcordado == null || this.form.precioAcordado === 0) {
-        this.form.precioAcordado = t.precio;
-      }
+  onTrabajoInput(): void {
+    // Si el usuario edita el texto, perdemos el id del catálogo
+    this.form.catalogoTrabajoId = null;
+    const q = this.form.trabajo.trim().toLowerCase();
+    if (q.length < 1) {
+      this.trabajosSugeridos = [];
+      this.mostrandoSugerenciasTrabajo = false;
+      return;
+    }
+    this.trabajosSugeridos = this.catalogo
+      .filter(c => c.nombre.toLowerCase().includes(q))
+      .slice(0, 8);
+    this.mostrandoSugerenciasTrabajo = this.trabajosSugeridos.length > 0;
+  }
+
+  seleccionarTrabajo(t: TipoTrabajoResponse): void {
+    this.form.catalogoTrabajoId = t.id;
+    this.form.trabajo = t.nombre;
+    if (this.form.precioAcordado == null || this.form.precioAcordado === 0) {
+      this.form.precioAcordado = t.precio;
+    }
+    this.trabajosSugeridos = [];
+    this.mostrandoSugerenciasTrabajo = false;
+  }
+
+  ocultarSugerenciasTrabajoConDelay(): void {
+    setTimeout(() => (this.mostrandoSugerenciasTrabajo = false), 200);
+  }
+
+  // ── Validación de precio ─────────────────────────────────────
+
+  onPrecioChange(): void {
+    if (this.form.precioAcordado != null && this.form.precioAcordado < 0) {
+      this.errorPrecio = 'El precio no puede ser negativo';
+    } else {
+      this.errorPrecio = '';
     }
   }
 

@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 public record OdontologoResponse(
         Long id,
         String nombre,
+        String dni,
+        String cuit,
         String telefono,
         String email,
         String matricula,
@@ -18,6 +20,8 @@ public record OdontologoResponse(
         return new OdontologoResponse(
                 o.getId(),
                 o.getNombre(),
+                o.getDni(),
+                o.getCuit(),
                 o.getTelefono(),
                 o.getEmail(),
                 o.getMatricula(),

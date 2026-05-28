@@ -4,6 +4,7 @@ import com.gys.ms_pedidos.model.Prioridad;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -38,6 +39,8 @@ public class PedidoRequest {
 
     private Prioridad prioridad = Prioridad.NORMAL;
 
+    @PositiveOrZero(message = "El precio no puede ser negativo")
     private BigDecimal precioAcordado;
+
     private String observaciones;
 }
