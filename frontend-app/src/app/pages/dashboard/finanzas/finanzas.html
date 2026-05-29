@@ -1,93 +1,141 @@
 <div class="fin-page">
 
+  <!-- ── HEADER ── -->
   <div class="page-header">
-    <div class="header-left">
-      <div class="page-icon orange">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-        </svg>
-      </div>
-      <div><h1>Finanzas</h1><p class="subtitle">Cuentas corrientes, cajas y pagos triangulados</p></div>
+    <div class="page-title">
+      <h1>Finanzas <span class="accent">del Laboratorio</span></h1>
+      <p>Caja física, bancaria y compensación · Vista general en tiempo real</p>
     </div>
-    <button class="btn-pago">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Registrar pago
-    </button>
   </div>
 
-  <!-- KPIs -->
-  <div class="kpi-row">
-    @for (k of kpis; track k.label) {
-      <div class="kpi-card" [attr.data-color]="k.color">
-        <span class="kpi-val">{{ k.valor }}</span>
-        <span class="kpi-label">{{ k.label }}</span>
-      </div>
-    }
-  </div>
+  <!-- ── LOADING / ERROR DEL RESUMEN ── -->
+  @if (loadingResumen) {
+    <div class="loading-wrap">
+      <div class="spinner-lg"></div>
+      <span>Cargando resumen de cajas...</span>
+    </div>
+  }
+  @if (errorResumen) {
+    <div class="alert-error">{{ errorResumen }}</div>
+  }
 
-  <!-- Cajas -->
-  <div class="cajas-row">
-    @for (c of cajas; track c.label) {
-      <div class="caja-card" [attr.data-color]="c.color">
-        <div class="caja-header">
-          <span class="caja-label">{{ c.label }}</span>
-          @if (c.color === 'amber' && c.valor !== 0) {
-            <span class="alert-dot" title="No cerró en cero">⚠</span>
+  <!-- ═══════════════════════════════════════════════════════════
+       3 CARDS GRANDES — SALDO POR CAJA
+       ═══════════════════════════════════════════════════════════ -->
+  @if (resumen && !loadingResumen) {
+    <div class="cajas-grid">
+      @for (c of cajas; track c.tipo) {
+        @let saldo = c.tipo === 'FISICA' ? resumen.saldoFisica
+                    : c.tipo === 'BANCARIA' ? resumen.saldoBancaria
+                    : resumen.saldoCompensacion;
+        <div class="caja-card"
+             [class.activa]="cajaActiva === c.tipo"
+             [attr.data-color]="c.color"
+             (click)="cambiarCaja(c.tipo)">
+          <div class="caja-card-head">
+            <span class="caja-label">{{ c.label }}</span>
+            <span class="caja-desc">{{ c.descripcion }}</span>
+          </div>
+          <div class="caja-saldo" [attr.data-saldo]="colorSaldo(saldo, c.tipo === 'COMPENSACION')">
+            {{ formatMoney(saldo) }}
+          </div>
+          @if (c.tipo === 'COMPENSACION' && saldo !== 0) {
+            <span class="caja-warning">⚠ desbalanceada — debe ser $0</span>
           }
         </div>
-        <span class="caja-valor" [attr.data-color]="c.color">{{ formatPeso(c.valor) }}</span>
-        <span class="caja-desc">{{ c.desc }}</span>
+      }
+    </div>
+
+    <!-- ── ALERTAS ── -->
+    @if (resumen.alertas.length > 0) {
+      <div class="alertas-box">
+        <div class="alertas-head">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <strong>Alertas activas</strong>
+        </div>
+        <ul>
+          @for (alerta of resumen.alertas; track alerta) {
+            <li>{{ alerta }}</li>
+          }
+        </ul>
       </div>
     }
-  </div>
 
-  <!-- Clientes -->
-  <div class="section-title">Cuentas por cobrar — Odontólogos</div>
-  <div class="table-wrap">
-    <table class="fin-table">
-      <thead>
-        <tr>
-          <th>Odontólogo</th>
-          <th>Deuda actual</th>
-          <th>Último pago</th>
-          <th>Monto último pago</th>
-          <th>Pedidos activos</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (c of clientes; track c.id) {
-          <tr>
-            <td class="nombre-cell">{{ c.nombre }}</td>
-            <td>
-              <span class="deuda-chip" [attr.data-color]="colorDeuda(c.deuda, diasDesde(c.ultimoPago))">
-                {{ formatPeso(c.deuda) }}
-              </span>
-            </td>
-            <td class="date-cell">
-              Hace {{ diasDesde(c.ultimoPago) }}d
-              @if (diasDesde(c.ultimoPago) > 30) {
-                <span class="mora-tag">mora</span>
-              }
-            </td>
-            <td class="price-cell">{{ formatPeso(c.ultimoPagoMonto) }}</td>
-            <td class="center-cell">{{ c.pedidosPendientes }}</td>
-            <td class="action-cell">
-              <button class="btn-cobrar">Cobrar</button>
-              <button class="btn-ver-cuenta">Ver cuenta</button>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
-
-  <div class="triangulado-banner">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-    <div>
-      <strong>Pagos triangulados:</strong> el dinero va directo del odontólogo al proveedor o empleado, sin pasar por caja.
-      Esta funcionalidad completa estará disponible en Sprint 5.
+    <!-- ── KPIs SECUNDARIOS ── -->
+    <div class="kpi-row">
+      <div class="kpi">
+        <span class="kpi-label">Deuda total con proveedores</span>
+        <strong [attr.data-color]="resumen.totalDeudaProveedores > 0 ? 'amber' : 'neutro'">
+          {{ formatMoney(resumen.totalDeudaProveedores) }}
+        </strong>
+      </div>
+      <div class="kpi">
+        <span class="kpi-label">Sueldos pendientes del mes</span>
+        <strong [attr.data-color]="resumen.totalSueldosPendientes > 0 ? 'amber' : 'neutro'">
+          {{ formatMoney(resumen.totalSueldosPendientes) }}
+        </strong>
+      </div>
     </div>
-  </div>
+  }
 
+  <!-- ═══════════════════════════════════════════════════════════
+       DETALLE DE LA CAJA SELECCIONADA
+       ═══════════════════════════════════════════════════════════ -->
+  @if (resumen && !loadingResumen) {
+    <div class="detalle-section">
+      <div class="detalle-head">
+        <h2>Movimientos de {{ cajaActivaLabel }}</h2>
+        <div class="resumen-mini">
+          <span class="mini-stat ingreso">
+            ↑ Ingresos: <strong>{{ formatMoney(ingresosCajaActiva) }}</strong>
+          </span>
+          <span class="mini-stat egreso">
+            ↓ Egresos: <strong>{{ formatMoney(egresosCajaActiva) }}</strong>
+          </span>
+        </div>
+      </div>
+
+      @if (loadingMovimientos) {
+        <div class="loading-mini">
+          <div class="spinner-lg"></div>
+        </div>
+      } @else if (movimientos.length === 0) {
+        <div class="empty-state">
+          <p>Sin movimientos registrados en esta caja.</p>
+        </div>
+      } @else {
+        <div class="table-wrap">
+          <table class="mov-table">
+            <thead>
+              <tr>
+                <th class="th-fecha">Fecha</th>
+                <th>Concepto</th>
+                <th>Referencia</th>
+                <th>Cargado por</th>
+                <th class="th-monto">Monto</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of movimientos; track m.id) {
+                <tr>
+                  <td class="celda-fecha">{{ formatFecha(m.fechaMovimiento) }}</td>
+                  <td class="celda-concepto">
+                    <span class="tipo-chip" [attr.data-tipo]="m.tipo">
+                      {{ m.tipo === 'INGRESO' ? '↑' : '↓' }}
+                    </span>
+                    {{ m.concepto }}
+                  </td>
+                  <td><span class="ref">{{ m.referencia ?? '—' }}</span></td>
+                  <td class="muted">{{ m.creadoPor ?? '—' }}</td>
+                  <td class="celda-monto" [attr.data-tipo]="m.tipo">
+                    {{ m.tipo === 'INGRESO' ? '+' : '−' }} {{ formatMoney(m.monto) }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+  }
 </div>
