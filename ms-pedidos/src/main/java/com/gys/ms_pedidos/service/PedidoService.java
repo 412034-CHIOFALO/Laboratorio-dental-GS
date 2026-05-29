@@ -1,7 +1,9 @@
 package com.gys.ms_pedidos.service;
 
+import com.gys.ms_pedidos.dto.EntregaRequest;
 import com.gys.ms_pedidos.dto.PedidoRequest;
 import com.gys.ms_pedidos.dto.PedidoResponse;
+import com.gys.ms_pedidos.exception.BusinessException;
 import com.gys.ms_pedidos.exception.ResourceNotFoundException;
 import com.gys.ms_pedidos.model.EstadoPedido;
 import com.gys.ms_pedidos.model.Odontologo;
@@ -106,6 +108,29 @@ public class PedidoService implements IPedidoService {
         pedido.setPrioridad(request.getPrioridad());
         pedido.setPrecioAcordado(request.getPrecioAcordado());
         pedido.setObservaciones(request.getObservaciones());
+
+        return PedidoResponse.from(pedidoRepository.save(pedido));
+    }
+
+    @Override
+    @Transactional
+    public PedidoResponse marcarEntregado(Long id, EntregaRequest request) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
+
+        if (pedido.getEstado() != EstadoPedido.LISTO) {
+            throw new BusinessException(
+                "Solo se pueden entregar pedidos en estado LISTO. Estado actual: " + pedido.getEstado());
+        }
+
+        pedido.setEstado(EstadoPedido.ENTREGADO);
+        pedido.setFechaEntregaReal(
+            request.getFechaEntregaReal() != null ? request.getFechaEntregaReal() : LocalDate.now());
+        pedido.setRetiradoPor(request.getRetiradoPor().trim());
+        pedido.setObservacionesEntrega(
+            request.getObservacionesEntrega() != null && !request.getObservacionesEntrega().isBlank()
+                ? request.getObservacionesEntrega().trim()
+                : null);
 
         return PedidoResponse.from(pedidoRepository.save(pedido));
     }

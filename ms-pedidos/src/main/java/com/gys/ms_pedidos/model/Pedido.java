@@ -64,6 +64,19 @@ public class Pedido {
     @Column(name = "observaciones", columnDefinition = "TEXT")
     private String observaciones;
 
+    // ── Datos de entrega (se completan al pasar a ENTREGADO) ──
+    /** Fecha real de la entrega (la {@link #fechaEntrega} era la estimada). */
+    @Column(name = "fecha_entrega_real")
+    private LocalDate fechaEntregaReal;
+
+    /** Persona que retiró el trabajo (nombre o "Cadetería ABC"). */
+    @Column(name = "retirado_por", length = 150)
+    private String retiradoPor;
+
+    /** Notas específicas del momento de entrega. */
+    @Column(name = "observaciones_entrega", columnDefinition = "TEXT")
+    private String observacionesEntrega;
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 

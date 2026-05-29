@@ -1,5 +1,6 @@
 package com.gys.ms_pedidos.controller;
 
+import com.gys.ms_pedidos.dto.EntregaRequest;
 import com.gys.ms_pedidos.dto.PedidoRequest;
 import com.gys.ms_pedidos.dto.PedidoResponse;
 import com.gys.ms_pedidos.model.EstadoPedido;
@@ -65,6 +66,14 @@ public class PedidoController {
             @PathVariable Long id,
             @RequestParam EstadoPedido nuevoEstado) {
         return ResponseEntity.ok(pedidoService.actualizarEstado(id, nuevoEstado));
+    }
+
+    /** Marca el pedido como ENTREGADO (solo válido si estaba en LISTO). */
+    @PatchMapping("/{id}/entregar")
+    public ResponseEntity<PedidoResponse> entregar(
+            @PathVariable Long id,
+            @Valid @RequestBody EntregaRequest request) {
+        return ResponseEntity.ok(pedidoService.marcarEntregado(id, request));
     }
 
     @DeleteMapping("/{id}")

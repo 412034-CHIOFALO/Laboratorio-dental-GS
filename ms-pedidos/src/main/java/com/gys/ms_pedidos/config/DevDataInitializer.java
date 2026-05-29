@@ -177,6 +177,59 @@ public class DevDataInitializer implements CommandLineRunner {
                 .prioridad(Prioridad.NORMAL)
                 .precioAcordado(new BigDecimal("12000.00"))
                 .observaciones("Pulido final aprobado. Listo para retiro.")
+                .build(),
+
+            // 6. LISTO + URGENTE — esperando retiro
+            Pedido.builder()
+                .nroPedido("GYS-2025-0006")
+                .odontologoId(sanchez.getId())
+                .odontologoNombre(sanchez.getNombre())
+                .paciente("Carmen Vidal")
+                .catalogoTrabajoId(2L)
+                .trabajo("Corona Zirconio")
+                .tecnicoId(2L)
+                .tecnicoNombre("Carlos López")
+                .fechaEntrega(hoy)
+                .estado(EstadoPedido.LISTO)
+                .prioridad(Prioridad.URGENTE)
+                .precioAcordado(new BigDecimal("32000.00"))
+                .build(),
+
+            // 7. ENTREGADO hace 2 días
+            Pedido.builder()
+                .nroPedido("GYS-2025-0007")
+                .odontologoId(garcia.getId())
+                .odontologoNombre(garcia.getNombre())
+                .paciente("Esteban Quiroga")
+                .catalogoTrabajoId(1L)
+                .trabajo("Corona Metal-Cerámica")
+                .tecnicoId(2L)
+                .tecnicoNombre("Carlos López")
+                .fechaEntrega(hoy.minusDays(2))
+                .estado(EstadoPedido.ENTREGADO)
+                .prioridad(Prioridad.NORMAL)
+                .precioAcordado(new BigDecimal("15000.00"))
+                .fechaEntregaReal(hoy.minusDays(2))
+                .retiradoPor("Cadetería del consultorio")
+                .observacionesEntrega("Entrega sin novedades.")
+                .build(),
+
+            // 8. ENTREGADO ayer
+            Pedido.builder()
+                .nroPedido("GYS-2025-0008")
+                .odontologoId(sanchez.getId())
+                .odontologoNombre(sanchez.getNombre())
+                .paciente("Marta Suárez")
+                .catalogoTrabajoId(3L)
+                .trabajo("Carilla Porcelana")
+                .tecnicoId(2L)
+                .tecnicoNombre("Carlos López")
+                .fechaEntrega(hoy.minusDays(1))
+                .estado(EstadoPedido.ENTREGADO)
+                .prioridad(Prioridad.NORMAL)
+                .precioAcordado(new BigDecimal("60000.00"))
+                .fechaEntregaReal(hoy.minusDays(1))
+                .retiradoPor("Dra. Laura Sánchez (en persona)")
                 .build()
         );
 
