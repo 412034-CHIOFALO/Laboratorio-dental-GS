@@ -535,6 +535,40 @@ export const MOCK_PEDIDOS_BACKEND: PedidoResponse[] = [
   },
 ];
 
+// ── RESUMEN DE CAJAS + MOVIMIENTOS ─────────────────────────────
+import type { ResumenCajasResponse, CajaMovimientoResponse } from './finanzas.service';
+
+export const MOCK_RESUMEN_CAJAS: ResumenCajasResponse = {
+  saldoFisica:           285000,
+  saldoBancaria:         1240000,
+  saldoCompensacion:     0,
+  totalDeudaProveedores: 175000,
+  totalSueldosPendientes: 480000,
+  alertas: [
+    'Sueldos pendientes del mes: $480.000',
+    'Deuda total proveedores: $175.000',
+  ],
+};
+
+export const MOCK_MOVIMIENTOS_CAJA: CajaMovimientoResponse[] = [
+  // Física — ingresos por cobros
+  { id: 1, tipo: 'INGRESO', tipoCaja: 'FISICA',   concepto: 'Cobro COMP-2025-002 — Dr. Martín García',   monto: 8000,  referencia: 'COMP-2025-002', fechaMovimiento: hoyISO(0),   creadoPor: 'mariana' },
+  { id: 2, tipo: 'INGRESO', tipoCaja: 'FISICA',   concepto: 'Cobro COMP-2025-007 — Dra. Sánchez',         monto: 60000, referencia: 'COMP-2025-007', fechaMovimiento: hoyISO(-1),  creadoPor: 'mariana' },
+  { id: 3, tipo: 'EGRESO',  tipoCaja: 'FISICA',   concepto: 'Sueldo Carlos López 5/2026',                 monto: 180000,referencia: 'SUELDO-2026-05', fechaMovimiento: hoyISO(-2), creadoPor: 'admin'   },
+  { id: 4, tipo: 'INGRESO', tipoCaja: 'FISICA',   concepto: 'Cobro COMP-2025-003 — Dr. Ruiz',             monto: 35000, referencia: 'COMP-2025-003', fechaMovimiento: hoyISO(-3),  creadoPor: 'mariana' },
+  { id: 5, tipo: 'EGRESO',  tipoCaja: 'FISICA',   concepto: 'Compra de yeso piedra tipo IV (5 potes)',    monto: 18000, referencia: null,            fechaMovimiento: hoyISO(-4),  creadoPor: 'admin'   },
+
+  // Bancaria — transferencias
+  { id: 6, tipo: 'INGRESO', tipoCaja: 'BANCARIA', concepto: 'Transferencia Dra. Sánchez — 4 comprobantes', monto: 245000, referencia: 'TRF-20260528', fechaMovimiento: hoyISO(0),  creadoPor: 'mariana' },
+  { id: 7, tipo: 'INGRESO', tipoCaja: 'BANCARIA', concepto: 'Cobro COMP-2025-005 — Dra. López',           monto: 450000, referencia: 'COMP-2025-005', fechaMovimiento: hoyISO(-2), creadoPor: 'mariana' },
+  { id: 8, tipo: 'EGRESO',  tipoCaja: 'BANCARIA', concepto: 'Pago Dental Import SRL — Cerámica Vita',     monto: 25000,  referencia: 'PROV-001',      fechaMovimiento: hoyISO(-5), creadoPor: 'admin'   },
+  { id: 9, tipo: 'INGRESO', tipoCaja: 'BANCARIA', concepto: 'Cobro COMP-2025-008 — Dr. Pérez',            monto: 320000, referencia: 'COMP-2025-008', fechaMovimiento: hoyISO(-6), creadoPor: 'mariana' },
+
+  // Compensación — pagos triangulados (debe quedar siempre en 0 neto)
+  { id: 10, tipo: 'INGRESO', tipoCaja: 'COMPENSACION', concepto: 'Triangulado: Dr. García paga a MetalDent SA', monto: 150000, referencia: 'COMP-2025-009', fechaMovimiento: hoyISO(-1), creadoPor: 'mariana' },
+  { id: 11, tipo: 'EGRESO',  tipoCaja: 'COMPENSACION', concepto: 'Triangulado: deuda MetalDent SA — Lote zirconia', monto: 150000, referencia: 'COMP-2025-009', fechaMovimiento: hoyISO(-1), creadoPor: 'mariana' },
+];
+
 // ── HELPER: clonar mock para no mutar el original ────────────
 export function clonar<T>(data: T): T {
   return JSON.parse(JSON.stringify(data));
