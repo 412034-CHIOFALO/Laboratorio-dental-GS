@@ -4,6 +4,7 @@ import com.gys.ms_pedidos.model.Prioridad;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -12,7 +13,10 @@ import java.time.LocalDate;
 @Data
 public class PedidoRequest {
 
-    @NotNull(message = "El odontólogo es obligatorio")
+    /**
+     * Opcional. Si viene seteado se usa directamente; si viene null se busca o
+     * crea un odontólogo a partir de {@link #odontologoNombre}.
+     */
     private Long odontologoId;
 
     @NotBlank(message = "El nombre del odontólogo es obligatorio")
@@ -35,6 +39,8 @@ public class PedidoRequest {
 
     private Prioridad prioridad = Prioridad.NORMAL;
 
+    @PositiveOrZero(message = "El precio no puede ser negativo")
     private BigDecimal precioAcordado;
+
     private String observaciones;
 }

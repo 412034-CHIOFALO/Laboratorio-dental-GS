@@ -4,6 +4,7 @@ import com.gys.ms_pedidos.dto.PedidoRequest;
 import com.gys.ms_pedidos.dto.PedidoResponse;
 import com.gys.ms_pedidos.exception.ResourceNotFoundException;
 import com.gys.ms_pedidos.model.EstadoPedido;
+import com.gys.ms_pedidos.model.Odontologo;
 import com.gys.ms_pedidos.model.Pedido;
 import com.gys.ms_pedidos.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,9 @@ import java.util.List;
 public class PedidoService implements IPedidoService {
 
     private final PedidoRepository pedidoRepository;
+    private final IOdontologoService odontologoService;
 
+    @Override
     public List<PedidoResponse> listarTodos() {
         return pedidoRepository.findAll()
                 .stream()
@@ -28,6 +31,7 @@ public class PedidoService implements IPedidoService {
                 .toList();
     }
 
+    @Override
     public List<PedidoResponse> listarActivos() {
         return pedidoRepository.findByEstadoNot(EstadoPedido.LISTO)
                 .stream()
@@ -35,6 +39,7 @@ public class PedidoService implements IPedidoService {
                 .toList();
     }
 
+    @Override
     public List<PedidoResponse> listarPorEstado(EstadoPedido estado) {
         return pedidoRepository.findByEstado(estado)
                 .stream()
@@ -42,6 +47,7 @@ public class PedidoService implements IPedidoService {
                 .toList();
     }
 
+    @Override
     public PedidoResponse buscarPorId(Long id) {
         return pedidoRepository.findById(id)
                 .map(PedidoResponse::from)
@@ -51,10 +57,13 @@ public class PedidoService implements IPedidoService {
     @Override
     @Transactional
     public PedidoResponse crear(PedidoRequest request) {
+        // ── Resolución del odontólogo: si vino con id se usa ese; si no, find-or-create ──
+        Odontologo odontologo = resolverOdontologo(request);
+
         Pedido pedido = Pedido.builder()
                 .nroPedido(generarNroPedido())
-                .odontologoId(request.getOdontologoId())
-                .odontologoNombre(request.getOdontologoNombre())
+                .odontologoId(odontologo.getId())
+                .odontologoNombre(odontologo.getNombre())
                 .paciente(request.getPaciente())
                 .catalogoTrabajoId(request.getCatalogoTrabajoId())
                 .trabajo(request.getTrabajo())
@@ -84,8 +93,10 @@ public class PedidoService implements IPedidoService {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
 
-        pedido.setOdontologoId(request.getOdontologoId());
-        pedido.setOdontologoNombre(request.getOdontologoNombre());
+        Odontologo odontologo = resolverOdontologo(request);
+
+        pedido.setOdontologoId(odontologo.getId());
+        pedido.setOdontologoNombre(odontologo.getNombre());
         pedido.setPaciente(request.getPaciente());
         pedido.setCatalogoTrabajoId(request.getCatalogoTrabajoId());
         pedido.setTrabajo(request.getTrabajo());
@@ -106,6 +117,21 @@ public class PedidoService implements IPedidoService {
             throw new ResourceNotFoundException("Pedido", id);
         }
         pedidoRepository.deleteById(id);
+    }
+
+    /**
+     * Si el request trae odontologoId → se busca por id (debe existir).
+     * Si no → se busca por nombre, y si no existe se crea.
+     */
+    private Odontologo resolverOdontologo(PedidoRequest request) {
+        if (request.getOdontologoId() != null) {
+            var dto = odontologoService.buscarPorId(request.getOdontologoId());
+            return Odontologo.builder()
+                    .id(dto.id())
+                    .nombre(dto.nombre())
+                    .build();
+        }
+        return odontologoService.buscarOCrearPorNombre(request.getOdontologoNombre());
     }
 
     // ── Helper: genera NRO-YYYYMMDD-XXXX ──────────────────────────

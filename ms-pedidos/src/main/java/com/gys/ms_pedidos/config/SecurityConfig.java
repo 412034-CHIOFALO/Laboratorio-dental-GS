@@ -48,6 +48,17 @@ public class SecurityConfig {
                     .hasAnyRole("ADMIN", "ADMINISTRATIVO", "TECNICO")
                 // Eliminación — solo ADMIN
                 .requestMatchers(HttpMethod.DELETE, "/api/pedidos/**").hasRole("ADMIN")
+                // ── Odontólogos (clientes del lab) ───────────────────────
+                // Lectura/búsqueda — cualquier rol autenticado
+                .requestMatchers(HttpMethod.GET, "/api/odontologos/**")
+                    .hasAnyRole("ADMIN", "ADMINISTRATIVO", "TECNICO")
+                // Alta/edición de odontólogos — ADMIN y ADMINISTRATIVO
+                .requestMatchers(HttpMethod.POST, "/api/odontologos/**")
+                    .hasAnyRole("ADMIN", "ADMINISTRATIVO")
+                .requestMatchers(HttpMethod.PUT, "/api/odontologos/**")
+                    .hasAnyRole("ADMIN", "ADMINISTRATIVO")
+                // Desactivar odontólogo — solo ADMIN
+                .requestMatchers(HttpMethod.DELETE, "/api/odontologos/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2
