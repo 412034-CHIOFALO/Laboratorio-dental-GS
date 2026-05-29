@@ -23,6 +23,11 @@ public record PedidoResponse(
         Prioridad prioridad,
         BigDecimal precioAcordado,
         String observaciones,
+        // ── Entrega ──
+        LocalDate fechaEntregaReal,
+        String retiradoPor,
+        String observacionesEntrega,
+        // ── Timestamps ──
         LocalDateTime fechaCreacion,
         LocalDateTime fechaUltimaModificacion
 ) {
@@ -35,6 +40,7 @@ public record PedidoResponse(
                 p.getTecnicoId(), p.getTecnicoNombre(),
                 p.getFechaEntrega(), p.getEstado(), p.getPrioridad(),
                 p.getPrecioAcordado(), p.getObservaciones(),
+                p.getFechaEntregaReal(), p.getRetiradoPor(), p.getObservacionesEntrega(),
                 p.getFechaCreacion(), p.getFechaUltimaModificacion()
         );
     }

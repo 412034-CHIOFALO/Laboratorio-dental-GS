@@ -1,53 +1,178 @@
-import { Component } from '@angular/core';
-import { clonar, MOCK_PEDIDOS, MockPedido } from '../../../services/mock-data';
+import { Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { PedidosService, PedidoResponse, EntregaRequest } from '../../../services/pedidos.service';
 
-interface EntregaItem {
-  nroPedido: string;
-  paciente: string;
-  odontologo: string;
-  direccionOdontologo: string;
-  tipoTrabajo: string;
-  prioridad: 'NORMAL' | 'URGENTE';
-  fechaEntrega: string;
-  entregadoEn?: string;
-}
+type Tab = 'PENDIENTES' | 'HISTORIAL';
 
 @Component({
   selector: 'app-entregas',
   standalone: true,
-  imports: [],
+  imports: [FormsModule],
   templateUrl: './entregas.html',
   styleUrls: ['./entregas.css'],
 })
-export class EntregasComponent {
-  pendientes: EntregaItem[];
-  historial: EntregaItem[];
+export class EntregasComponent implements OnInit {
+
+  tabActiva: Tab = 'PENDIENTES';
+  pendientes: PedidoResponse[] = [];
+  historial: PedidoResponse[] = [];
+  loading = false;
+  error = '';
+
+  // Modal "Marcar entregado"
+  showModalEntregar = false;
+  saving = false;
+  pedidoAEntregar: PedidoResponse | null = null;
+
+  formEntrega: {
+    retiradoPor: string;
+    fechaEntregaReal: string;
+    observacionesEntrega: string;
+  } = this.formVacio();
+
+  // Mensaje WhatsApp del recorrido del día
   mensajeCopiado = false;
 
-  constructor() {
-    const pedidos: MockPedido[] = clonar(MOCK_PEDIDOS);
-    const toItem = (p: MockPedido): EntregaItem => ({
-      nroPedido: p.nroPedido,
-      paciente: p.paciente,
-      odontologo: p.odontologo,
-      direccionOdontologo: p.direccionOdontologo,
-      tipoTrabajo: p.tipoTrabajo,
-      prioridad: p.prioridad,
-      fechaEntrega: p.fechaEntrega,
-    });
-    this.pendientes = pedidos.filter(p => p.estado === 'LISTO').map(toItem);
-    this.historial  = pedidos.filter(p => p.estado === 'ENTREGADO').map(toItem);
+  constructor(private pedidosService: PedidosService) {}
+
+  ngOnInit(): void {
+    this.cargar();
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // CARGA
+  // ─────────────────────────────────────────────────────────────
+
+  private cargar(): void {
+    this.loading = true;
+    this.error = '';
+    this.pedidosService.listarTodos().subscribe({
+      next: data => {
+        this.pendientes = data
+          .filter(p => p.estado === 'LISTO')
+          .sort(this.ordenarPendientes);
+        this.historial = data
+          .filter(p => p.estado === 'ENTREGADO')
+          .sort((a, b) => this.tsEntrega(b) - this.tsEntrega(a))
+          .slice(0, 30); // últimos 30 entregados
+        this.loading = false;
+      },
+      error: err => {
+        this.error = 'No se pudieron cargar las entregas. ¿ms-pedidos está corriendo?';
+        this.loading = false;
+        console.error(err);
+      },
+    });
+  }
+
+  /** URGENTES primero, después por fecha de entrega ascendente. */
+  private ordenarPendientes = (a: PedidoResponse, b: PedidoResponse): number => {
+    if (a.prioridad !== b.prioridad) return a.prioridad === 'URGENTE' ? -1 : 1;
+    return new Date(a.fechaEntrega).getTime() - new Date(b.fechaEntrega).getTime();
+  };
+
+  private tsEntrega(p: PedidoResponse): number {
+    return new Date(p.fechaEntregaReal ?? p.fechaUltimaModificacion).getTime();
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // STATS DEL HEADER
+  // ─────────────────────────────────────────────────────────────
+
+  get totalPendientes(): number { return this.pendientes.length; }
+  get urgentesPendientes(): number { return this.pendientes.filter(p => p.prioridad === 'URGENTE').length; }
+  get vencidasPendientes(): number {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    return this.pendientes.filter(p => new Date(p.fechaEntrega) < hoy).length;
+  }
+  get entregadasHoy(): number {
+    const hoyStr = new Date().toISOString().split('T')[0];
+    return this.historial.filter(p => p.fechaEntregaReal === hoyStr).length;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // MODAL MARCAR ENTREGADO
+  // ─────────────────────────────────────────────────────────────
+
+  abrirModalEntregar(p: PedidoResponse): void {
+    this.pedidoAEntregar = p;
+    this.formEntrega = this.formVacio();
+    // Sugerir el nombre del odontólogo por defecto (el caso más común)
+    this.formEntrega.retiradoPor = p.odontologoNombre;
+    this.showModalEntregar = true;
+  }
+
+  cerrarModalEntregar(): void {
+    this.showModalEntregar = false;
+    this.pedidoAEntregar = null;
+  }
+
+  private formVacio() {
+    return {
+      retiradoPor: '',
+      fechaEntregaReal: new Date().toISOString().split('T')[0],
+      observacionesEntrega: '',
+    };
+  }
+
+  get formEntregaValido(): boolean {
+    return !!this.formEntrega.retiradoPor.trim();
+  }
+
+  confirmarEntrega(): void {
+    if (!this.pedidoAEntregar || !this.formEntregaValido) return;
+    this.saving = true;
+
+    const request: EntregaRequest = {
+      retiradoPor: this.formEntrega.retiradoPor.trim(),
+      fechaEntregaReal: this.formEntrega.fechaEntregaReal,
+      observacionesEntrega: this.formEntrega.observacionesEntrega?.trim() || null,
+    };
+
+    this.pedidosService.marcarEntregado(this.pedidoAEntregar.id, request).subscribe({
+      next: res => {
+        this.pendientes = this.pendientes.filter(p => p.id !== res.id);
+        this.historial.unshift(res);
+        this.saving = false;
+        this.cerrarModalEntregar();
+      },
+      error: err => {
+        this.saving = false;
+        const msg = err?.error?.mensaje ?? 'No se pudo marcar como entregado.';
+        alert(msg);
+        console.error(err);
+      },
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // MENSAJE WHATSAPP DEL RECORRIDO DEL DÍA
+  // ─────────────────────────────────────────────────────────────
+
   get mensajeWhatsApp(): string {
-    const hoy = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    if (this.pendientes.length === 0) return `📦 *Entregas G&S — ${hoy}*\n\nNo hay entregas pendientes hoy. ✅`;
+    const hoy = new Date().toLocaleDateString('es-AR',
+      { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    if (this.pendientes.length === 0) {
+      return `📦 *Entregas G&S — ${hoy}*\n\nNo hay entregas pendientes hoy. ✅`;
+    }
+
+    // Agrupar por odontólogo para que la cadetería tenga el listado por destino
+    const porOdontologo = new Map<string, PedidoResponse[]>();
+    for (const p of this.pendientes) {
+      const lista = porOdontologo.get(p.odontologoNombre) ?? [];
+      lista.push(p);
+      porOdontologo.set(p.odontologoNombre, lista);
+    }
+
     let msg = `📦 *Entregas G&S — ${hoy}*\n\n`;
-    this.pendientes.forEach((p, i) => {
-      msg += `${i + 1}️⃣ *${p.odontologo}*\n`;
-      msg += `   📍 ${p.direccionOdontologo}\n`;
-      msg += `   🦷 ${p.tipoTrabajo} — Pac: ${p.paciente}\n`;
-      if (p.prioridad === 'URGENTE') msg += `   ⚡ URGENTE\n`;
+    let n = 1;
+    porOdontologo.forEach((pedidos, odontologo) => {
+      msg += `${n++}️⃣ *${odontologo}*\n`;
+      for (const p of pedidos) {
+        const urg = p.prioridad === 'URGENTE' ? '⚡ ' : '';
+        msg += `   🦷 ${urg}${p.trabajo} — Pac: ${p.paciente}\n`;
+      }
       msg += '\n';
     });
     msg += `📊 Total: ${this.pendientes.length} entrega${this.pendientes.length !== 1 ? 's' : ''} pendiente${this.pendientes.length !== 1 ? 's' : ''}`;
@@ -61,16 +186,32 @@ export class EntregasComponent {
     });
   }
 
-  marcarEntregado(nroPedido: string): void {
-    const idx = this.pendientes.findIndex(p => p.nroPedido === nroPedido);
-    if (idx >= 0) {
-      const [item] = this.pendientes.splice(idx, 1);
-      item.entregadoEn = new Date().toISOString();
-      this.historial.unshift(item);
-    }
+  abrirWhatsApp(): void {
+    const url = `https://wa.me/?text=${encodeURIComponent(this.mensajeWhatsApp)}`;
+    window.open(url, '_blank');
   }
 
-  formatFecha(iso: string): string {
-    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  // ─────────────────────────────────────────────────────────────
+  // HELPERS DE VISTA
+  // ─────────────────────────────────────────────────────────────
+
+  diasEsperando(p: PedidoResponse): { texto: string; clase: string } {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const fe = new Date(p.fechaEntrega); fe.setHours(0, 0, 0, 0);
+    const dias = Math.round((hoy.getTime() - fe.getTime()) / 86_400_000);
+    if (dias > 0)  return { texto: `Vencido hace ${dias}d`, clase: 'vencido' };
+    if (dias === 0) return { texto: 'Para hoy',              clase: 'urgente' };
+    if (dias === -1) return { texto: 'Para mañana',          clase: 'pronto'  };
+    return { texto: `En ${Math.abs(dias)}d`, clase: 'normal' };
+  }
+
+  formatFecha(iso: string | null): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  formatPrecio(n: number | null): string {
+    if (n == null) return 'A convenir';
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
   }
 }

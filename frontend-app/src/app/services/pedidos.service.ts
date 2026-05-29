@@ -23,8 +23,18 @@ export interface PedidoResponse {
   prioridad: Prioridad;
   precioAcordado: number | null;
   observaciones: string | null;
+  // ── Datos de entrega ──
+  fechaEntregaReal: string | null;
+  retiradoPor: string | null;
+  observacionesEntrega: string | null;
   fechaCreacion: string;
   fechaUltimaModificacion: string;
+}
+
+export interface EntregaRequest {
+  retiradoPor: string;
+  fechaEntregaReal?: string | null;
+  observacionesEntrega?: string | null;
 }
 
 export interface PedidoRequest {
@@ -107,6 +117,9 @@ export class PedidosService {
         prioridad: request.prioridad,
         precioAcordado: request.precioAcordado ?? null,
         observaciones: request.observaciones ?? null,
+        fechaEntregaReal: null,
+        retiradoPor: null,
+        observacionesEntrega: null,
         fechaCreacion: ahora,
         fechaUltimaModificacion: ahora,
       };
@@ -146,6 +159,24 @@ export class PedidosService {
     }
     const params = new HttpParams().set('nuevoEstado', nuevoEstado);
     return this.http.patch<PedidoResponse>(`${this.base}/${id}/estado`, null, { params });
+  }
+
+  marcarEntregado(id: number, request: EntregaRequest): Observable<PedidoResponse> {
+    if (environment.useMocks) {
+      const idx = this.mockStore.findIndex(p => p.id === id);
+      if (idx === -1) throw new Error('Pedido no encontrado');
+      const hoy = new Date().toISOString().split('T')[0];
+      this.mockStore[idx] = {
+        ...this.mockStore[idx],
+        estado: 'ENTREGADO',
+        fechaEntregaReal: request.fechaEntregaReal ?? hoy,
+        retiradoPor: request.retiradoPor,
+        observacionesEntrega: request.observacionesEntrega ?? null,
+        fechaUltimaModificacion: new Date().toISOString(),
+      };
+      return of(clonar(this.mockStore[idx])).pipe(delay(200));
+    }
+    return this.http.patch<PedidoResponse>(`${this.base}/${id}/entregar`, request);
   }
 
   eliminar(id: number): Observable<void> {
