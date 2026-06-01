@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse, EntregaRequest } from '../../../services/pedidos.service';
+import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
 
 type Tab = 'PENDIENTES' | 'HISTORIAL';
 
@@ -33,10 +34,28 @@ export class EntregasComponent implements OnInit {
   // Mensaje WhatsApp del recorrido del día
   mensajeCopiado = false;
 
-  constructor(private pedidosService: PedidosService) {}
+  /** Cache id → odontólogo para resolver dirección/clínica/teléfono al armar el mensaje. */
+  private odontologosCache = new Map<number, OdontologoResponse>();
+
+  constructor(
+    private pedidosService: PedidosService,
+    private odontologosService: OdontologosService,
+  ) {}
 
   ngOnInit(): void {
     this.cargar();
+    this.cargarOdontologos();
+  }
+
+  /** Pre-carga los odontólogos activos en cache para usar en el mensaje WhatsApp. */
+  private cargarOdontologos(): void {
+    this.odontologosService.buscar().subscribe({
+      next: data => {
+        this.odontologosCache.clear();
+        data.forEach(o => this.odontologosCache.set(o.id, o));
+      },
+      error: err => console.error('No se pudo cargar el directorio de odontólogos:', err),
+    });
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -157,18 +176,28 @@ export class EntregasComponent implements OnInit {
       return `📦 *Entregas G&S — ${hoy}*\n\nNo hay entregas pendientes hoy. ✅`;
     }
 
-    // Agrupar por odontólogo para que la cadetería tenga el listado por destino
-    const porOdontologo = new Map<string, PedidoResponse[]>();
+    // Agrupar por odontologoId para preservar la relación con la ficha completa
+    const porOdontologo = new Map<number, PedidoResponse[]>();
     for (const p of this.pendientes) {
-      const lista = porOdontologo.get(p.odontologoNombre) ?? [];
+      const lista = porOdontologo.get(p.odontologoId) ?? [];
       lista.push(p);
-      porOdontologo.set(p.odontologoNombre, lista);
+      porOdontologo.set(p.odontologoId, lista);
     }
 
     let msg = `📦 *Entregas G&S — ${hoy}*\n\n`;
     let n = 1;
-    porOdontologo.forEach((pedidos, odontologo) => {
-      msg += `${n++}️⃣ *${odontologo}*\n`;
+    porOdontologo.forEach((pedidos, odontologoId) => {
+      const primero = pedidos[0];
+      const odontologo = this.odontologosCache.get(odontologoId);
+
+      msg += `${n++}️⃣ *${primero.odontologoNombre}*\n`;
+
+      // Datos de contacto/dirección — clave para la cadetería
+      if (odontologo?.clinica)   msg += `   🏥 ${odontologo.clinica}\n`;
+      if (odontologo?.direccion) msg += `   📍 ${odontologo.direccion}\n`;
+      if (odontologo?.telefono)  msg += `   📞 ${odontologo.telefono}\n`;
+
+      // Lista de trabajos a entregar
       for (const p of pedidos) {
         const urg = p.prioridad === 'URGENTE' ? '⚡ ' : '';
         msg += `   🦷 ${urg}${p.trabajo} — Pac: ${p.paciente}\n`;
