@@ -1,6 +1,7 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../services/auth';
+import { ThemeService } from '../../services/theme.service';
 
 interface NavItem {
   type: 'item';
@@ -53,7 +54,13 @@ export class DashboardComponent implements OnInit {
     { type: 'item', label: 'Usuarios',    icon: 'users',    route: '/dashboard/usuarios', roles: ['ROLE_ADMIN'] },
   ];
 
+  readonly themeService = inject(ThemeService);
+
   constructor(private authService: AuthService, private router: Router) {}
+
+  toggleTheme(): void {
+    this.themeService.toggle();
+  }
 
   ngOnInit() {
     this.username = this.authService.getUsername();
