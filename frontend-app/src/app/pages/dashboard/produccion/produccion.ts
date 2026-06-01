@@ -1,9 +1,11 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ProduccionService, TareaResponse } from '../../../services/produccion.service';
+import { PedidosService, PedidoResponse, EstadoPedido as EstadoPedidoBackend } from '../../../services/pedidos.service';
 
-export type EstadoPedido = 'RECIBIDO' | 'EN_PROCESO' | 'CONTROL' | 'LISTO';
+/** Solo los 4 estados que el Kanban maneja (RECIBIDO → LISTO). */
+export type EstadoKanban = 'RECIBIDO' | 'EN_PROCESO' | 'CONTROL' | 'LISTO';
 
+/** Modelo local de la card. Mapea PedidoResponse para que el HTML quede simple. */
 export interface PedidoKanban {
   id: number;
   nroPedido: string;
@@ -12,12 +14,12 @@ export interface PedidoKanban {
   trabajo: string;
   tecnico: string;
   fechaEntrega: Date | null;
-  estado: EstadoPedido;
+  estado: EstadoKanban;
   prioridad: 'NORMAL' | 'URGENTE';
 }
 
 interface Columna {
-  estado: EstadoPedido;
+  estado: EstadoKanban;
   labelLargo: string;
   labelCorto: string;
   accionLabel: string;
@@ -28,7 +30,7 @@ interface Columna {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './produccion.html',
-  styleUrls: ['./produccion.css']
+  styleUrls: ['./produccion.css'],
 })
 export class ProduccionComponent implements OnInit, OnDestroy {
 
@@ -38,25 +40,25 @@ export class ProduccionComponent implements OnInit, OnDestroy {
   error = '';
 
   // Mobile state
-  activeTab: EstadoPedido = 'RECIBIDO';
+  activeTab: EstadoKanban = 'RECIBIDO';
   toastMsg = '';
   toastVisible = false;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Desktop drag state
   draggingPedido: PedidoKanban | null = null;
-  dragOverColumn: EstadoPedido | null = null;
+  dragOverColumn: EstadoKanban | null = null;
 
   readonly columnas: Columna[] = [
-    { estado: 'RECIBIDO',   labelLargo: 'Recibido',          labelCorto: 'Recibido', accionLabel: 'Iniciar producción' },
-    { estado: 'EN_PROCESO', labelLargo: 'En proceso',         labelCorto: 'En proc.', accionLabel: 'Enviar a control'   },
-    { estado: 'CONTROL',    labelLargo: 'Control de calidad', labelCorto: 'Control',  accionLabel: 'Marcar como listo'  },
+    { estado: 'RECIBIDO',   labelLargo: 'Recibido',           labelCorto: 'Recibido',  accionLabel: 'Iniciar producción' },
+    { estado: 'EN_PROCESO', labelLargo: 'En proceso',         labelCorto: 'En proc.',  accionLabel: 'Enviar a control'   },
+    { estado: 'CONTROL',    labelLargo: 'Control de calidad', labelCorto: 'Control',   accionLabel: 'Marcar como listo'  },
     { estado: 'LISTO',      labelLargo: 'Listo para entregar',labelCorto: 'P/Entregar',accionLabel: ''                   },
   ];
 
-  readonly ordenEstados: EstadoPedido[] = ['RECIBIDO', 'EN_PROCESO', 'CONTROL', 'LISTO'];
+  readonly ordenEstados: EstadoKanban[] = ['RECIBIDO', 'EN_PROCESO', 'CONTROL', 'LISTO'];
 
-  constructor(private produccionService: ProduccionService) {}
+  constructor(private pedidosService: PedidosService) {}
 
   ngOnInit() {
     this.cargar();
@@ -66,33 +68,41 @@ export class ProduccionComponent implements OnInit, OnDestroy {
     if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
-  // Mapea TareaResponse del backend al modelo local
-  private mapear(t: TareaResponse): PedidoKanban {
+  // Mapea PedidoResponse del backend al modelo local del Kanban
+  private mapear(p: PedidoResponse): PedidoKanban {
     return {
-      id:           t.id,
-      nroPedido:    t.nroPedido,
-      odontologo:   t.odontologo,
-      paciente:     t.paciente,
-      trabajo:      t.trabajo,
-      tecnico:      t.tecnico ?? 'Sin asignar',
-      fechaEntrega: t.fechaEntrega ? new Date(t.fechaEntrega + 'T00:00:00') : null,
-      estado:       t.estado,
-      prioridad:    t.prioridad,
+      id:           p.id,
+      nroPedido:    p.nroPedido,
+      odontologo:   p.odontologoNombre,
+      paciente:     p.paciente,
+      trabajo:      p.trabajo,
+      tecnico:      p.tecnicoNombre ?? 'Sin asignar',
+      fechaEntrega: p.fechaEntrega ? new Date(p.fechaEntrega + 'T00:00:00') : null,
+      estado:       p.estado as EstadoKanban,
+      prioridad:    p.prioridad,
     };
+  }
+
+  /** True si el pedido está en alguno de los 4 estados del kanban. */
+  private esKanbanEstado(estado: EstadoPedidoBackend): boolean {
+    return estado === 'RECIBIDO' || estado === 'EN_PROCESO'
+        || estado === 'CONTROL'  || estado === 'LISTO';
   }
 
   private cargar() {
     this.loading = true;
     this.error = '';
-    this.produccionService.listarKanban().subscribe({
-      next: (data) => {
-        this.pedidos = data.map(t => this.mapear(t));
+    this.pedidosService.listarTodos().subscribe({
+      next: data => {
+        this.pedidos = data
+          .filter(p => this.esKanbanEstado(p.estado))
+          .map(p => this.mapear(p));
         this.loading = false;
       },
-      error: (err) => {
-        this.error = 'No se pudo cargar la producción. Verificá que ms-produccion esté corriendo.';
+      error: err => {
+        this.error = 'No se pudo cargar el tablero. Verificá que ms-pedidos esté corriendo.';
         this.loading = false;
-        console.error('Error al cargar produccion:', err);
+        console.error('Error al cargar kanban:', err);
       }
     });
   }
@@ -117,7 +127,7 @@ export class ProduccionComponent implements OnInit, OnDestroy {
     return this.pedidos.filter(p => p.prioridad === 'URGENTE' && p.estado !== 'LISTO').length;
   }
 
-  pedidosPorEstado(estado: EstadoPedido): PedidoKanban[] {
+  pedidosPorEstado(estado: EstadoKanban): PedidoKanban[] {
     return this.pedidos.filter(p => {
       if (p.estado !== estado) return false;
       if (this.tecnicoFiltro !== 'TODOS' && p.tecnico !== this.tecnicoFiltro) return false;
@@ -126,44 +136,47 @@ export class ProduccionComponent implements OnInit, OnDestroy {
   }
 
   // Mobile: tab navigation
-  setActiveTab(estado: EstadoPedido) {
+  setActiveTab(estado: EstadoKanban) {
     this.activeTab = estado;
   }
 
-  // Avanzar al siguiente estado — llama al backend
+  // Avanzar al siguiente estado — llama al backend de pedidos
   avanzar(pedido: PedidoKanban) {
     const siguiente = this.columnSiguiente(pedido.estado);
     if (!siguiente) return;
-    this.produccionService.actualizarEstado(pedido.id, siguiente).subscribe({
-      next: (res) => {
-        const label = this.columnas.find(c => c.estado === siguiente)?.labelLargo ?? siguiente;
-        pedido.estado = res.estado;
-        this.showToast(`Movido a "${label}"`);
-      },
-      error: () => this.showToast('Error al actualizar el estado')
-    });
+    this.cambiarEstado(pedido, siguiente, 'Movido a');
   }
 
-  // Retroceder al estado anterior — llama al backend
+  // Retroceder al estado anterior
   retroceder(pedido: PedidoKanban) {
     const anterior = this.columnAnterior(pedido.estado);
     if (!anterior) return;
-    this.produccionService.actualizarEstado(pedido.id, anterior).subscribe({
-      next: (res) => {
-        const label = this.columnas.find(c => c.estado === anterior)?.labelLargo ?? anterior;
-        pedido.estado = res.estado;
-        this.showToast(`Devuelto a "${label}"`);
+    this.cambiarEstado(pedido, anterior, 'Devuelto a');
+  }
+
+  /** Cambio optimista: actualiza la UI y revierte si falla. */
+  private cambiarEstado(pedido: PedidoKanban, nuevo: EstadoKanban, prefijoToast: string) {
+    const estadoAnterior = pedido.estado;
+    pedido.estado = nuevo;
+    this.pedidosService.actualizarEstado(pedido.id, nuevo).subscribe({
+      next: res => {
+        pedido.estado = res.estado as EstadoKanban;
+        const label = this.columnas.find(c => c.estado === nuevo)?.labelLargo ?? nuevo;
+        this.showToast(`${prefijoToast} "${label}"`);
       },
-      error: () => this.showToast('Error al actualizar el estado')
+      error: () => {
+        pedido.estado = estadoAnterior;
+        this.showToast('Error al actualizar el estado');
+      }
     });
   }
 
-  columnSiguiente(estado: EstadoPedido): EstadoPedido | null {
+  columnSiguiente(estado: EstadoKanban): EstadoKanban | null {
     const idx = this.ordenEstados.indexOf(estado);
     return idx < this.ordenEstados.length - 1 ? this.ordenEstados[idx + 1] : null;
   }
 
-  columnAnterior(estado: EstadoPedido): EstadoPedido | null {
+  columnAnterior(estado: EstadoKanban): EstadoKanban | null {
     const idx = this.ordenEstados.indexOf(estado);
     return idx > 0 ? this.ordenEstados[idx - 1] : null;
   }
@@ -175,13 +188,13 @@ export class ProduccionComponent implements OnInit, OnDestroy {
     this.toastTimer = setTimeout(() => { this.toastVisible = false; }, 2500);
   }
 
-  // Desktop drag & drop — actualiza estado en backend al soltar
+  // Desktop drag & drop
   onDragStart(event: DragEvent, pedido: PedidoKanban) {
     this.draggingPedido = pedido;
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
   }
 
-  onDragOver(event: DragEvent, estado: EstadoPedido) {
+  onDragOver(event: DragEvent, estado: EstadoKanban) {
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
     this.dragOverColumn = estado;
@@ -193,30 +206,14 @@ export class ProduccionComponent implements OnInit, OnDestroy {
     if (!related || !target.contains(related)) this.dragOverColumn = null;
   }
 
-  onDrop(event: DragEvent, nuevoEstado: EstadoPedido) {
+  onDrop(event: DragEvent, nuevoEstado: EstadoKanban) {
     event.preventDefault();
     this.dragOverColumn = null;
     const pedido = this.draggingPedido;
     this.draggingPedido = null;
 
     if (!pedido || pedido.estado === nuevoEstado) return;
-
-    // Actualización optimista: mueve la card de inmediato
-    const estadoAnterior = pedido.estado;
-    pedido.estado = nuevoEstado;
-
-    this.produccionService.actualizarEstado(pedido.id, nuevoEstado).subscribe({
-      next: (res) => {
-        pedido.estado = res.estado;
-        const label = this.columnas.find(c => c.estado === nuevoEstado)?.labelLargo ?? nuevoEstado;
-        this.showToast(`Movido a "${label}"`);
-      },
-      error: () => {
-        // Revierte si falla
-        pedido.estado = estadoAnterior;
-        this.showToast('Error al mover la tarea');
-      }
-    });
+    this.cambiarEstado(pedido, nuevoEstado, 'Movido a');
   }
 
   onDragEnd() {
