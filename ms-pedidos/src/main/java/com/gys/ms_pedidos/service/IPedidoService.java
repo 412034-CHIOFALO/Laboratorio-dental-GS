@@ -18,4 +18,7 @@ public interface IPedidoService {
     /** Transición LISTO → ENTREGADO con datos de quién retiró y observaciones. */
     PedidoResponse marcarEntregado(Long id, EntregaRequest request);
     void eliminar(Long id);
+
+    /** Lista todos los pedidos atrasados (no entregados, no cancelados, >= umbral configurado). */
+    List<PedidoResponse> listarAtrasados();
 }

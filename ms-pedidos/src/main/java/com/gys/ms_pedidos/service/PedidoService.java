@@ -10,6 +10,7 @@ import com.gys.ms_pedidos.model.Odontologo;
 import com.gys.ms_pedidos.model.Pedido;
 import com.gys.ms_pedidos.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,12 +25,26 @@ public class PedidoService implements IPedidoService {
 
     private final PedidoRepository pedidoRepository;
     private final IOdontologoService odontologoService;
+    private final ConsumoStockService consumoStockService;
+
+    /**
+     * Umbral de días hábiles a partir del cual un pedido se considera "atrasado".
+     * Configurable vía gs.pedidos.dias-limite-atraso en application.properties.
+     * Default: 6 días hábiles.
+     */
+    @Value("${gs.pedidos.dias-limite-atraso:6}")
+    private int diasLimiteAtraso;
+
+    /** Helper para no repetir el umbral en cada mapeo. */
+    private PedidoResponse toResponse(Pedido p) {
+        return PedidoResponse.from(p, diasLimiteAtraso);
+    }
 
     @Override
     public List<PedidoResponse> listarTodos() {
         return pedidoRepository.findAll()
                 .stream()
-                .map(PedidoResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -37,7 +52,7 @@ public class PedidoService implements IPedidoService {
     public List<PedidoResponse> listarActivos() {
         return pedidoRepository.findByEstadoNot(EstadoPedido.LISTO)
                 .stream()
-                .map(PedidoResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
@@ -45,15 +60,26 @@ public class PedidoService implements IPedidoService {
     public List<PedidoResponse> listarPorEstado(EstadoPedido estado) {
         return pedidoRepository.findByEstado(estado)
                 .stream()
-                .map(PedidoResponse::from)
+                .map(this::toResponse)
                 .toList();
     }
 
     @Override
     public PedidoResponse buscarPorId(Long id) {
         return pedidoRepository.findById(id)
-                .map(PedidoResponse::from)
+                .map(this::toResponse)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
+    }
+
+    @Override
+    public List<PedidoResponse> listarAtrasados() {
+        // Trae todos los no terminales y filtra in-memory por el umbral.
+        // Para 99% de los labs el volumen es chico (<1000 activos) → fine.
+        // Si en el futuro escala, agregar query con condición de fecha en SQL.
+        return pedidoRepository.findAll().stream()
+                .map(this::toResponse)
+                .filter(PedidoResponse::atrasado)
+                .toList();
     }
 
     @Override
@@ -77,7 +103,7 @@ public class PedidoService implements IPedidoService {
                 .observaciones(request.getObservaciones())
                 .build();
 
-        return PedidoResponse.from(pedidoRepository.save(pedido));
+        return toResponse(pedidoRepository.save(pedido));
     }
 
     @Override
@@ -85,8 +111,19 @@ public class PedidoService implements IPedidoService {
     public PedidoResponse actualizarEstado(Long id, EstadoPedido nuevoEstado) {
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido", id));
+
+        EstadoPedido estadoAnterior = pedido.getEstado();
         pedido.setEstado(nuevoEstado);
-        return PedidoResponse.from(pedidoRepository.save(pedido));
+
+        // ── Descuento automático de stock al entrar en producción ──
+        // Solo dispara cuando hace transición a EN_PROCESO. Idempotente (ver
+        // ConsumoStockService): si ya se consumió antes, no descuenta de nuevo.
+        // El fallo no rompe el cambio de estado, solo loggea.
+        if (nuevoEstado == EstadoPedido.EN_PROCESO && estadoAnterior != EstadoPedido.EN_PROCESO) {
+            consumoStockService.descontarSiCorresponde(pedido);
+        }
+
+        return toResponse(pedidoRepository.save(pedido));
     }
 
     @Override
@@ -109,7 +146,7 @@ public class PedidoService implements IPedidoService {
         pedido.setPrecioAcordado(request.getPrecioAcordado());
         pedido.setObservaciones(request.getObservaciones());
 
-        return PedidoResponse.from(pedidoRepository.save(pedido));
+        return toResponse(pedidoRepository.save(pedido));
     }
 
     @Override
@@ -132,7 +169,7 @@ public class PedidoService implements IPedidoService {
                 ? request.getObservacionesEntrega().trim()
                 : null);
 
-        return PedidoResponse.from(pedidoRepository.save(pedido));
+        return toResponse(pedidoRepository.save(pedido));
     }
 
     @Override

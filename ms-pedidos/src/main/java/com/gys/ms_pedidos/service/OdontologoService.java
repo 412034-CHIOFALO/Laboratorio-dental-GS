@@ -7,14 +7,19 @@ import com.gys.ms_pedidos.exception.ConflictException;
 import com.gys.ms_pedidos.exception.ResourceNotFoundException;
 import com.gys.ms_pedidos.model.Odontologo;
 import com.gys.ms_pedidos.repository.OdontologoRepository;
+import com.gys.ms_pedidos.repository.PedidoRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -33,13 +38,43 @@ public class OdontologoService implements IOdontologoService {
     private static final Pattern PATRON_MATRICULA = Pattern.compile("^(MN|MP|MAT)[\\s-]*[0-9]+$", Pattern.CASE_INSENSITIVE);
 
     private final OdontologoRepository repository;
+    private final PedidoRepository pedidoRepository;
+
+    /**
+     * Meses sin pedidos a partir de los cuales un odontólogo se considera
+     * "inactivo por tiempo". Configurable; default 6 meses.
+     */
+    @Value("${gs.odontologos.meses-inactividad:6}")
+    private int mesesInactividad;
 
     @Override
     public List<OdontologoResponse> listarActivos() {
+        // "Activos" = no desactivados manualmente. El estado por TIEMPO
+        // (inactivoPorTiempo) se calcula a partir del último pedido, así no
+        // hace falta desactivar a mano: con 100+ odontólogos, se filtra por
+        // actividad desde el frontend.
+        Map<Long, LocalDateTime> ultimaActividad = mapaUltimaActividad();
+        LocalDateTime corte = LocalDateTime.now().minusMonths(mesesInactividad);
+
         return repository.findByActivoTrueOrderByNombreAsc()
                 .stream()
-                .map(OdontologoResponse::from)
+                .map(o -> {
+                    LocalDateTime ultimo = ultimaActividad.get(o.getId());
+                    boolean inactivo = (ultimo == null) || ultimo.isBefore(corte);
+                    return OdontologoResponse.from(o, ultimo, inactivo);
+                })
                 .toList();
+    }
+
+    /** Construye un mapa odontologoId → fecha del último pedido. */
+    private Map<Long, LocalDateTime> mapaUltimaActividad() {
+        Map<Long, LocalDateTime> mapa = new HashMap<>();
+        for (Object[] row : pedidoRepository.ultimaActividadPorOdontologo()) {
+            if (row[0] != null && row[1] != null) {
+                mapa.put((Long) row[0], (LocalDateTime) row[1]);
+            }
+        }
+        return mapa;
     }
 
     /**
