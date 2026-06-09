@@ -2,6 +2,7 @@ package com.gys.api_gateway.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -48,6 +49,9 @@ public class SecurityConfig {
                 // TODO: El endpoint /ms-auth/oauth2/jwks debe ser accesible para otros MS
                 //       que fetchen el JWK Set en sus arranques. Habilitarlo aquí.
                 .requestMatchers("/ms-auth/oauth2/jwks").permitAll()
+                // Endpoint del bot de WhatsApp: pasa sin JWT, lo protege la API key
+                // (X-Bot-Api-Key) que valida ms-finanzas internamente.
+                .requestMatchers(HttpMethod.POST, "/api/finanzas/sueldos/pago-automatico").permitAll()
                 // Todo lo demás (todos los MS) requiere JWT válido firmado por ms-auth
                 .anyRequest().authenticated()
             )
