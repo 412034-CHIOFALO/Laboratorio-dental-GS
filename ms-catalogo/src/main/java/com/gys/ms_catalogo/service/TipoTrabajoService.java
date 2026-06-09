@@ -1,9 +1,11 @@
 package com.gys.ms_catalogo.service;
 
+import com.gys.ms_catalogo.dto.IngredienteRecetaRequest;
 import com.gys.ms_catalogo.dto.TipoTrabajoRequest;
 import com.gys.ms_catalogo.dto.TipoTrabajoResponse;
 import com.gys.ms_catalogo.exception.ResourceNotFoundException;
 import com.gys.ms_catalogo.model.Categoria;
+import com.gys.ms_catalogo.model.IngredienteReceta;
 import com.gys.ms_catalogo.model.TipoTrabajo;
 import com.gys.ms_catalogo.repository.TipoTrabajoRepository;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +58,7 @@ public class TipoTrabajoService implements ITipoTrabajoService {
                 .tiempoEstimadoDias(request.getTiempoEstimadoDias())
                 .fotoUrl(request.getFotoUrl())
                 .build();
+        t.reemplazarReceta(toIngredientes(request));
         return TipoTrabajoResponse.from(repository.save(t));
     }
 
@@ -70,8 +73,23 @@ public class TipoTrabajoService implements ITipoTrabajoService {
         t.setCategoria(request.getCategoria());
         t.setTiempoEstimadoDias(request.getTiempoEstimadoDias());
         t.setFotoUrl(request.getFotoUrl());
+        t.reemplazarReceta(toIngredientes(request));
 
         return TipoTrabajoResponse.from(repository.save(t));
+    }
+
+    /** Convierte la lista de DTOs en entidades (sin setearles el TipoTrabajo dueño todavía). */
+    private java.util.List<IngredienteReceta> toIngredientes(TipoTrabajoRequest request) {
+        if (request.getReceta() == null) return java.util.List.of();
+        return request.getReceta().stream()
+                .map(r -> IngredienteReceta.builder()
+                        .materialId(r.getMaterialId())
+                        .materialNombre(r.getMaterialNombre())
+                        .cantidad(r.getCantidad())
+                        .unidad(r.getUnidad())
+                        .notas(r.getNotas())
+                        .build())
+                .toList();
     }
 
     @Transactional
