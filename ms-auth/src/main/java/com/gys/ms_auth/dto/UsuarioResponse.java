@@ -8,6 +8,7 @@ public record UsuarioResponse(
     String username,
     String nombre,
     String apellido,
+    String telefono,
     Rol rol,
     boolean enabled,
     boolean pendienteAprobacion
@@ -18,6 +19,7 @@ public record UsuarioResponse(
             u.getUsername(),
             u.getNombre(),
             u.getApellido(),
+            u.getTelefono(),
             u.getRol(),
             u.isEnabled(),
             u.isPendienteAprobacion()

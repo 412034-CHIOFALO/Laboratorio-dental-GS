@@ -48,4 +48,21 @@ public class UsuarioService {
         usuario.setPendienteAprobacion(false);
         return usuarioRepository.save(usuario);
     }
+
+    /** Activa o desactiva un usuario (entrada/salida de personal). */
+    public Usuario cambiarEstado(Long id, boolean activo) {
+        Usuario usuario = usuarioRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
+        usuario.setEnabled(activo);
+        usuario.setPendienteAprobacion(false);
+        return usuarioRepository.save(usuario);
+    }
+
+    /** Actualiza el teléfono (usado por el bot para identificar al integrante). */
+    public Usuario actualizarTelefono(Long id, String telefono) {
+        Usuario usuario = usuarioRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
+        usuario.setTelefono(telefono != null && !telefono.isBlank() ? telefono.trim() : null);
+        return usuarioRepository.save(usuario);
+    }
 }
