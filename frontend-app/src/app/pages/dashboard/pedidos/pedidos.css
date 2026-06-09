@@ -188,6 +188,36 @@
   letter-spacing: 0.5px;
   width: fit-content;
 }
+
+/* ─── Pedidos atrasados (ámbar/naranja, diferente del rojo de urgente) ─ */
+.badge-atrasado {
+  display: inline-block;
+  background: rgba(234, 88, 12, 0.15);
+  color: #ea580c;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  width: fit-content;
+  margin-top: 2px;
+}
+:host-context([data-theme="light"]) .badge-atrasado {
+  background: rgba(234, 88, 12, 0.12);
+  color: #c2410c;
+}
+
+/* Fila atrasada: borde izquierdo ámbar sin tapar el rojo del urgente */
+tr.atrasado td:first-child {
+  box-shadow: inset 3px 0 0 #ea580c;
+}
+/* Si es urgente Y atrasado: borde rojo + fondo ámbar muy suave */
+tr.urgente.atrasado {
+  background: rgba(234, 88, 12, 0.04);
+}
+tr.urgente.atrasado td:first-child {
+  box-shadow: inset 3px 0 0 #dc2626;
+}
 .celda-trabajo {
   max-width: 200px;
   overflow: hidden;

@@ -18,6 +18,9 @@ export interface OdontologoResponse {
   activo: boolean;
   fechaCreacion: string;
   fechaModificacion: string;
+  // ── Estado de actividad (calculado en backend por último pedido) ──
+  ultimoPedido?: string | null;
+  inactivoPorTiempo?: boolean;
 }
 
 export interface OdontologoRequest {
@@ -48,7 +51,7 @@ export class OdontologosService {
    */
   buscar(q?: string): Observable<OdontologoResponse[]> {
     if (environment.useMocks) {
-      let resultados = this.mockStore.filter(o => o.activo);
+      let resultados = this.mockStore.filter(o => o.activo).map(o => this.enriquecerActividad(o));
       if (q && q.trim()) {
         const valor = q.trim();
         const lower = valor.toLowerCase();
@@ -74,6 +77,20 @@ export class OdontologosService {
     let params = new HttpParams();
     if (q && q.trim()) params = params.set('q', q.trim());
     return this.http.get<OdontologoResponse[]>(this.base, { params });
+  }
+
+  /**
+   * Mock: simula el estado de actividad. Para demostrar el filtro, marcamos
+   * como inactivos (sin pedidos recientes) algunos odontólogos según su id.
+   */
+  private enriquecerActividad(o: OdontologoResponse): OdontologoResponse {
+    if (o.inactivoPorTiempo !== undefined) return o;
+    // demo: ids pares = activos recientes, algunos ids = inactivos
+    const inactivo = [3, 5, 8].includes(o.id);
+    const dias = inactivo ? 240 : 12;
+    const fecha = new Date();
+    fecha.setDate(fecha.getDate() - dias);
+    return { ...o, inactivoPorTiempo: inactivo, ultimoPedido: fecha.toISOString() };
   }
 
   private normalizarCuit(cuit: string): string {

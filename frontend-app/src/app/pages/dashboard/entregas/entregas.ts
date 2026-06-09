@@ -1,7 +1,8 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse, EntregaRequest } from '../../../services/pedidos.service';
 import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
+import { NotificationService } from '../../../services/notification.service';
 
 type Tab = 'PENDIENTES' | 'HISTORIAL';
 
@@ -36,6 +37,8 @@ export class EntregasComponent implements OnInit {
 
   /** Cache id → odontólogo para resolver dirección/clínica/teléfono al armar el mensaje. */
   private odontologosCache = new Map<number, OdontologoResponse>();
+
+  private notif = inject(NotificationService);
 
   constructor(
     private pedidosService: PedidosService,
@@ -154,12 +157,11 @@ export class EntregasComponent implements OnInit {
         this.historial.unshift(res);
         this.saving = false;
         this.cerrarModalEntregar();
+        this.notif.exito(`${res.nroPedido} entregado a ${res.retiradoPor}`);
       },
       error: err => {
         this.saving = false;
-        const msg = err?.error?.mensaje ?? 'No se pudo marcar como entregado.';
-        alert(msg);
-        console.error(err);
+        this.notif.errorHttp(err, 'No se pudo marcar como entregado');
       },
     });
   }
@@ -211,6 +213,7 @@ export class EntregasComponent implements OnInit {
   copiarMensaje(): void {
     navigator.clipboard.writeText(this.mensajeWhatsApp).then(() => {
       this.mensajeCopiado = true;
+      this.notif.info('Mensaje copiado al portapapeles');
       setTimeout(() => (this.mensajeCopiado = false), 2500);
     });
   }

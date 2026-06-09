@@ -238,3 +238,64 @@
   .right-panel { padding: 2rem 1.5rem; align-items: flex-start; }
   .form-container { max-width: 100%; }
 }
+
+/* ─── Demo hint (solo dev) ─────────────────────────────────────── */
+.demo-hint {
+  margin-top: 1.25rem;
+  padding: 0.85rem 0.95rem;
+  background: color-mix(in srgb, var(--accent, #3b82f6) 8%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--accent, #3b82f6) 35%, transparent);
+  border-radius: 10px;
+}
+.demo-hint-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted, #6b7280);
+  margin-bottom: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.demo-hint-title svg { flex-shrink: 0; opacity: 0.7; }
+.demo-hint-creds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.demo-cred {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, rgba(0,0,0,0.08));
+  border-radius: 7px;
+  font-size: 0.78rem;
+  color: var(--text, #111);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+.demo-cred:hover {
+  background: color-mix(in srgb, var(--accent, #3b82f6) 5%, var(--card, #fff));
+  border-color: color-mix(in srgb, var(--accent, #3b82f6) 30%, transparent);
+}
+.demo-cred:active { transform: translateY(1px); }
+.demo-cred strong { font-weight: 600; min-width: 80px; }
+.demo-cred span { opacity: 0.4; }
+.demo-cred code {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.72rem;
+  background: color-mix(in srgb, var(--text, #111) 6%, transparent);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+}
+.demo-cred em {
+  font-style: normal;
+  font-size: 0.7rem;
+  opacity: 0.6;
+  margin-left: auto;
+}
