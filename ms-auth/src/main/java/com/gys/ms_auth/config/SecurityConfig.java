@@ -23,9 +23,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.oidc.OidcScopes;
+import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.web.cors.CorsConfiguration;
@@ -38,6 +45,7 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.cert.X509Certificate;
 import java.util.List;
+import java.util.UUID;
 
 @Configuration
 @EnableWebSecurity
@@ -175,5 +183,41 @@ public class SecurityConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder().build();
+    }
+
+    /**
+     * 11. RegisteredClientRepository
+     *
+     * Requerido por OAuth2AuthorizationServerConfiguration aunque el login
+     * principal se haga vía /api/auth/login (flow custom con username/password).
+     *
+     * Este client en memoria queda disponible para apps que quieran usar el
+     * flow OAuth2 estándar (authorization_code + PKCE) hacia este Auth Server.
+     * Si en algún momento migramos el frontend al flow OIDC, ya está listo.
+     *
+     * El client_id es "gys-frontend" y soporta:
+     *  - authorization_code  (con PKCE para SPAs)
+     *  - refresh_token
+     *  - scopes: openid, profile
+     */
+    @Bean
+    public RegisteredClientRepository registeredClientRepository(PasswordEncoder passwordEncoder) {
+        RegisteredClient frontendClient = RegisteredClient.withId(UUID.randomUUID().toString())
+            .clientId("gys-frontend")
+            .clientSecret(passwordEncoder.encode("gys-frontend-secret"))
+            .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+            .clientAuthenticationMethod(ClientAuthenticationMethod.NONE) // public client (SPA con PKCE)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+            .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+            .redirectUri("http://localhost:4200/login/oauth2/code/gys")
+            .redirectUri("http://localhost/login/oauth2/code/gys")
+            .scope(OidcScopes.OPENID)
+            .scope(OidcScopes.PROFILE)
+            .clientSettings(ClientSettings.builder()
+                .requireAuthorizationConsent(false)
+                .requireProofKey(true) // PKCE obligatorio para SPAs
+                .build())
+            .build();
+        return new InMemoryRegisteredClientRepository(frontendClient);
     }
 }

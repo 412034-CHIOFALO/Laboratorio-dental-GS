@@ -27,6 +27,13 @@ public class Usuario {
     private String nombre;
     private String apellido;
 
+    /**
+     * Teléfono del integrante. Usado por el bot de WhatsApp para identificar
+     * quién carga/recibe comprobantes (mapeo teléfono → usuario).
+     */
+    @Column(length = 30)
+    private String telefono;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Rol rol;
