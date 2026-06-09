@@ -39,6 +39,12 @@ public class PedidoController {
         return ResponseEntity.ok(pedidoService.listarActivos());
     }
 
+    /** Pedidos que superan el umbral configurado de días hábiles sin entregar. */
+    @GetMapping("/atrasados")
+    public ResponseEntity<List<PedidoResponse>> listarAtrasados() {
+        return ResponseEntity.ok(pedidoService.listarAtrasados());
+    }
+
     @GetMapping("/estado/{estado}")
     public ResponseEntity<List<PedidoResponse>> listarPorEstado(@PathVariable EstadoPedido estado) {
         return ResponseEntity.ok(pedidoService.listarPorEstado(estado));

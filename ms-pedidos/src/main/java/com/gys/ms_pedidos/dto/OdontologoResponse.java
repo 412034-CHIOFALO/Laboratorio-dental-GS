@@ -16,9 +16,19 @@ public record OdontologoResponse(
         String direccion,
         Boolean activo,
         LocalDateTime fechaCreacion,
-        LocalDateTime fechaModificacion
+        LocalDateTime fechaModificacion,
+        // ── Estado de actividad (calculado por último pedido) ──
+        /** Fecha del último pedido de este odontólogo (null si nunca pidió). */
+        LocalDateTime ultimoPedido,
+        /** True si no tiene pedidos en los últimos N meses (inactivo por tiempo). */
+        boolean inactivoPorTiempo
 ) {
+    /** Versión sin datos de actividad (compat: usa null/false). */
     public static OdontologoResponse from(Odontologo o) {
+        return from(o, null, false);
+    }
+
+    public static OdontologoResponse from(Odontologo o, LocalDateTime ultimoPedido, boolean inactivoPorTiempo) {
         return new OdontologoResponse(
                 o.getId(),
                 o.getNombre(),
@@ -31,7 +41,9 @@ public record OdontologoResponse(
                 o.getDireccion(),
                 o.getActivo(),
                 o.getFechaCreacion(),
-                o.getFechaModificacion()
+                o.getFechaModificacion(),
+                ultimoPedido,
+                inactivoPorTiempo
         );
     }
 }
