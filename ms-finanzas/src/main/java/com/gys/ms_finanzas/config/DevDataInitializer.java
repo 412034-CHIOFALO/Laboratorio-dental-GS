@@ -29,19 +29,25 @@ public class DevDataInitializer implements CommandLineRunner {
     private final ProveedorRepository proveedorRepository;
     private final DeudaProveedorRepository deudaProveedorRepository;
     private final SueldoEmpleadoRepository sueldoEmpleadoRepository;
+    private final ConfiguracionSueldoRepository configSueldoRepository;
 
     public DevDataInitializer(ComprobanteRepository repository,
                               ProveedorRepository proveedorRepository,
                               DeudaProveedorRepository deudaProveedorRepository,
-                              SueldoEmpleadoRepository sueldoEmpleadoRepository) {
+                              SueldoEmpleadoRepository sueldoEmpleadoRepository,
+                              ConfiguracionSueldoRepository configSueldoRepository) {
         this.repository = repository;
         this.proveedorRepository = proveedorRepository;
         this.deudaProveedorRepository = deudaProveedorRepository;
         this.sueldoEmpleadoRepository = sueldoEmpleadoRepository;
+        this.configSueldoRepository = configSueldoRepository;
     }
 
     @Override
     public void run(String... args) {
+        // Seed de configuración de sueldos (independiente de los comprobantes)
+        seedConfiguracionSueldos();
+
         if (repository.count() > 0) {
             log.info("[GYS-DEV] ms-finanzas ya tiene datos — se omite la carga inicial.");
             return;
@@ -142,5 +148,51 @@ public class DevDataInitializer implements CommandLineRunner {
                 .build()
         ));
         log.info("[GYS-DEV] Sueldos del mes {}/{} cargados.", mes, anio);
+    }
+
+    /**
+     * Configuración de sueldo de los integrantes del laboratorio.
+     * Los empleadoId coinciden con los usuarios de ms-auth (DevDataInitializer).
+     */
+    private void seedConfiguracionSueldos() {
+        if (configSueldoRepository.count() > 0) return;
+
+        configSueldoRepository.saveAll(List.of(
+            ConfiguracionSueldo.builder()
+                .empleadoId(1L).empleadoNombre("Rebeca González").rol("ADMIN")
+                .telefono("351-655-1001").activo(true)
+                .frecuencia(FrecuenciaPago.MENSUAL).montoBase(BigDecimal.ZERO)
+                .saldoDevengado(BigDecimal.ZERO).saldoSobrante(BigDecimal.ZERO)
+                .build(),
+            ConfiguracionSueldo.builder()
+                .empleadoId(2L).empleadoNombre("Carlos López").rol("TECNICO")
+                .telefono("351-655-1002").activo(true)
+                .frecuencia(FrecuenciaPago.SEMANAL).montoBase(new BigDecimal("120000"))
+                .saldoDevengado(new BigDecimal("120000")).saldoSobrante(BigDecimal.ZERO)
+                .ultimoPago(LocalDate.now().minusDays(7))
+                .build(),
+            ConfiguracionSueldo.builder()
+                .empleadoId(3L).empleadoNombre("Mario Giménez").rol("TECNICO")
+                .telefono("351-655-1003").activo(true)
+                .frecuencia(FrecuenciaPago.DIARIO).montoBase(new BigDecimal("30000"))
+                .saldoDevengado(new BigDecimal("90000")).saldoSobrante(BigDecimal.ZERO)
+                .ultimoPago(LocalDate.now().minusDays(2))
+                .build(),
+            ConfiguracionSueldo.builder()
+                .empleadoId(4L).empleadoNombre("Valentina Torres").rol("ADMINISTRATIVO")
+                .telefono("351-655-1004").activo(true)
+                .frecuencia(FrecuenciaPago.QUINCENAL).montoBase(new BigDecimal("180000"))
+                .saldoDevengado(new BigDecimal("90000")).saldoSobrante(new BigDecimal("15000"))
+                .ultimoPago(LocalDate.now().minusDays(5))
+                .build(),
+            ConfiguracionSueldo.builder()
+                .empleadoId(5L).empleadoNombre("Diego Ferreyra").rol("TECNICO")
+                .telefono("351-655-1005").activo(true)
+                .frecuencia(FrecuenciaPago.SEMANAL).montoBase(new BigDecimal("110000"))
+                .saldoDevengado(new BigDecimal("55000")).saldoSobrante(BigDecimal.ZERO)
+                .ultimoPago(LocalDate.now().minusDays(4))
+                .build()
+        ));
+        log.info("[GS-DEV] Configuración de sueldos cargada para 5 integrantes.");
     }
 }

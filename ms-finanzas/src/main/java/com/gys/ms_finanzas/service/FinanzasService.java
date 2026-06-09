@@ -2,6 +2,8 @@ package com.gys.ms_finanzas.service;
 
 import com.gys.ms_finanzas.dto.ComprobanteRequest;
 import com.gys.ms_finanzas.dto.ComprobanteResponse;
+import com.gys.ms_finanzas.dto.CuentaCorrienteOdontologoResponse;
+import com.gys.ms_finanzas.dto.CuentaCorrienteOdontologoResponse.Severidad;
 import com.gys.ms_finanzas.exception.BusinessException;
 import com.gys.ms_finanzas.exception.ResourceNotFoundException;
 import com.gys.ms_finanzas.model.Comprobante;
@@ -14,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Service
@@ -76,6 +79,65 @@ public class FinanzasService implements IFinanzasService {
         c.setEstadoPago(EstadoPago.COBRADO);
         c.setFechaCobro(LocalDate.now());
         return ComprobanteResponse.from(repository.save(c));
+    }
+
+    @Override
+    public List<CuentaCorrienteOdontologoResponse> rankingMorosos() {
+        List<Object[]> rows = repository.rankingDeudoresRaw();
+        LocalDate hoy = LocalDate.now();
+
+        return rows.stream()
+                .map(r -> {
+                    Long odontologoId        = (Long) r[0];
+                    String odontologoNombre  = (String) r[1];
+                    BigDecimal totalDeuda    = (BigDecimal) r[2];
+                    long comprobantes        = (Long) r[3];
+                    LocalDate fechaMasVieja  = (LocalDate) r[4];
+
+                    long diasSinPagar = fechaMasVieja != null
+                            ? ChronoUnit.DAYS.between(fechaMasVieja, hoy)
+                            : 0;
+
+                    return new CuentaCorrienteOdontologoResponse(
+                            odontologoId,
+                            odontologoNombre,
+                            totalDeuda,
+                            comprobantes,
+                            fechaMasVieja,
+                            diasSinPagar,
+                            calcularSeveridad(totalDeuda, diasSinPagar)
+                    );
+                })
+                .toList();
+    }
+
+    /**
+     * Combina monto + tiempo para clasificar la severidad. Toma el peor de
+     * los dos criterios. Los umbrales son configurables más adelante si hace
+     * falta (por ahora hardcoded — buen lugar para sacar a properties si el
+     * cliente los quiere ajustar).
+     */
+    private Severidad calcularSeveridad(BigDecimal monto, long diasSinPagar) {
+        if (monto == null || monto.compareTo(BigDecimal.ZERO) <= 0) {
+            return Severidad.AL_DIA;
+        }
+
+        // Por monto
+        Severidad porMonto;
+        if (monto.compareTo(new BigDecimal("500000")) > 0)      porMonto = Severidad.CRITICA;
+        else if (monto.compareTo(new BigDecimal("200000")) > 0) porMonto = Severidad.ALTA;
+        else if (monto.compareTo(new BigDecimal("50000")) > 0)  porMonto = Severidad.MEDIA;
+        else                                                     porMonto = Severidad.BAJA;
+
+        // Por tiempo
+        Severidad porTiempo;
+        if (diasSinPagar > 90)      porTiempo = Severidad.CRITICA;
+        else if (diasSinPagar > 60) porTiempo = Severidad.ALTA;
+        else if (diasSinPagar > 30) porTiempo = Severidad.MEDIA;
+        else                        porTiempo = Severidad.BAJA;
+
+        // Devuelve la peor
+        return porMonto.ordinal() >= porTiempo.ordinal() ? porMonto : porTiempo;
     }
 
     private String generarNroComprobante() {
