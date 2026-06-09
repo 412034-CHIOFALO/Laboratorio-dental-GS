@@ -109,6 +109,28 @@ public class AuthController {
         }
     }
 
+    /** Activa/desactiva un integrante (entrada/salida de personal). */
+    @PatchMapping("/usuarios/{id}/estado")
+    public ResponseEntity<?> cambiarEstado(@PathVariable Long id, @RequestBody Map<String, Boolean> body) {
+        try {
+            Usuario u = usuarioService.cambiarEstado(id, Boolean.TRUE.equals(body.get("activo")));
+            return ResponseEntity.ok(UsuarioResponse.from(u));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** Actualiza el teléfono del integrante (lo usa el bot para identificarlo). */
+    @PatchMapping("/usuarios/{id}/telefono")
+    public ResponseEntity<?> actualizarTelefono(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        try {
+            Usuario u = usuarioService.actualizarTelefono(id, body.get("telefono"));
+            return ResponseEntity.ok(UsuarioResponse.from(u));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     public record LoginRequest(
         @NotBlank(message = "El username no puede estar vacío")
         @Size(min = 3, max = 50, message = "El username debe tener entre 3 y 50 caracteres")

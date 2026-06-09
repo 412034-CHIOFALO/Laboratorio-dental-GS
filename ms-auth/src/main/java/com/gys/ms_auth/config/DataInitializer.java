@@ -19,11 +19,12 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
 
     // Contraseñas iniciales inyectadas desde variables de entorno.
-    // NUNCA usar defaults fijos en producción — configurar GYS_ADMIN_PASSWORD y GYS_TECNICO_PASSWORD.
-    @Value("${GYS_ADMIN_PASSWORD:CHANGE_ME_ADMIN}")
+    // En desarrollo, los defaults son sencillos para arrancar sin configurar nada.
+    // En producción, SIEMPRE override vía env vars GS_ADMIN_PASSWORD / GS_TECNICO_PASSWORD.
+    @Value("${GS_ADMIN_PASSWORD:${GYS_ADMIN_PASSWORD:admin123}}")
     private String adminPassword;
 
-    @Value("${GYS_TECNICO_PASSWORD:CHANGE_ME_TECNICO}")
+    @Value("${GS_TECNICO_PASSWORD:${GYS_TECNICO_PASSWORD:tecnico123}}")
     private String tecnicoPassword;
 
     public DataInitializer(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
@@ -34,9 +35,9 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) {
         if (!usuarioRepository.existsByUsername("admin")) {
-            if ("CHANGE_ME_ADMIN".equals(adminPassword)) {
-                log.warn("[GYS-SECURITY] La variable GYS_ADMIN_PASSWORD no está configurada. " +
-                         "Usando contraseña por defecto — CAMBIAR ANTES DE PRODUCCIÓN.");
+            if ("admin123".equals(adminPassword)) {
+                log.warn("[GS-SECURITY] Usando contraseña por defecto para 'admin'. " +
+                         "CAMBIAR antes de producción vía GS_ADMIN_PASSWORD.");
             }
             Usuario admin = Usuario.builder()
                 .nombre("Rebeca")
@@ -48,13 +49,13 @@ public class DataInitializer implements CommandLineRunner {
                 .pendienteAprobacion(false)
                 .build();
             usuarioRepository.save(admin);
-            log.info("[GYS] Usuario 'admin' creado correctamente.");
+            log.info("[GS] Usuario 'admin' creado correctamente.");
         }
 
         if (!usuarioRepository.existsByUsername("tecnico1")) {
-            if ("CHANGE_ME_TECNICO".equals(tecnicoPassword)) {
-                log.warn("[GYS-SECURITY] La variable GYS_TECNICO_PASSWORD no está configurada. " +
-                         "Usando contraseña por defecto — CAMBIAR ANTES DE PRODUCCIÓN.");
+            if ("tecnico123".equals(tecnicoPassword)) {
+                log.warn("[GS-SECURITY] Usando contraseña por defecto para 'tecnico1'. " +
+                         "CAMBIAR antes de producción vía GS_TECNICO_PASSWORD.");
             }
             Usuario tecnico = Usuario.builder()
                 .nombre("Carlos")
@@ -66,7 +67,7 @@ public class DataInitializer implements CommandLineRunner {
                 .pendienteAprobacion(false)
                 .build();
             usuarioRepository.save(tecnico);
-            log.info("[GYS] Usuario 'tecnico1' creado correctamente.");
+            log.info("[GS] Usuario 'tecnico1' creado correctamente.");
         }
     }
 }
