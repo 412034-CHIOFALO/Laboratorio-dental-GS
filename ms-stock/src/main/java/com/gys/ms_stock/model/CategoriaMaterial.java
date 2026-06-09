@@ -1,10 +1,14 @@
 package com.gys.ms_stock.model;
 
 public enum CategoriaMaterial {
-    CERAMICA,
-    RESINA,
-    METAL,
     YESO,
+    CERAMICA,
+    PORCELANA,
+    ACRILICO,
+    METAL,
+    RESINA,
+    ALAMBRE,
+    ZIRCONIA,
     CERA,
     ADHESIVO,
     HERRAMIENTA,
