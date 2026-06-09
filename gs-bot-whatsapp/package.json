@@ -1,0 +1,18 @@
+{
+  "name": "gs-bot-whatsapp",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp del Laboratorio GS — registra comprobantes triangulados desde los grupos",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "pdf-parse": "^1.1.1",
+    "qrcode-terminal": "^0.12.0",
+    "tesseract.js": "^5.1.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}
