@@ -7,15 +7,10 @@
   <aside class="sidebar" [class.mobile-open]="mobileMenuOpen">
     <div class="sidebar-header">
       <div class="brand">
-        <div class="brand-icon">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2C8 2 5 5 5 8c0 2 1 4 2.5 5.5L12 22l4.5-8.5C18 12 19 10 19 8c0-3-3-6-7-6z"/>
-            <circle cx="12" cy="8" r="2"/>
-          </svg>
-        </div>
+        <div class="brand-icon">GS</div>
         @if (sidebarOpen || isMobile()) {
           <div class="brand-text">
-            <span class="brand-name">GS Ortodoncia</span>
+            <span class="brand-name">Laboratorio GS</span>
             <span class="brand-sub">Panel de gestión</span>
           </div>
         }
@@ -174,13 +169,8 @@
         </svg>
       </button>
       <div class="topbar-brand">
-        <div class="brand-icon-sm">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2C8 2 5 5 5 8c0 2 1 4 2.5 5.5L12 22l4.5-8.5C18 12 19 10 19 8c0-3-3-6-7-6z"/>
-            <circle cx="12" cy="8" r="2"/>
-          </svg>
-        </div>
-        <span>GS Ortodoncia</span>
+        <div class="brand-icon-sm">GS</div>
+        <span>Laboratorio GS</span>
       </div>
       <button class="theme-toggle compact" (click)="toggleTheme()"
               [attr.aria-label]="themeService.current() === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
@@ -195,9 +185,6 @@
           </svg>
         }
       </button>
-      <div class="user-avatar-sm" (click)="logout()" title="Cerrar sesión">
-        {{ username.charAt(0).toUpperCase() }}
-      </div>
     </header>
 
     <!-- TOPBAR DESKTOP -->

@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 
 export type Theme = 'dark' | 'light';
 
-const STORAGE_KEY = 'gys-theme';
+const STORAGE_KEY = 'gs-theme';
 const DEFAULT_THEME: Theme = 'dark';
 
 /**

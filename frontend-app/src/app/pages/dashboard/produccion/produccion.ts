@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse, EstadoPedido as EstadoPedidoBackend } from '../../../services/pedidos.service';
+import { NotificationService } from '../../../services/notification.service';
 
 /** Solo los 4 estados que el Kanban maneja (RECIBIDO → LISTO). */
 export type EstadoKanban = 'RECIBIDO' | 'EN_PROCESO' | 'CONTROL' | 'LISTO';
@@ -32,7 +33,9 @@ interface Columna {
   templateUrl: './produccion.html',
   styleUrls: ['./produccion.css'],
 })
-export class ProduccionComponent implements OnInit, OnDestroy {
+export class ProduccionComponent implements OnInit {
+
+  private notif = inject(NotificationService);
 
   pedidos: PedidoKanban[] = [];
   tecnicoFiltro = 'TODOS';
@@ -41,9 +44,6 @@ export class ProduccionComponent implements OnInit, OnDestroy {
 
   // Mobile state
   activeTab: EstadoKanban = 'RECIBIDO';
-  toastMsg = '';
-  toastVisible = false;
-  private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Desktop drag state
   draggingPedido: PedidoKanban | null = null;
@@ -62,10 +62,6 @@ export class ProduccionComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.cargar();
-  }
-
-  ngOnDestroy() {
-    if (this.toastTimer) clearTimeout(this.toastTimer);
   }
 
   // Mapea PedidoResponse del backend al modelo local del Kanban
@@ -162,11 +158,15 @@ export class ProduccionComponent implements OnInit, OnDestroy {
       next: res => {
         pedido.estado = res.estado as EstadoKanban;
         const label = this.columnas.find(c => c.estado === nuevo)?.labelLargo ?? nuevo;
-        this.showToast(`${prefijoToast} "${label}"`);
+        if (nuevo === 'LISTO') {
+          this.notif.exito(`${pedido.nroPedido} listo para entregar`, '¡Trabajo terminado!');
+        } else {
+          this.notif.info(`${pedido.nroPedido} → ${prefijoToast} "${label}"`);
+        }
       },
-      error: () => {
+      error: err => {
         pedido.estado = estadoAnterior;
-        this.showToast('Error al actualizar el estado');
+        this.notif.errorHttp(err, 'No se pudo actualizar el estado');
       }
     });
   }
@@ -179,13 +179,6 @@ export class ProduccionComponent implements OnInit, OnDestroy {
   columnAnterior(estado: EstadoKanban): EstadoKanban | null {
     const idx = this.ordenEstados.indexOf(estado);
     return idx > 0 ? this.ordenEstados[idx - 1] : null;
-  }
-
-  private showToast(msg: string) {
-    this.toastMsg = msg;
-    this.toastVisible = true;
-    if (this.toastTimer) clearTimeout(this.toastTimer);
-    this.toastTimer = setTimeout(() => { this.toastVisible = false; }, 2500);
   }
 
   // Desktop drag & drop
@@ -234,10 +227,10 @@ export class ProduccionComponent implements OnInit, OnDestroy {
   diasLabel(fecha: Date | null): string {
     if (!fecha) return 'Sin fecha';
     const d = this.diasRestantes(fecha);
-    if (d < 0)   return `${Math.abs(d)}d vencido`;
-    if (d === 0) return 'Vence hoy';
-    if (d === 1) return 'Mañana';
-    return `${d} días`;
+    if (d < 0)   return `Atrasado ${Math.abs(d)}d`;
+    if (d === 0) return 'Entrega hoy';
+    if (d === 1) return 'Entrega mañana';
+    return `Entrega en ${d}d`;
   }
 
   diasClass(fecha: Date | null): string {

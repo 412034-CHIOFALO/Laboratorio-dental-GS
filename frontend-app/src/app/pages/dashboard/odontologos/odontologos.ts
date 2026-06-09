@@ -1,13 +1,15 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   OdontologosService, OdontologoResponse, OdontologoRequest
 } from '../../../services/odontologos.service';
+import { NotificationService } from '../../../services/notification.service';
 
 @Component({
   selector: 'app-odontologos',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './odontologos.html',
   styleUrls: ['./odontologos.css'],
 })
@@ -20,6 +22,9 @@ export class OdontologosComponent implements OnInit {
 
   busqueda = '';
   tipoMatch: 'NOMBRE' | 'DNI' | 'CUIT' | 'MATRICULA' = 'NOMBRE';
+
+  // Filtro de actividad (calculada por último pedido)
+  filtroActividad: 'TODOS' | 'ACTIVOS' | 'INACTIVOS' = 'TODOS';
 
   // Modal
   showModal = false;
@@ -34,6 +39,8 @@ export class OdontologosComponent implements OnInit {
 
   // Confirm desactivar
   confirmDesactivarId: number | null = null;
+
+  private notif = inject(NotificationService);
 
   constructor(private service: OdontologosService) {}
 
@@ -64,13 +71,42 @@ export class OdontologosComponent implements OnInit {
     const q = this.busqueda.trim();
     this.tipoMatch = this.detectarTipo(q);
     if (!q) {
-      this.filtrados = this.odontologos;
+      this.filtrados = this.aplicarFiltroActividad(this.odontologos);
       return;
     }
     this.service.buscar(q).subscribe({
-      next: data => this.filtrados = data,
+      next: data => this.filtrados = this.aplicarFiltroActividad(data),
       error: err => console.error(err),
     });
+  }
+
+  /** Aplica el filtro Activos/Inactivos según el estado calculado. */
+  private aplicarFiltroActividad(lista: OdontologoResponse[]): OdontologoResponse[] {
+    if (this.filtroActividad === 'ACTIVOS')   return lista.filter(o => !o.inactivoPorTiempo);
+    if (this.filtroActividad === 'INACTIVOS') return lista.filter(o => o.inactivoPorTiempo);
+    return lista;
+  }
+
+  setFiltroActividad(f: 'TODOS' | 'ACTIVOS' | 'INACTIVOS'): void {
+    this.filtroActividad = f;
+    this.filtrar();
+  }
+
+  get countActivos(): number {
+    return this.odontologos.filter(o => !o.inactivoPorTiempo).length;
+  }
+  get countInactivos(): number {
+    return this.odontologos.filter(o => o.inactivoPorTiempo).length;
+  }
+
+  /** Texto "hace X meses/días" del último pedido. */
+  ultimoPedidoLabel(o: OdontologoResponse): string {
+    if (!o.ultimoPedido) return 'Sin pedidos';
+    const dias = Math.floor((Date.now() - new Date(o.ultimoPedido).getTime()) / 86_400_000);
+    if (dias < 1)   return 'Pidió hoy';
+    if (dias < 30)  return `Hace ${dias}d`;
+    const meses = Math.floor(dias / 30);
+    return `Hace ${meses} mes${meses !== 1 ? 'es' : ''}`;
   }
 
   private detectarTipo(q: string): 'NOMBRE' | 'DNI' | 'CUIT' | 'MATRICULA' {
@@ -145,8 +181,10 @@ export class OdontologosComponent implements OnInit {
         if (this.editMode) {
           const idx = this.odontologos.findIndex(o => o.id === res.id);
           if (idx !== -1) this.odontologos[idx] = res;
+          this.notif.exito(`${res.nombre} actualizado correctamente`);
         } else {
           this.odontologos.unshift(res);
+          this.notif.exito(`${res.nombre} agregado a la cartera`);
         }
         this.odontologos.sort((a, b) => a.nombre.localeCompare(b.nombre));
         this.filtrar();
@@ -155,8 +193,7 @@ export class OdontologosComponent implements OnInit {
       },
       error: err => {
         this.saving = false;
-        const msg = err?.error?.mensaje ?? 'No se pudo guardar el odontólogo.';
-        alert(msg);
+        this.notif.errorHttp(err, 'No se pudo guardar el odontólogo');
         console.error(err);
       },
     });
@@ -175,21 +212,27 @@ export class OdontologosComponent implements OnInit {
   // ── DESACTIVAR ───────────────────────────────────────────────
 
   pedirConfirmDesactivar(id: number): void {
+    // Cierra el modal de edición si estaba abierto, para no superponer modales
+    this.showModal = false;
     this.confirmDesactivarId = id;
   }
   abortarDesactivar(): void {
     this.confirmDesactivarId = null;
   }
   confirmarDesactivar(id: number): void {
+    const odontologo = this.odontologos.find(o => o.id === id);
+    const nombre = odontologo?.nombre ?? 'Odontólogo';
     this.service.desactivar(id).subscribe({
       next: () => {
         this.odontologos = this.odontologos.filter(o => o.id !== id);
         this.confirmDesactivarId = null;
         this.filtrar();
         if (this.detalleAbierto?.id === id) this.detalleAbierto = null;
+        this.notif.alerta(`${nombre} desactivado`);
       },
       error: err => {
         this.confirmDesactivarId = null;
+        this.notif.errorHttp(err, 'No se pudo desactivar el odontólogo');
         console.error(err);
       },
     });

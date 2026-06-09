@@ -4,10 +4,10 @@
 .header-left { display: flex; align-items: center; gap: 0.75rem; }
 .page-icon { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .page-icon.purple { background: rgba(168,85,247,0.12); color: #a855f7; }
-h1 { font-size: 1.4rem; font-weight: 700; color: var(--gs-white); margin: 0; }
+h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
 .subtitle { font-size: 0.8rem; color: var(--gs-text-muted); margin: 0.15rem 0 0; }
 .btn-export { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid var(--gs-border-md); background: var(--gs-card-2); color: var(--gs-text-muted); font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: color 0.2s, border-color 0.2s; }
-.btn-export:hover { color: var(--gs-white); border-color: var(--gs-green-border); }
+.btn-export:hover { color: var(--text); border-color: var(--gs-green-border); }
 
 /* KPIs */
 .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.85rem; }
@@ -20,7 +20,7 @@ h1 { font-size: 1.4rem; font-weight: 700; color: var(--gs-white); margin: 0; }
 .kpi-icon[data-color=amber]  { background: var(--gs-amber-soft); color: var(--gs-amber); }
 .kpi-icon[data-color=orange] { background: rgba(249,115,22,0.1); color: #f97316; }
 .kpi-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.kpi-val { font-size: 1.2rem; font-weight: 700; color: var(--gs-white); }
+.kpi-val { font-size: 1.2rem; font-weight: 700; color: var(--text); }
 .kpi-label { font-size: 0.75rem; color: var(--gs-text-muted); }
 .kpi-sub { font-size: 0.7rem; color: var(--gs-text-dim); }
 
@@ -44,7 +44,7 @@ h1 { font-size: 1.4rem; font-weight: 700; color: var(--gs-white); margin: 0; }
 .donut-card {}
 .donut-wrap { display: flex; align-items: center; gap: 1.5rem; }
 .donut-svg { width: 160px; flex-shrink: 0; }
-.donut-center-num { font-size: 24px; font-weight: 700; fill: var(--gs-white); font-family: Inter, sans-serif; }
+.donut-center-num { font-size: 24px; font-weight: 700; fill: var(--text); font-family: Inter, sans-serif; }
 .donut-center-label { font-size: 10px; fill: var(--gs-text-muted); font-family: Inter, sans-serif; }
 .donut-legend { display: flex; flex-direction: column; gap: 0.45rem; flex: 1; }
 .donut-leg-row { display: flex; align-items: center; gap: 0.5rem; }

@@ -24,7 +24,7 @@ interface JwtPayload {
 })
 export class AuthService {
   private gatewayUrl = 'http://localhost:8080';
-  private readonly TOKEN_KEY = 'gys_token';
+  private readonly TOKEN_KEY = 'gs_token';
 
   constructor(private http: HttpClient) {}
 
@@ -61,6 +61,30 @@ export class AuthService {
     return this.http.put(
       `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/aprobar`,
       {},
+      { headers: this.authHeaders() }
+    );
+  }
+
+  /** Activa/desactiva un integrante (entrada/salida de personal). */
+  cambiarEstadoUsuario(id: number, activo: boolean): Observable<any> {
+    if (environment.useMocks) {
+      return of({ id, enabled: activo }).pipe(delay(200));
+    }
+    return this.http.patch(
+      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/estado`,
+      { activo },
+      { headers: this.authHeaders() }
+    );
+  }
+
+  /** Actualiza el teléfono del integrante (lo usa el bot para identificarlo). */
+  actualizarTelefonoUsuario(id: number, telefono: string): Observable<any> {
+    if (environment.useMocks) {
+      return of({ id, telefono }).pipe(delay(200));
+    }
+    return this.http.patch(
+      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/telefono`,
+      { telefono },
       { headers: this.authHeaders() }
     );
   }
