@@ -50,6 +50,16 @@ public class Material {
     @Builder.Default
     private boolean activo = true;
 
+    /**
+     * Si true → al usarlo en una receta se descuenta {@code cantidad} del stock.
+     * Si false → solo se verifica que {@code stockActual > 0}; el descuento físico
+     * lo lleva el operador a mano (caso de esmaltes, pinceles, materiales que se
+     * usan "por pinceladas" y no tiene sentido decrementar numéricamente).
+     */
+    @Column(name = "descuenta_stock", nullable = false)
+    @Builder.Default
+    private boolean descuentaStock = true;
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
