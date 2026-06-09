@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "tipos_trabajo")
@@ -43,11 +45,31 @@ public class TipoTrabajo {
     @Builder.Default
     private boolean activo = true;
 
+    /**
+     * Receta: materiales que se consumen al fabricar este tipo de trabajo.
+     * Cascade ALL + orphanRemoval para que se persistan/borren junto con el TipoTrabajo.
+     */
+    @OneToMany(mappedBy = "tipoTrabajo", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @Builder.Default
+    private List<IngredienteReceta> receta = new ArrayList<>();
+
     @Column(name = "fecha_creacion", nullable = false, updatable = false)
     private LocalDateTime fechaCreacion;
 
     @Column(name = "fecha_modificacion")
     private LocalDateTime fechaModificacion;
+
+    // ── Helpers para mantener consistencia con la receta ───────────
+
+    public void reemplazarReceta(List<IngredienteReceta> nuevos) {
+        this.receta.clear();
+        if (nuevos != null) {
+            for (IngredienteReceta i : nuevos) {
+                i.setTipoTrabajo(this);
+                this.receta.add(i);
+            }
+        }
+    }
 
     @PrePersist
     protected void onCreate() {
