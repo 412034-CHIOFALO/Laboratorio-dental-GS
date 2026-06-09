@@ -1,50 +1,314 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#   ERP G&S — Stack completo (Producción)
+#
+#   Levanta: infra (MySQL, RabbitMQ, MinIO) + 8 microservicios + frontend
+#   Total: 11 containers + 1 red interna
+#
+#   Uso:
+#     docker compose up -d            # primer arranque, compila todo
+#     docker compose logs -f gateway  # tail logs de un servicio
+#     docker compose down             # detener (mantiene volúmenes)
+#     docker compose down -v          # detener + borrar BD y archivos
+#
+#   Acceso desde el host:
+#     http://localhost          → Frontend (nginx)
+#     http://localhost:8761     → Eureka dashboard
+#     http://localhost:8080     → API Gateway (acceso directo, sin nginx)
+#     http://localhost:15672    → RabbitMQ management (admin/admin)
+#     http://localhost:9001     → MinIO console
+#
+#   Orden de arranque automático vía depends_on con healthchecks:
+#     mysql + rabbit + minio  (infra)
+#     ↓
+#     discovery-server  (Eureka)
+#     ↓
+#     ms-auth  (Authorization Server)
+#     ↓
+#     ms-catalogo, ms-pedidos, ms-finanzas, ms-stock  (paralelo)
+#     ↓
+#     api-gateway
+#     ↓
+#     frontend (nginx)
+# ═══════════════════════════════════════════════════════════════════════════
+
 services:
-  # Base de Datos MySQL
+
+  # ═════════════════════════ INFRAESTRUCTURA ═══════════════════════════════
+
   mysql:
     image: mysql:8.0
     container_name: gys-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: db_laboratorio
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
     ports:
-      # Exponer solo en loopback para evitar acceso externo
       - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-gys_root_2025}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
+    networks: [gys-net]
 
-  # RabbitMQ para mensajería asíncrona (incluye panel de control)
   rabbitmq:
     image: rabbitmq:3-management
     container_name: gys-rabbitmq
     ports:
-      - "127.0.0.1:5672:5672"    # Puerto de conexión (solo loopback)
-      - "127.0.0.1:15672:15672"  # Panel web solo accesible desde el servidor
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
+    networks: [gys-net]
 
-  # MinIO para guardar los archivos 3D y comprobantes
   minio:
     image: minio/minio
     container_name: gys-minio
     ports:
-      - "127.0.0.1:9000:9000"  # API (solo loopback)
-      - "127.0.0.1:9001:9001"  # Consola web (solo loopback)
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
+    networks: [gys-net]
+
+  # ═════════════════════════ DISCOVERY ════════════════════════════════════
+
+  discovery-server:
+    build:
+      context: ./discovery-server
+      dockerfile: Dockerfile
+    container_name: gys-discovery
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    ports:
+      - "127.0.0.1:8761:8761"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8761/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    restart: unless-stopped
+    networks: [gys-net]
+
+  # ═════════════════════════ AUTH (primero después de discovery) ═══════════
+
+  ms-auth:
+    build:
+      context: ./ms-auth
+      dockerfile: Dockerfile
+    container_name: gys-auth
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_NAME: gys_auth
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      AUTH_ISSUER: http://localhost:8081
+      GYS_KEYSTORE_PASSWORD: ${GYS_KEYSTORE_PASSWORD:-gys_keystore_2025}
+    ports:
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      mysql: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 90s
+    restart: unless-stopped
+    networks: [gys-net]
+
+  # ═════════════════════════ MICROSERVICIOS DE NEGOCIO ═════════════════════
+
+  ms-catalogo:
+    build:
+      context: ./ms-catalogo
+      dockerfile: Dockerfile
+    container_name: gys-catalogo
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_NAME: gys_catalogo
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+    depends_on:
+      mysql: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+      ms-auth: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    restart: unless-stopped
+    networks: [gys-net]
+
+  ms-pedidos:
+    build:
+      context: ./ms-pedidos
+      dockerfile: Dockerfile
+    container_name: gys-pedidos
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_NAME: gys_pedidos
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+    depends_on:
+      mysql: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+      ms-auth: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    restart: unless-stopped
+    networks: [gys-net]
+
+  ms-finanzas:
+    build:
+      context: ./ms-finanzas
+      dockerfile: Dockerfile
+    container_name: gys-finanzas
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_NAME: gys_finanzas
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      # API key del bot de WhatsApp (debe coincidir con la del bot)
+      GS_BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
+      # MinIO para guardar comprobantes
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET: comprobantes
+    depends_on:
+      mysql: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+      ms-auth: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    restart: unless-stopped
+    networks: [gys-net]
+
+  ms-stock:
+    build:
+      context: ./ms-stock
+      dockerfile: Dockerfile
+    container_name: gys-stock
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_NAME: gys_stock
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+    depends_on:
+      mysql: { condition: service_healthy }
+      discovery-server: { condition: service_healthy }
+      ms-auth: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8086/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 60s
+    restart: unless-stopped
+    networks: [gys-net]
+
+  # ═════════════════════════ API GATEWAY ═══════════════════════════════════
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: gys-gateway
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      EUREKA_URI: http://discovery-server:8761/eureka/
+      JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:4200
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      discovery-server: { condition: service_healthy }
+      ms-auth: { condition: service_healthy }
+      ms-catalogo: { condition: service_healthy }
+      ms-pedidos: { condition: service_healthy }
+      ms-finanzas: { condition: service_healthy }
+      ms-stock: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 90s
+    restart: unless-stopped
+    networks: [gys-net]
+
+  # ═════════════════════════ FRONTEND (nginx) ══════════════════════════════
+
+  frontend:
+    build:
+      context: ./frontend-app
+      dockerfile: Dockerfile
+    container_name: gys-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [gys-net]
+
+
+# ═════════════════════════ NETWORK + VOLUMES ═════════════════════════════
+
+networks:
+  gys-net:
+    driver: bridge
+    name: gys-net
 
 volumes:
   mysql_data:
+    name: gys_mysql_data
   minio_data:
+    name: gys_minio_data
