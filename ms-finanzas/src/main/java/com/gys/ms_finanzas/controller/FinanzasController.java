@@ -2,6 +2,7 @@ package com.gys.ms_finanzas.controller;
 
 import com.gys.ms_finanzas.dto.ComprobanteRequest;
 import com.gys.ms_finanzas.dto.ComprobanteResponse;
+import com.gys.ms_finanzas.dto.CuentaCorrienteOdontologoResponse;
 import com.gys.ms_finanzas.service.IFinanzasService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -60,5 +61,15 @@ public class FinanzasController {
     @PatchMapping("/comprobantes/{id}/cobrar")
     public ResponseEntity<ComprobanteResponse> registrarCobro(@PathVariable Long id) {
         return ResponseEntity.ok(service.registrarCobro(id));
+    }
+
+    /**
+     * Ranking de odontólogos con deuda pendiente, ordenado de mayor a menor.
+     * Una fila por odontólogo (no por comprobante) con saldo total, cantidad
+     * de comprobantes, días sin pagar y severidad calculada.
+     */
+    @GetMapping("/cuentas-corrientes")
+    public ResponseEntity<List<CuentaCorrienteOdontologoResponse>> rankingMorosos() {
+        return ResponseEntity.ok(service.rankingMorosos());
     }
 }

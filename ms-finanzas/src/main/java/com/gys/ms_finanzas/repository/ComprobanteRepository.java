@@ -21,4 +21,30 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
     /** Suma total de cobros pendientes por odontólogo (cuenta corriente). */
     @Query("SELECT COALESCE(SUM(c.monto), 0) FROM Comprobante c WHERE c.odontologoId = :odontologoId AND c.estadoPago = 'PENDIENTE'")
     BigDecimal sumMontosPendientesByOdontologo(Long odontologoId);
+
+    /**
+     * Ranking de morosos: una fila por odontólogo con saldo pendiente, cantidad
+     * de comprobantes y fecha del comprobante más viejo (para calcular días
+     * sin pagar).
+     *
+     * Proyectado como array de objetos por simplicidad (sin DTO en JPQL).
+     * Estructura de cada row:
+     *   [0] odontologoId    (Long)
+     *   [1] odontologoNombre (String)
+     *   [2] totalDeuda      (BigDecimal)
+     *   [3] comprobantesPendientes (Long)
+     *   [4] fechaMasAntigua (LocalDate)
+     */
+    @Query("""
+        SELECT c.odontologoId,
+               MAX(c.odontologoNombre),
+               SUM(c.monto),
+               COUNT(c),
+               MIN(c.fechaEmision)
+        FROM Comprobante c
+        WHERE c.estadoPago = 'PENDIENTE'
+        GROUP BY c.odontologoId
+        ORDER BY SUM(c.monto) DESC
+    """)
+    List<Object[]> rankingDeudoresRaw();
 }

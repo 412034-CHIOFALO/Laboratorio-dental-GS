@@ -10,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -25,6 +26,12 @@ import java.util.stream.Collectors;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private final BotApiKeyFilter botApiKeyFilter;
+
+    public SecurityConfig(BotApiKeyFilter botApiKeyFilter) {
+        this.botApiKeyFilter = botApiKeyFilter;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -32,8 +39,12 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            // El bot se autentica por API key (header X-Bot-Api-Key) antes del JWT
+            .addFilterBefore(botApiKeyFilter, BearerTokenAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                // Endpoint del bot: lo autentica el BotApiKeyFilter (API key), no JWT
+                .requestMatchers(HttpMethod.POST, "/api/finanzas/sueldos/pago-automatico").hasRole("ADMIN")
                 // Cajas y cobros — solo ADMIN
                 .requestMatchers("/api/finanzas/cajas/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/finanzas/cobros").hasRole("ADMIN")
