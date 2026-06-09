@@ -1,6 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { CatalogoService, TipoTrabajoResponse, TipoTrabajoRequest } from '../../../services/catalogo.service';
+import {
+  CatalogoService, TipoTrabajoResponse, TipoTrabajoRequest,
+  IngredienteRecetaRequest, IngredienteRecetaResponse,
+} from '../../../services/catalogo.service';
+import { StockService, MaterialResponse } from '../../../services/stock.service';
+import { NotificationService } from '../../../services/notification.service';
 
 export type Categoria = 'FIJA' | 'REMOVIBLE' | 'ORTODONCIA' | 'ATM' | 'PERSONALIZADO';
 
@@ -12,7 +17,20 @@ export interface TipoTrabajo {
   precio: number;
   categoria: Categoria;
   tiempoEstimadoDias: number;
-  foto?: string; // mapea a fotoUrl del backend
+  foto?: string;       // mapea a fotoUrl del backend
+  receta: IngredienteRecetaResponse[];
+}
+
+/** Item en el form de receta con estado del autocomplete buscable */
+interface RecetaFormItem {
+  materialId: number | null;
+  materialNombre: string;
+  cantidad: number | null;
+  unidad: string;
+  notas: string;
+  // Autocomplete state
+  searchQuery: string;     // texto que el usuario está tipeando
+  dropdownOpen: boolean;   // si el dropdown está visible
 }
 
 @Component({
@@ -38,12 +56,20 @@ export class CatalogoComponent implements OnInit {
   saving     = false;
   deleteConfirmId: number | null = null;
 
+  // Modal de detalle (vista read-only)
+  detalleAbierto: TipoTrabajo | null = null;
+
   editandoPrecioId: number | null = null;
   precioTemporal   = 0;
 
   form: Partial<TipoTrabajo> = {};
   fotoPreview?: string;
   arrastrando = false;
+
+  // ── Receta ─────────────────────────────────────────────────────
+  materiales: MaterialResponse[] = [];
+  loadingMateriales = false;
+  formReceta: RecetaFormItem[] = [];
 
   readonly categorias: { valor: Categoria | 'TODOS'; label: string }[] = [
     { valor: 'TODOS',         label: 'Todos'              },
@@ -62,10 +88,27 @@ export class CatalogoComponent implements OnInit {
     { valor: 'PERSONALIZADO', label: 'Personalizado'      },
   ];
 
-  constructor(private catService: CatalogoService) {}
+  private notif = inject(NotificationService);
+
+  constructor(
+    private catService: CatalogoService,
+    private stockService: StockService,
+  ) {}
 
   ngOnInit() {
     this.cargar();
+    this.cargarMateriales();
+  }
+
+  private cargarMateriales() {
+    this.loadingMateriales = true;
+    this.stockService.listarActivos().subscribe({
+      next: m => { this.materiales = m; this.loadingMateriales = false; },
+      error: err => {
+        console.error('No se pudo cargar el stock:', err);
+        this.loadingMateriales = false;
+      },
+    });
   }
 
   // ── CARGA DESDE EL BACKEND ─────────────────────────────────────
@@ -95,6 +138,7 @@ export class CatalogoComponent implements OnInit {
     categoria:         r.categoria,
     tiempoEstimadoDias: r.tiempoEstimadoDias ?? 0,
     foto:              r.fotoUrl ?? undefined,
+    receta:            r.receta ?? [],
   });
 
   // ── FILTRADO LOCAL ─────────────────────────────────────────────
@@ -141,13 +185,40 @@ export class CatalogoComponent implements OnInit {
     this.editMode    = false;
     this.form        = { categoria: 'FIJA', tiempoEstimadoDias: 5, precio: 0 };
     this.fotoPreview = undefined;
+    this.formReceta  = [];
     this.showModal   = true;
+  }
+
+  // ── DETALLE (read-only) ────────────────────────────────────────
+  abrirDetalle(trabajo: TipoTrabajo) {
+    this.detalleAbierto = trabajo;
+  }
+
+  cerrarDetalle() {
+    this.detalleAbierto = null;
+  }
+
+  editarDesdeDetalle() {
+    if (this.detalleAbierto) {
+      const t = this.detalleAbierto;
+      this.detalleAbierto = null;
+      this.abrirEditar(t);
+    }
   }
 
   abrirEditar(trabajo: TipoTrabajo) {
     this.editMode    = true;
     this.form        = { ...trabajo };
     this.fotoPreview = trabajo.foto;
+    this.formReceta  = trabajo.receta.map(r => ({
+      materialId:     r.materialId,
+      materialNombre: r.materialNombre,
+      cantidad:       r.cantidad,
+      unidad:         r.unidad ?? '',
+      notas:          r.notas ?? '',
+      searchQuery:    r.materialNombre,
+      dropdownOpen:   false,
+    }));
     this.showModal   = true;
   }
 
@@ -155,15 +226,101 @@ export class CatalogoComponent implements OnInit {
     this.showModal   = false;
     this.form        = {};
     this.fotoPreview = undefined;
+    this.formReceta  = [];
   }
 
   get formValido(): boolean {
-    return !!(this.form.nombre?.trim() && this.form.categoria && this.form.precio != null);
+    if (!(this.form.nombre?.trim() && this.form.categoria && this.form.precio != null)) return false;
+    // Cada item de receta debe tener materialId + cantidad > 0
+    for (const r of this.formReceta) {
+      if (!r.materialId || r.cantidad == null || r.cantidad <= 0) return false;
+    }
+    return true;
+  }
+
+  // ── Manejo de la receta ───────────────────────────────────────
+  agregarIngrediente() {
+    this.formReceta.push({
+      materialId: null, materialNombre: '', cantidad: null, unidad: '', notas: '',
+      searchQuery: '', dropdownOpen: false,  // se abre solo cuando el user clickea el input
+    });
+  }
+
+  eliminarIngrediente(idx: number) {
+    this.formReceta.splice(idx, 1);
+  }
+
+  // ── Autocomplete de materiales ────────────────────────────────
+
+  /** Materiales filtrados por la búsqueda de la fila, excluyendo los ya elegidos. */
+  materialesFiltrados(idx: number): MaterialResponse[] {
+    const item = this.formReceta[idx];
+    const q = (item.searchQuery ?? '').trim().toLowerCase();
+    const yaElegidos = new Set(
+      this.formReceta
+        .filter((_, i) => i !== idx)
+        .map(r => r.materialId)
+        .filter(id => id != null) as number[]
+    );
+    return this.materiales
+      .filter(m => !yaElegidos.has(m.id))
+      .filter(m => !q || m.nombre.toLowerCase().includes(q)
+                       || (m.categoria ?? '').toLowerCase().includes(q))
+      .slice(0, 10);
+  }
+
+  abrirDropdownMaterial(idx: number) {
+    this.formReceta[idx].dropdownOpen = true;
+  }
+
+  cerrarDropdownMaterialConDelay(idx: number) {
+    // Pequeño delay para que el click en una opción se procese antes de cerrar
+    setTimeout(() => {
+      if (this.formReceta[idx]) this.formReceta[idx].dropdownOpen = false;
+    }, 180);
+  }
+
+  /** Cuando el usuario tipea para buscar, limpiamos la selección actual. */
+  onSearchInput(idx: number) {
+    const item = this.formReceta[idx];
+    // Si el texto ya no matchea el material elegido, limpiamos selección
+    if (item.materialId && item.searchQuery !== item.materialNombre) {
+      item.materialId = null;
+      item.materialNombre = '';
+    }
+    item.dropdownOpen = true;
+  }
+
+  seleccionarMaterial(idx: number, m: MaterialResponse) {
+    const item = this.formReceta[idx];
+    item.materialId     = m.id;
+    item.materialNombre = m.nombre;
+    item.searchQuery    = m.nombre;
+    item.dropdownOpen   = false;
+    if (!item.unidad) item.unidad = m.unidadMedida;
+  }
+
+  limpiarMaterial(idx: number) {
+    const item = this.formReceta[idx];
+    item.materialId     = null;
+    item.materialNombre = '';
+    item.searchQuery    = '';
+    item.dropdownOpen   = true;
   }
 
   guardar() {
     if (!this.formValido) return;
     this.saving = true;
+
+    const receta: IngredienteRecetaRequest[] = this.formReceta
+      .filter(r => r.materialId != null && r.cantidad != null)
+      .map(r => ({
+        materialId:     r.materialId!,
+        materialNombre: r.materialNombre,
+        cantidad:       r.cantidad!,
+        unidad:         r.unidad?.trim() || null,
+        notas:          r.notas?.trim() || null,
+      }));
 
     const request: TipoTrabajoRequest = {
       nombre:             this.form.nombre!,
@@ -172,6 +329,7 @@ export class CatalogoComponent implements OnInit {
       categoria:          this.form.categoria!,
       tiempoEstimadoDias: this.form.tiempoEstimadoDias ?? 0,
       fotoUrl:            this.fotoPreview ?? null,
+      receta,
     };
 
     const op$ = this.editMode && this.form.id
@@ -183,8 +341,10 @@ export class CatalogoComponent implements OnInit {
         if (this.editMode) {
           const idx = this.trabajos.findIndex(t => t.id === res.id);
           if (idx !== -1) this.trabajos[idx] = this.mapear(res);
+          this.notif.exito(`"${res.nombre}" actualizado correctamente`);
         } else {
           this.trabajos.push(this.mapear(res));
+          this.notif.exito(`"${res.nombre}" agregado al catálogo`);
         }
         this.filtrar();
         this.saving = false;
@@ -192,6 +352,7 @@ export class CatalogoComponent implements OnInit {
       },
       error: (err) => {
         this.saving = false;
+        this.notif.errorHttp(err, 'No se pudo guardar el trabajo');
         console.error('Error al guardar trabajo:', err);
       }
     });
@@ -220,10 +381,12 @@ export class CatalogoComponent implements OnInit {
         if (idx !== -1) this.trabajos[idx] = this.mapear(res);
         this.editandoPrecioId = null;
         this.filtrar();
+        this.notif.exito(`Precio de "${res.nombre}" actualizado a ${this.formatPrecio(res.precio ?? 0)}`);
       },
       error: (err) => {
         // Actualización optimista — revertir si falla
         this.editandoPrecioId = null;
+        this.notif.errorHttp(err, 'No se pudo actualizar el precio');
         console.error('Error al actualizar precio:', err);
       }
     });
@@ -239,14 +402,18 @@ export class CatalogoComponent implements OnInit {
   cancelarEliminar() { this.deleteConfirmId = null; }
 
   eliminar(id: number) {
+    const trabajo = this.trabajos.find(t => t.id === id);
+    const nombre = trabajo?.nombre ?? 'Trabajo';
     this.catService.eliminar(id).subscribe({
       next: () => {
         this.trabajos        = this.trabajos.filter(t => t.id !== id);
         this.deleteConfirmId = null;
         this.filtrar();
+        this.notif.alerta(`"${nombre}" eliminado del catálogo`);
       },
       error: (err) => {
         this.deleteConfirmId = null;
+        this.notif.errorHttp(err, 'No se pudo eliminar el trabajo');
         console.error('Error al eliminar trabajo:', err);
       }
     });

@@ -120,6 +120,28 @@
             <span class="spinner"></span>
           }
         </button>
+
+        @if (mostrarDemoHint) {
+          <div class="demo-hint">
+            <div class="demo-hint-title">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <span>Modo demo — credenciales de prueba</span>
+            </div>
+            <div class="demo-hint-creds">
+              <button type="button" class="demo-cred" (click)="usarCreds('admin', 'admin123')">
+                <strong>admin</strong> <span>/</span> <code>admin123</code> <em>· administradora</em>
+              </button>
+              <button type="button" class="demo-cred" (click)="usarCreds('tecnico1', 'tecnico123')">
+                <strong>tecnico1</strong> <span>/</span> <code>tecnico123</code> <em>· técnico</em>
+              </button>
+              <button type="button" class="demo-cred" (click)="usarCreds('recepcion', 'dev1234')">
+                <strong>recepcion</strong> <span>/</span> <code>dev1234</code> <em>· administrativa</em>
+              </button>
+            </div>
+          </div>
+        }
       </form>
 
       <div class="form-footer">

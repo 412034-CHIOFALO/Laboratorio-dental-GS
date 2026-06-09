@@ -29,6 +29,9 @@ export interface PedidoResponse {
   observacionesEntrega: string | null;
   fechaCreacion: string;
   fechaUltimaModificacion: string;
+  // ── Estado de atraso (calculado en backend) ──
+  diasHabilesTranscurridos?: number;
+  atrasado?: boolean;
 }
 
 export interface EntregaRequest {
@@ -57,6 +60,9 @@ export class PedidosService {
 
   private readonly base = `${environment.gatewayUrl}/api/pedidos`;
 
+  /** Umbral de días hábiles para considerar un pedido como atrasado. */
+  readonly DIAS_LIMITE_ATRASO = 6;
+
   // Mock store en memoria
   private mockStore: PedidoResponse[] = clonar(MOCK_PEDIDOS_BACKEND);
   private nextMockId = 1000;
@@ -64,21 +70,67 @@ export class PedidosService {
 
   constructor(private http: HttpClient) {}
 
+  /**
+   * Cuenta días hábiles (Lun-Vie) entre dos fechas. Mismo algoritmo que el
+   * backend (ver DiasHabiles.java). Útil para enriquecer mocks o para
+   * calcular en frontend cuando el backend no devuelve el flag.
+   */
+  diasHabilesDesde(fechaIso: string, hasta: Date = new Date()): number {
+    const inicio = new Date(fechaIso);
+    if (isNaN(inicio.getTime())) return 0;
+    let dias = 0;
+    const cursor = new Date(inicio);
+    cursor.setDate(cursor.getDate() + 1);
+    while (cursor <= hasta) {
+      const dow = cursor.getDay();
+      if (dow !== 0 && dow !== 6) dias++;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return dias;
+  }
+
+  /** True si el pedido superó el umbral y no está terminado. */
+  estaAtrasado(p: PedidoResponse): boolean {
+    if (p.estado === 'ENTREGADO' || p.estado === 'CANCELADO') return false;
+    // Si el backend ya nos pasó el flag, lo confiamos
+    if (p.atrasado !== undefined) return p.atrasado;
+    return this.diasHabilesDesde(p.fechaCreacion) >= this.DIAS_LIMITE_ATRASO;
+  }
+
+  /** Enriquece un mock con los campos diasHabilesTranscurridos + atrasado. */
+  private enriquecer(p: PedidoResponse): PedidoResponse {
+    if (p.atrasado !== undefined) return p;
+    const dias = this.diasHabilesDesde(p.fechaCreacion);
+    const atrasado = (p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO')
+                     && dias >= this.DIAS_LIMITE_ATRASO;
+    return { ...p, diasHabilesTranscurridos: dias, atrasado };
+  }
+
   listarTodos(): Observable<PedidoResponse[]> {
     if (environment.useMocks) {
-      return of(clonar(this.mockStore)).pipe(delay(200));
+      return of(clonar(this.mockStore).map(p => this.enriquecer(p))).pipe(delay(200));
     }
     return this.http.get<PedidoResponse[]>(this.base);
   }
 
   listarActivos(): Observable<PedidoResponse[]> {
     if (environment.useMocks) {
-      const activos = this.mockStore.filter(p =>
-        p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO'
-      );
+      const activos = this.mockStore
+        .filter(p => p.estado !== 'ENTREGADO' && p.estado !== 'CANCELADO')
+        .map(p => this.enriquecer(p));
       return of(clonar(activos)).pipe(delay(200));
     }
     return this.http.get<PedidoResponse[]>(`${this.base}/activos`);
+  }
+
+  listarAtrasados(): Observable<PedidoResponse[]> {
+    if (environment.useMocks) {
+      const atrasados = this.mockStore
+        .map(p => this.enriquecer(p))
+        .filter(p => p.atrasado);
+      return of(clonar(atrasados)).pipe(delay(180));
+    }
+    return this.http.get<PedidoResponse[]>(`${this.base}/atrasados`);
   }
 
   listarPorEstado(estado: EstadoPedido): Observable<PedidoResponse[]> {

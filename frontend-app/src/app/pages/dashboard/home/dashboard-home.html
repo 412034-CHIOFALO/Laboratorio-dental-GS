@@ -1,144 +1,143 @@
 <div class="home-view">
-  <div class="home-header">
+
+  <!-- ── HEADER ── -->
+  <header class="home-header">
     <div>
-      <h1>Bienvenido, <span class="accent">{{ username }}</span></h1>
-      <p class="home-sub">Panel de gestión — GS Ortodoncia</p>
+      <h1>Resumen del día</h1>
+      <p class="home-date">{{ fechaHoy }}</p>
     </div>
-  </div>
-
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-icon green">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
-          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+    <div class="home-actions">
+      <div class="seg">
+        <button [class.active]="periodoActivo === 'HOY'"    (click)="setPeriodo('HOY')">Hoy</button>
+        <button [class.active]="periodoActivo === 'SEMANA'" (click)="setPeriodo('SEMANA')">Semana</button>
+        <button [class.active]="periodoActivo === 'MES'"    (click)="setPeriodo('MES')">Mes</button>
+      </div>
+      <button class="btn-primary" routerLink="/dashboard/pedidos">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
-      </div>
-      <div class="stat-info">
-        <span class="stat-value">—</span>
-        <span class="stat-label">Pedidos activos</span>
-      </div>
+        Nuevo pedido
+      </button>
     </div>
-    <div class="stat-card">
-      <div class="stat-icon blue">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"/>
-          <polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
-        </svg>
-      </div>
-      <div class="stat-info">
-        <span class="stat-value">—</span>
-        <span class="stat-label">En producción</span>
-      </div>
+  </header>
+
+  <!-- ── LOADING ── -->
+  @if (loading) {
+    <div class="loading-row">
+      <div class="spinner-lg"></div>
+      <span>Cargando resumen...</span>
     </div>
-    <div class="stat-card">
-      <div class="stat-icon orange">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-        </svg>
-      </div>
-      <div class="stat-info">
-        <span class="stat-value">—</span>
-        <span class="stat-label">Saldo pendiente</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-icon red">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-        </svg>
-      </div>
-      <div class="stat-info">
-        <span class="stat-value">—</span>
-        <span class="stat-label">Alertas de stock</span>
-      </div>
-    </div>
-  </div>
+  }
 
-  <div class="modules-grid">
-    <a routerLink="/dashboard/pedidos" class="module-card">
-      <div class="module-icon green">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/>
-          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
-        </svg>
-      </div>
-      <div class="module-info">
-        <h3>Pedidos</h3>
-        <p>Registrar y seguir trabajos de odontólogos</p>
-      </div>
-      <span class="module-badge coming">Sprint 3</span>
-    </a>
-
-    <a routerLink="/dashboard/produccion" class="module-card">
-      <div class="module-icon blue">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
-        </svg>
-      </div>
-      <div class="module-info">
-        <h3>Producción</h3>
-        <p>Tablero Kanban por estación de trabajo</p>
-      </div>
-      <span class="module-badge coming">Sprint 3</span>
-    </a>
-
-    <a routerLink="/dashboard/catalogo" class="module-card">
-      <div class="module-icon teal">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-          <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-        </svg>
-      </div>
-      <div class="module-info">
-        <h3>Catálogo</h3>
-        <p>Tipos de trabajo y precios del laboratorio</p>
-      </div>
-      <span class="module-badge coming">Sprint 2</span>
-    </a>
-
-    <a routerLink="/dashboard/finanzas" class="module-card">
-      <div class="module-icon orange">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
-        </svg>
-      </div>
-      <div class="module-info">
-        <h3>Finanzas</h3>
-        <p>Cuentas corrientes y gestión de caja</p>
-      </div>
-      <span class="module-badge coming">Sprint 4</span>
-    </a>
-
-    <a routerLink="/dashboard/stock" class="module-card">
-      <div class="module-icon red">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 002 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
-        </svg>
-      </div>
-      <div class="module-info">
-        <h3>Stock</h3>
-        <p>Inventario de materiales y alertas</p>
-      </div>
-      <span class="module-badge coming">Sprint 5</span>
-    </a>
-
-    @if (isAdmin) {
-      <a routerLink="/dashboard/usuarios" class="module-card">
-        <div class="module-icon purple">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+  <!-- ── KPI GRID ── -->
+  @if (!loading) {
+  <section class="kpi-grid">
+    @for (k of kpis; track k.label) {
+      <article class="kpi-card" (click)="goTo(k.to)" [class.clickable]="k.to">
+        <header class="kpi-head">
+          <span class="kpi-dot" [style.background]="k.hue"></span>
+          <span class="kpi-label">{{ k.label }}</span>
+        </header>
+        <div class="kpi-row">
+          <span class="kpi-value">{{ k.value }}</span>
+          <svg class="kpi-spark" viewBox="0 0 64 24" width="64" height="24" preserveAspectRatio="none">
+            <polyline
+              [attr.points]="sparklinePath(k.sparkline)"
+              fill="none"
+              [attr.stroke]="k.sparkColor"
+              stroke-width="1.6"
+              stroke-linecap="round"
+              stroke-linejoin="round"/>
           </svg>
         </div>
-        <div class="module-info">
-          <h3>Usuarios</h3>
-          <p>Crear y gestionar cuentas del sistema</p>
-        </div>
-        <span class="module-badge active">Disponible</span>
-      </a>
+        @if (k.delta) {
+          <p class="kpi-delta" [attr.data-clase]="k.delta.clase">
+            @if (k.delta.clase === 'up')   { <span>▲</span> }
+            @if (k.delta.clase === 'down') { <span>▼</span> }
+            {{ k.delta.texto }}
+          </p>
+        }
+      </article>
     }
-  </div>
+  </section>
+
+  <!-- ── CONTENT GRID — 2 columnas ── -->
+  <section class="content-grid">
+
+    <!-- Pedidos recientes -->
+    <div class="panel">
+      <header class="panel__head">
+        <h3>Pedidos recientes</h3>
+        <div class="panel__links">
+          <a routerLink="/dashboard/pedidos" class="panel__link">Ver todos →</a>
+        </div>
+      </header>
+
+      @if (pedidosRecientes.length === 0) {
+        <div class="panel__empty">Aún no hay pedidos cargados.</div>
+      } @else {
+        <table class="ped-table">
+          <thead>
+            <tr>
+              <th>Nº</th>
+              <th>Paciente / Odontólogo</th>
+              <th>Trabajo</th>
+              <th>Estado</th>
+              <th>Entrega</th>
+              <th class="th-right">Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of pedidosRecientes; track p.id) {
+              @let entrega = diasParaEntrega(p.fechaEntrega);
+              <tr (click)="goTo('/dashboard/pedidos')">
+                <td class="td-id">{{ p.nroPedido }}</td>
+                <td>
+                  <strong>{{ p.paciente }}</strong>
+                  <small>{{ p.odontologoNombre }}</small>
+                </td>
+                <td class="td-trab">{{ p.trabajo }}</td>
+                <td>
+                  <span class="chip" [ngClass]="chipClass(p.estado)">{{ labelEstado(p.estado) }}</span>
+                </td>
+                <td [class.td-vencido]="entrega.vencido">{{ entrega.texto }}</td>
+                <td class="td-precio">{{ formatMoney(p.precioAcordado) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      }
+    </div>
+
+    <!-- Alertas y actividad -->
+    <div class="panel">
+      <header class="panel__head">
+        <h3>Alertas y actividad</h3>
+      </header>
+
+      @if (alertas.length === 0) {
+        <div class="panel__empty">Sin alertas por ahora ✨</div>
+      } @else {
+        <div class="alert-list">
+          @for (a of alertas; track $index) {
+            <div class="mini-item" [class.clickable]="a.to" (click)="goTo(a.to)">
+              <span class="mini-dot" [style.background]="a.hue"></span>
+              <div class="mini-text">
+                <strong>
+                  {{ a.titulo }}
+                  @if (a.badge === 'URGENTE') { <span class="mini-badge urgent">⚡ URGENTE</span> }
+                  @if (a.badge === 'CRITICO') { <span class="mini-badge crit">CRÍTICO</span> }
+                </strong>
+                <small>{{ a.subtitulo }}</small>
+              </div>
+              @if (a.valor) {
+                <span class="mini-valor">{{ a.valor }}</span>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </section>
+  }
 </div>
