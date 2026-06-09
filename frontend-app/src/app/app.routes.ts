@@ -15,6 +15,8 @@ import { DocumentosComponent } from './pages/dashboard/documentos/documentos';
 import { EscaneosComponent } from './pages/dashboard/escaneos/escaneos';
 import { AuditoriaComponent } from './pages/dashboard/auditoria/auditoria';
 import { OdontologosComponent } from './pages/dashboard/odontologos/odontologos';
+import { OdontologoHistorialComponent } from './pages/dashboard/odontologos/historial/odontologo-historial';
+import { ErrorPageComponent } from './pages/error/error-page';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -28,6 +30,7 @@ export const routes: Routes = [
       { path: '',            component: DashboardHomeComponent },
       { path: 'pedidos',     component: PedidosComponent },
       { path: 'odontologos', component: OdontologosComponent },
+      { path: 'odontologos/:id/historial', component: OdontologoHistorialComponent },
       { path: 'produccion',  component: ProduccionComponent },
       { path: 'entregas',    component: EntregasComponent },
       { path: 'catalogo',    component: CatalogoComponent },
@@ -40,5 +43,8 @@ export const routes: Routes = [
       { path: 'usuarios',    component: UsuariosComponent },
     ]
   },
-  { path: '**', redirectTo: '' }
+  // Páginas de error
+  { path: 'sin-permisos', component: ErrorPageComponent, data: { tipo: 'forbidden' } },
+  { path: 'error',        component: ErrorPageComponent, data: { tipo: 'server' } },
+  { path: '**',           component: ErrorPageComponent, data: { tipo: 'not-found' } },
 ];

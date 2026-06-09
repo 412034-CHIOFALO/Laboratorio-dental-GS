@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   PedidosService, PedidoResponse, PedidoRequest, EstadoPedido, Prioridad
 } from '../../../services/pedidos.service';
 import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
 import { CatalogoService, TipoTrabajoResponse } from '../../../services/catalogo.service';
+import { NotificationService } from '../../../services/notification.service';
 
 type FiltroEstado = EstadoPedido | 'TODOS';
 
@@ -87,6 +88,8 @@ export class PedidosComponent implements OnInit {
 
   // ── Confirmar cancelar ───────────────────────────────────────
   cancelConfirmId: number | null = null;
+
+  private notif = inject(NotificationService);
 
   constructor(
     private pedidosService: PedidosService,
@@ -352,14 +355,13 @@ export class PedidosComponent implements OnInit {
         direccion: n.direccion.trim() || null,
       }).subscribe({
         next: odon => {
+          this.notif.info(`Odontólogo nuevo creado: ${odon.nombre}`);
           this.form.odontologoId = odon.id;
-          this.guardarPedido(); // ahora sí, con el id resuelto
+          this.guardarPedido();
         },
         error: err => {
           this.saving = false;
-          const msg = err?.error?.mensaje ?? 'No se pudo crear el odontólogo nuevo.';
-          alert(msg);
-          console.error(err);
+          this.notif.errorHttp(err, 'No se pudo crear el odontólogo nuevo');
         },
       });
       return;
@@ -392,8 +394,10 @@ export class PedidosComponent implements OnInit {
         if (this.editMode) {
           const idx = this.pedidos.findIndex(p => p.id === res.id);
           if (idx !== -1) this.pedidos[idx] = res;
+          this.notif.exito(`Pedido ${res.nroPedido} actualizado correctamente`);
         } else {
           this.pedidos.unshift(res);
+          this.notif.exito(`Pedido ${res.nroPedido} creado para ${res.paciente}`);
         }
         this.filtrar();
         this.saving = false;
@@ -401,8 +405,7 @@ export class PedidosComponent implements OnInit {
       },
       error: err => {
         this.saving = false;
-        console.error('Error al guardar el pedido:', err);
-        alert('No se pudo guardar el pedido. Revisá la consola.');
+        this.notif.errorHttp(err, 'No se pudo guardar el pedido');
       },
     });
   }
@@ -438,9 +441,10 @@ export class PedidosComponent implements OnInit {
         this.cancelConfirmId = null;
         this.filtrar();
         if (this.detalleAbierto?.id === id) this.detalleAbierto = res;
+        this.notif.alerta(`Pedido ${res.nroPedido} cancelado`);
       },
       error: err => {
-        console.error('Error al cancelar:', err);
+        this.notif.errorHttp(err, 'No se pudo cancelar el pedido');
         this.cancelConfirmId = null;
       },
     });
@@ -468,6 +472,11 @@ export class PedidosComponent implements OnInit {
     return m[e] ?? 'muted';
   }
 
+  /** Delega al service para que toda la app use la misma lógica. */
+  estaAtrasado(p: PedidoResponse): boolean {
+    return this.pedidosService.estaAtrasado(p);
+  }
+
   formatFecha(iso: string | null): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -482,11 +491,12 @@ export class PedidosComponent implements OnInit {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
     const fe = new Date(fechaEntrega); fe.setHours(0, 0, 0, 0);
     const dias = Math.round((fe.getTime() - hoy.getTime()) / 86_400_000);
-    if (dias < 0)  return { dias, texto: `Vencido (${Math.abs(dias)}d)`, clase: 'vencido' };
-    if (dias === 0) return { dias, texto: 'Hoy',                            clase: 'urgente' };
-    if (dias <= 2)  return { dias, texto: `${dias}d`,                       clase: 'urgente' };
-    if (dias <= 7)  return { dias, texto: `${dias}d`,                       clase: 'pronto'  };
-    return { dias, texto: `${dias}d`, clase: 'normal' };
+    if (dias < 0)  return { dias, texto: `Atrasado (${Math.abs(dias)}d)`, clase: 'vencido' };
+    if (dias === 0) return { dias, texto: 'Entrega hoy',                   clase: 'urgente' };
+    if (dias === 1) return { dias, texto: 'Entrega mañana',                clase: 'urgente' };
+    if (dias <= 2)  return { dias, texto: `Entrega en ${dias}d`,           clase: 'urgente' };
+    if (dias <= 7)  return { dias, texto: `Entrega en ${dias}d`,           clase: 'pronto'  };
+    return { dias, texto: `Entrega en ${dias}d`, clase: 'normal' };
   }
 
   get modalTitle(): string {

@@ -78,11 +78,16 @@
         </thead>
         <tbody>
           @for (p of filtrados; track p.id) {
-            <tr [class.urgente]="p.prioridad === 'URGENTE'">
+            <tr [class.urgente]="p.prioridad === 'URGENTE'" [class.atrasado]="estaAtrasado(p)">
               <td class="celda-nro">
                 <span class="nro-pedido">{{ p.nroPedido }}</span>
                 @if (p.prioridad === 'URGENTE') {
                   <span class="badge-urgente">⚡ URGENTE</span>
+                }
+                @if (estaAtrasado(p)) {
+                  <span class="badge-atrasado" [title]="'Lleva ' + (p.diasHabilesTranscurridos ?? 0) + ' días hábiles sin entregar'">
+                    🕓 ATRASADO
+                  </span>
                 }
               </td>
               <td>
