@@ -3,6 +3,7 @@ package com.gys.ms_pedidos.dto;
 import com.gys.ms_pedidos.model.EstadoPedido;
 import com.gys.ms_pedidos.model.Pedido;
 import com.gys.ms_pedidos.model.Prioridad;
+import com.gys.ms_pedidos.util.DiasHabiles;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,9 +30,27 @@ public record PedidoResponse(
         String observacionesEntrega,
         // ── Timestamps ──
         LocalDateTime fechaCreacion,
-        LocalDateTime fechaUltimaModificacion
+        LocalDateTime fechaUltimaModificacion,
+        // ── Estado de atraso (calculado en el servidor) ──
+        /** Días hábiles transcurridos desde la creación hasta hoy (o hasta la entrega). */
+        int diasHabilesTranscurridos,
+        /** True si supera el umbral configurado de días hábiles sin entregar. */
+        boolean atrasado
 ) {
-    public static PedidoResponse from(Pedido p) {
+    public static PedidoResponse from(Pedido p, int diasLimiteAtraso) {
+        // Si ya está entregado/cancelado, calculamos hasta la entrega/cancelación
+        // (o hasta la última modificación si no hay fechaEntregaReal).
+        LocalDateTime ref = (p.getEstado() == EstadoPedido.ENTREGADO || p.getEstado() == EstadoPedido.CANCELADO)
+                ? (p.getFechaUltimaModificacion() != null ? p.getFechaUltimaModificacion() : LocalDateTime.now())
+                : LocalDateTime.now();
+
+        int dias = DiasHabiles.entre(p.getFechaCreacion(), ref);
+
+        // Sólo está "atrasado" si está activo (no entregado, no cancelado)
+        boolean estaAtrasado = (p.getEstado() != EstadoPedido.ENTREGADO
+                             && p.getEstado() != EstadoPedido.CANCELADO)
+                             && dias >= diasLimiteAtraso;
+
         return new PedidoResponse(
                 p.getId(), p.getNroPedido(),
                 p.getOdontologoId(), p.getOdontologoNombre(),
@@ -41,7 +60,13 @@ public record PedidoResponse(
                 p.getFechaEntrega(), p.getEstado(), p.getPrioridad(),
                 p.getPrecioAcordado(), p.getObservaciones(),
                 p.getFechaEntregaReal(), p.getRetiradoPor(), p.getObservacionesEntrega(),
-                p.getFechaCreacion(), p.getFechaUltimaModificacion()
+                p.getFechaCreacion(), p.getFechaUltimaModificacion(),
+                dias, estaAtrasado
         );
+    }
+
+    /** Overload con umbral por defecto (6 días hábiles). */
+    public static PedidoResponse from(Pedido p) {
+        return from(p, 6);
     }
 }

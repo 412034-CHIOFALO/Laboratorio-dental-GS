@@ -83,6 +83,20 @@ public class Pedido {
     @Column(name = "fecha_ultima_modificacion")
     private LocalDateTime fechaUltimaModificacion;
 
+    // ── Consumo de stock automático ──
+    /**
+     * True una vez que ms-stock descontó los materiales según la receta del
+     * catálogo. Sirve para idempotencia: si el pedido se mueve a EN_PROCESO
+     * dos veces (drag & drop, error de UI, etc.), no descontamos doble.
+     */
+    @Column(name = "stock_consumido", nullable = false)
+    @Builder.Default
+    private boolean stockConsumido = false;
+
+    /** Timestamp del descuento, útil para auditoría. */
+    @Column(name = "fecha_stock_consumido")
+    private LocalDateTime fechaStockConsumido;
+
     @PrePersist
     protected void onCreate() {
         this.fechaCreacion = LocalDateTime.now();
