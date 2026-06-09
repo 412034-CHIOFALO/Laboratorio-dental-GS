@@ -11,6 +11,7 @@ public interface IStockService {
     List<MaterialResponse> listarBajoStock();
     MaterialResponse buscarPorId(Long id);
     MaterialResponse crear(MaterialRequest request);
+    MaterialResponse actualizar(Long id, MaterialRequest request);
     MaterialResponse registrarMovimiento(MovimientoRequest request);
     void eliminar(Long id);
 }

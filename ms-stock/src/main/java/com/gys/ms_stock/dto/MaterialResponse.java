@@ -17,6 +17,7 @@ public record MaterialResponse(
         BigDecimal precioUnitario,
         String proveedor,
         boolean activo,
+        boolean descuentaStock,
         boolean bajoStock,
         LocalDateTime fechaModificacion
 ) {
@@ -26,6 +27,7 @@ public record MaterialResponse(
                 m.getCategoria(), m.getStockActual(), m.getStockMinimo(),
                 m.getUnidadMedida(), m.getPrecioUnitario(), m.getProveedor(),
                 m.isActivo(),
+                m.isDescuentaStock(),
                 m.getStockActual() <= m.getStockMinimo(),   // flag de alerta automático
                 m.getFechaModificacion()
         );
