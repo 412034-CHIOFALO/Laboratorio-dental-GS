@@ -32,4 +32,10 @@ public class MaterialRequest {
     private BigDecimal precioUnitario;
 
     private String proveedor;
+
+    /**
+     * true = se descuenta del stock al usarlo (caso normal).
+     * false = solo se verifica (esmaltes, pinceles — "uso por pinceladas").
+     */
+    private Boolean descuentaStock = true;
 }

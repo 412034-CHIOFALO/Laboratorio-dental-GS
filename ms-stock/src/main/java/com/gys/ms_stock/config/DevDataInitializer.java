@@ -13,10 +13,14 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Carga el inventario inicial de materiales de prueba.
+ * Carga el inventario inicial — mismos materiales que los mocks del frontend,
+ * en el mismo orden de inserción para que los IDs coincidan.
  *
- * Incluye materiales con stock normal, uno bajo (alerta)
- * y uno agotado, para poder probar el sistema de alertas de stock.
+ * Mix intencional:
+ *   - Materiales medibles (descuentaStock=true): yeso, aleación, acrílico, etc.
+ *   - Materiales "por uso" (descuentaStock=false): cerámicas y porcelanas (se
+ *     aplican con pincel, no tiene sentido descontar gramos exactos).
+ *   - Algunos en bajo stock para que se vea la alerta.
  */
 @Component
 @Profile("dev")
@@ -38,87 +42,119 @@ public class DevDataInitializer implements CommandLineRunner {
 
         List<Material> materiales = List.of(
 
-            // Stock normal
+            // 1 — Yeso Piedra Tipo IV — bajo stock
             Material.builder()
-                .nombre("Cerámica Vita PM9")
-                .descripcion("Cerámica feldespática de alta translucidez para coronas anteriores.")
-                .categoria(CategoriaMaterial.CERAMICA)
-                .stockActual(480.0)
-                .stockMinimo(100.0)
-                .unidadMedida("g")
-                .precioUnitario(new BigDecimal("850.00"))
-                .proveedor("Dental Import SRL")
-                .activo(true)
-                .build(),
-
-            // Stock normal
-            Material.builder()
-                .nombre("Resina Bis-GMA Esthet-X")
-                .descripcion("Resina de nano-relleno para incrustaciones directas e indirectas.")
-                .categoria(CategoriaMaterial.RESINA)
-                .stockActual(180.0)
-                .stockMinimo(50.0)
-                .unidadMedida("ml")
-                .precioUnitario(new BigDecimal("1200.00"))
-                .proveedor("Dentsply Sirona Argentina")
-                .activo(true)
-                .build(),
-
-            // Stock normal
-            Material.builder()
-                .nombre("Yeso Dentona Tipo IV")
-                .descripcion("Yeso piedra extraduro para modelos de trabajo. Expansión controlada.")
+                .nombre("Yeso Piedra Tipo IV")
+                .descripcion("Yeso tipo IV para modelos de trabajo. Expansión controlada.")
                 .categoria(CategoriaMaterial.YESO)
-                .stockActual(4200.0)
-                .stockMinimo(1000.0)
-                .unidadMedida("g")
-                .precioUnitario(new BigDecimal("25.00"))
-                .proveedor("Laboratorios Lascod")
+                .stockActual(3.0).stockMinimo(5.0).unidadMedida("pote")
+                .precioUnitario(new BigDecimal("3500.00"))
+                .proveedor("Casa Dental Norte")
+                .descuentaStock(true)
                 .activo(true)
                 .build(),
 
-            // ⚠ BAJO STOCK — activará alerta en el dashboard
+            // 2 — Cerámica Vita VM13 — bajo stock + "por uso" (no descuenta)
             Material.builder()
-                .nombre("Cera Inlay Modeling")
-                .descripcion("Cera de alta consistencia para modelado de coronas e incrustaciones.")
-                .categoria(CategoriaMaterial.CERA)
-                .stockActual(35.0)   // ← por debajo del mínimo (50g)
-                .stockMinimo(50.0)
-                .unidadMedida("g")
-                .precioUnitario(new BigDecimal("120.00"))
-                .proveedor("Renfert GmbH")
+                .nombre("Cerámica Vita VM13")
+                .descripcion("Cerámica feldespática para metal-cerámica. Se aplica con pincel.")
+                .categoria(CategoriaMaterial.CERAMICA)
+                .stockActual(2.0).stockMinimo(4.0).unidadMedida("frasco")
+                .precioUnitario(new BigDecimal("8500.00"))
+                .proveedor("Dental Supply SRL")
+                .descuentaStock(false)   // ← se usa con pincel, solo se verifica
                 .activo(true)
                 .build(),
 
-            // Stock normal
+            // 3 — Aleación Cr-Co
             Material.builder()
-                .nombre("Fresas de Carburo Tungsteno")
-                .descripcion("Set de fresas para tallado y ajuste de restauraciones fijas.")
-                .categoria(CategoriaMaterial.HERRAMIENTA)
-                .stockActual(18.0)
-                .stockMinimo(5.0)
-                .unidadMedida("unidad")
-                .precioUnitario(new BigDecimal("800.00"))
-                .proveedor("Komet Dental")
+                .nombre("Aleación Cr-Co NPG")
+                .descripcion("Aleación no precious para metal-cerámica. Medible al gramo.")
+                .categoria(CategoriaMaterial.METAL)
+                .stockActual(450.0).stockMinimo(200.0).unidadMedida("gramo")
+                .precioUnitario(new BigDecimal("95.00"))
+                .proveedor("MetalDent SA")
+                .descuentaStock(true)
                 .activo(true)
                 .build(),
 
-            // ⚠ AGOTADO — para testear el caso extremo
+            // 4 — Acrílico Rosa Termocurable
             Material.builder()
-                .nombre("Acrílico Termoplástico QC-20")
-                .descripcion("Acrílico de polimerización en agua caliente para aparatología removible.")
+                .nombre("Acrílico Rosa Termocurable")
+                .descripcion("Acrílico termocurable para prótesis removibles.")
+                .categoria(CategoriaMaterial.ACRILICO)
+                .stockActual(12.0).stockMinimo(6.0).unidadMedida("frasco")
+                .precioUnitario(new BigDecimal("4200.00"))
+                .proveedor("Casa Dental Norte")
+                .descuentaStock(true)
+                .activo(true)
+                .build(),
+
+            // 5 — Alambre Inox
+            Material.builder()
+                .nombre("Alambre Inox 0.7mm")
+                .descripcion("Alambre de acero inoxidable para ortodoncia.")
+                .categoria(CategoriaMaterial.ALAMBRE)
+                .stockActual(8.0).stockMinimo(3.0).unidadMedida("rollo")
+                .precioUnitario(new BigDecimal("1800.00"))
+                .proveedor("Dental Supply SRL")
+                .descuentaStock(true)
+                .activo(true)
+                .build(),
+
+            // 6 — Resina Autopolimerizable — bajo stock
+            Material.builder()
+                .nombre("Resina Autopolimerizable")
+                .descripcion("Para férulas y provisorios. Polímero + monómero.")
                 .categoria(CategoriaMaterial.RESINA)
-                .stockActual(0.0)    // ← agotado
-                .stockMinimo(200.0)
-                .unidadMedida("g")
-                .precioUnitario(new BigDecimal("450.00"))
-                .proveedor("Dentsply Sirona Argentina")
+                .stockActual(4.0).stockMinimo(4.0).unidadMedida("kit")
+                .precioUnitario(new BigDecimal("6200.00"))
+                .proveedor("Casa Dental Norte")
+                .descuentaStock(true)
+                .activo(true)
+                .build(),
+
+            // 7 — Discos Zirconia
+            Material.builder()
+                .nombre("Discos Zirconia 98mm")
+                .descripcion("Para coronas de zirconio monolítico. Se cuenta por unidad.")
+                .categoria(CategoriaMaterial.ZIRCONIA)
+                .stockActual(6.0).stockMinimo(3.0).unidadMedida("unidad")
+                .precioUnitario(new BigDecimal("18500.00"))
+                .proveedor("Zirkon Dental")
+                .descuentaStock(true)
+                .activo(true)
+                .build(),
+
+            // 8 — Porcelana Vita VMK — "por uso" (no descuenta)
+            Material.builder()
+                .nombre("Porcelana Vita VMK")
+                .descripcion("Porcelana de cocción para coronas. Se aplica con pincel.")
+                .categoria(CategoriaMaterial.PORCELANA)
+                .stockActual(5.0).stockMinimo(3.0).unidadMedida("frasco")
+                .precioUnitario(new BigDecimal("7800.00"))
+                .proveedor("Dental Supply SRL")
+                .descuentaStock(false)   // ← se usa con pincel
+                .activo(true)
+                .build(),
+
+            // 9 — Separadores de Goma — "por uso"
+            Material.builder()
+                .nombre("Separadores de Goma")
+                .descripcion("Para separar dientes en yeso. Reutilizables.")
+                .categoria(CategoriaMaterial.CONSUMIBLE)
+                .stockActual(15.0).stockMinimo(5.0).unidadMedida("bolsa")
+                .precioUnitario(new BigDecimal("1200.00"))
+                .proveedor("Casa Dental Norte")
+                .descuentaStock(false)   // ← se cuenta visualmente
                 .activo(true)
                 .build()
         );
 
         repository.saveAll(materiales);
-        log.info("[GYS-DEV] {} materiales cargados en stock.", materiales.size());
-        log.info("[GYS-DEV] Alertas de bajo stock: Cera Inlay (35g < 50g min), Acrílico QC-20 (0g)");
+        long medibles = materiales.stream().filter(Material::isDescuentaStock).count();
+        log.info("[GYS-DEV] {} materiales cargados en stock ({} medibles + {} por uso).",
+            materiales.size(), medibles, materiales.size() - medibles);
+        log.info("[GYS-DEV] Alertas: Yeso Tipo IV (3 < 5), Cerámica VM13 (2 < 4), Resina Auto (4 = 4)");
     }
 }

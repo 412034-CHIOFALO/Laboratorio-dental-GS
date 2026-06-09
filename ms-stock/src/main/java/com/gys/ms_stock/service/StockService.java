@@ -3,14 +3,14 @@ package com.gys.ms_stock.service;
 import com.gys.ms_stock.dto.MaterialRequest;
 import com.gys.ms_stock.dto.MaterialResponse;
 import com.gys.ms_stock.dto.MovimientoRequest;
-import com.gys.ms_stock.exception.BusinessException;
 import com.gys.ms_stock.exception.ResourceNotFoundException;
 import com.gys.ms_stock.model.Material;
 import com.gys.ms_stock.model.MovimientoStock;
-import com.gys.ms_stock.model.TipoMovimiento;
 import com.gys.ms_stock.repository.MaterialRepository;
 import com.gys.ms_stock.repository.MovimientoStockRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +20,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class StockService implements IStockService {
+
+    private static final Logger log = LoggerFactory.getLogger(StockService.class);
 
     private final MaterialRepository materialRepo;
     private final MovimientoStockRepository movimientoRepo;
@@ -38,6 +40,7 @@ public class StockService implements IStockService {
                 .orElseThrow(() -> new ResourceNotFoundException("Material", id));
     }
 
+    @Override
     @Transactional
     public MaterialResponse crear(MaterialRequest request) {
         Material m = Material.builder()
@@ -49,19 +52,44 @@ public class StockService implements IStockService {
                 .unidadMedida(request.getUnidadMedida())
                 .precioUnitario(request.getPrecioUnitario())
                 .proveedor(request.getProveedor())
+                .descuentaStock(request.getDescuentaStock() == null || request.getDescuentaStock())
                 .build();
         return MaterialResponse.from(materialRepo.save(m));
     }
 
+    @Override
+    @Transactional
+    public MaterialResponse actualizar(Long id, MaterialRequest request) {
+        Material m = materialRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Material", id));
+        m.setNombre(request.getNombre());
+        m.setDescripcion(request.getDescripcion());
+        m.setCategoria(request.getCategoria());
+        m.setStockActual(request.getStockActual());
+        m.setStockMinimo(request.getStockMinimo());
+        m.setUnidadMedida(request.getUnidadMedida());
+        m.setPrecioUnitario(request.getPrecioUnitario());
+        m.setProveedor(request.getProveedor());
+        if (request.getDescuentaStock() != null) {
+            m.setDescuentaStock(request.getDescuentaStock());
+        }
+        return MaterialResponse.from(materialRepo.save(m));
+    }
+
+    @Override
     @Transactional
     public MaterialResponse registrarMovimiento(MovimientoRequest request) {
         Material material = materialRepo.findById(request.getMaterialId())
                 .orElseThrow(() -> new ResourceNotFoundException("Material", request.getMaterialId()));
 
+        // Política nueva: avisamos pero permitimos descontar a negativo
+        // (refleja la realidad — el admin sabe que está "debiendo" material)
         double nuevoStock = calcularNuevoStock(material.getStockActual(), request);
         if (nuevoStock < 0) {
-            throw new BusinessException("Stock insuficiente. Disponible: " + material.getStockActual()
-                            + " " + material.getUnidadMedida());
+            log.warn("[GYS-STOCK] Stock negativo al registrar movimiento {} para material '{}': {} {} disponibles, se descontaron {} → resultado {}",
+                request.getTipo(), material.getNombre(),
+                material.getStockActual(), material.getUnidadMedida(),
+                request.getCantidad(), nuevoStock);
         }
 
         material.setStockActual(nuevoStock);
