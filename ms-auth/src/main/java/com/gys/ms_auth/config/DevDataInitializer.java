@@ -5,6 +5,7 @@ import com.gys.ms_auth.model.Usuario;
 import com.gys.ms_auth.repository.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
@@ -33,6 +34,12 @@ public class DevDataInitializer implements CommandLineRunner {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${GS_ADMIN_PASSWORD:${GYS_ADMIN_PASSWORD:admin123}}")
+    private String adminPassword;
+
+    @Value("${GS_TECNICO_PASSWORD:${GYS_TECNICO_PASSWORD:tecnico123}}")
+    private String tecnicoPassword;
+
     public DevDataInitializer(UsuarioRepository usuarioRepository,
                               PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
@@ -45,12 +52,21 @@ public class DevDataInitializer implements CommandLineRunner {
         crearSiNoExiste("dra_sanchez", "Laura",  "Sánchez", Rol.ODONTOLOGO);
         crearSiNoExiste("recepcion",   "Valentina", "Torres", Rol.ADMINISTRATIVO);
 
-        log.info("[GYS-DEV] Usuarios de prueba disponibles:");
-        log.info("  admin        / {} (ADMIN)",       System.getenv().getOrDefault("GYS_ADMIN_PASSWORD",   "CHANGE_ME_ADMIN"));
-        log.info("  tecnico1     / {} (TECNICO)",     System.getenv().getOrDefault("GYS_TECNICO_PASSWORD", "CHANGE_ME_TECNICO"));
-        log.info("  dr_garcia    / {} (ODONTOLOGO)",  DEV_PASSWORD);
-        log.info("  dra_sanchez  / {} (ODONTOLOGO)",  DEV_PASSWORD);
-        log.info("  recepcion    / {} (ADMINISTRATIVO)", DEV_PASSWORD);
+        log.info("");
+        log.info("╔════════════════════════════════════════════════════════════════╗");
+        log.info("║  [GS-DEV] Usuarios de prueba disponibles                       ║");
+        log.info("╠════════════════════════════════════════════════════════════════╣");
+        log.info("║  admin        / {}                       (ADMIN)             ║", padRight(adminPassword, 12));
+        log.info("║  tecnico1     / {}                       (TECNICO)           ║", padRight(tecnicoPassword, 12));
+        log.info("║  dr_garcia    / {}                       (ODONTOLOGO)        ║", padRight(DEV_PASSWORD, 12));
+        log.info("║  dra_sanchez  / {}                       (ODONTOLOGO)        ║", padRight(DEV_PASSWORD, 12));
+        log.info("║  recepcion    / {}                       (ADMINISTRATIVO)    ║", padRight(DEV_PASSWORD, 12));
+        log.info("╚════════════════════════════════════════════════════════════════╝");
+    }
+
+    private static String padRight(String s, int n) {
+        if (s == null) return " ".repeat(n);
+        return s.length() >= n ? s : s + " ".repeat(n - s.length());
     }
 
     private void crearSiNoExiste(String username, String nombre, String apellido, Rol rol) {
