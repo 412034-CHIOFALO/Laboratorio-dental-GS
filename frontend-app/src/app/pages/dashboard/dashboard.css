@@ -41,6 +41,19 @@
   grid-template-columns: var(--sidebar-collapsed-w) 1fr;
 }
 
+/* Sidebar colapsado: apilar logo GS y flecha en vertical para que no se encimen */
+.app-shell.sidebar-collapsed .sidebar-header {
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  height: auto;
+  padding: 12px 0;
+}
+.app-shell.sidebar-collapsed .brand {
+  justify-content: center;
+  gap: 0;
+}
+
 /* ── OVERLAY MÓVIL ── */
 .mobile-overlay {
   display: none;

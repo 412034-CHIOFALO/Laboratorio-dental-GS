@@ -37,8 +37,11 @@ export class AuthService {
       return throwError(() => ({ status: 401, error: { error: 'Credenciales incorrectas' } }));
     }
 
+    // El endpoint de login viene de environment.loginUrl: en dev va directo a
+    // ms-auth (:8081) y en prod va por el gateway (relativo, vía nginx). Así no
+    // queda hardcodeado un puerto de dev en el build de producción.
     return this.http.post<{ access_token: string }>(
-      `${this.gatewayUrl}/ms-auth/api/auth/login`,
+      environment.loginUrl,
       { username, password }
     );
   }
