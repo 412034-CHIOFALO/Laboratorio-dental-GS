@@ -16,4 +16,8 @@ export const environment = {
   pedidosUrl:    '',
   finanzasUrl:   '',
   stockUrl:      '',
+
+  // En prod el login pasa por el gateway (relativo, vía nginx). NUNCA hardcodear
+  // localhost:8081 acá: en prod ese puerto no está expuesto.
+  loginUrl: '/ms-auth/api/auth/login',
 };
