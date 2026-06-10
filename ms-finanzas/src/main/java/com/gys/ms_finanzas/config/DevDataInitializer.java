@@ -117,6 +117,25 @@ public class DevDataInitializer implements CommandLineRunner {
         );
         log.info("[GYS-DEV] Proveedor cargado: {}", dentalImport.getNombre());
 
+        // Proveedores extra — para probar el flujo del bot con pagos a proveedor.
+        // (Luciano Giménez usa el CUIT del comprobante de prueba de Mercado Pago.)
+        Proveedor luciano = proveedorRepository.save(Proveedor.builder()
+                .nombre("Luciano Giménez").cuit("20-45700585-8").telefono("351-700-2020").build());
+        proveedorRepository.save(Proveedor.builder()
+                .nombre("Protésica del Sur").cuit("30-70999888-1").build());
+        log.info("[GYS-DEV] Proveedores extra cargados (Luciano Giménez, Protésica del Sur).");
+
+        // Deuda con Luciano — para demostrar el triangulado (un odontólogo le paga a este proveedor).
+        deudaProveedorRepository.save(
+            DeudaProveedor.builder()
+                .proveedor(luciano)
+                .descripcion("Fresado tercerizado — Lote 2025-06")
+                .monto(new BigDecimal("12000.00"))
+                .fechaVencimiento(hoy.plusDays(20))
+                .build()
+        );
+        log.info("[GYS-DEV] Deuda con Luciano Giménez cargada: $12.000 (para el triangulado)");
+
         // ── Deuda proveedor ────────────────────────────────────────────
         deudaProveedorRepository.save(
             DeudaProveedor.builder()

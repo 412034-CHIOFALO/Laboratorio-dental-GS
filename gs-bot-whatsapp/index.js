@@ -165,8 +165,9 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
   }
 
   // ── Registrar en el backend ──
+  let resultado;
   try {
-    await registrarPago({
+    resultado = await registrarPago({
       monto,
       emisor: pie.emisor,
       receptorNombre: pie.receptor,
@@ -180,23 +181,36 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
     });
   } catch (e) {
     const msgErr = e.response?.data?.mensaje || e.message;
-    console.log('   ❌ Backend rechazó:', msgErr);
-    await responder(`⚠️ No se registró: ${msgErr}`);
+    console.log('   ❌ Error al conectar con el backend:', msgErr);
+    await responder(`⚠️ No se pudo registrar (error de conexión con el sistema): ${msgErr}`);
     return;
   }
 
-  console.log('   ✅ Registrado en el sistema.');
+  // El backend SIEMPRE responde 200 con el estado del registro
+  const estado = resultado?.estado;
+  console.log(`   Resultado:    ${estado} — ${resultado?.mensaje || ''}`);
   console.log('   ───────────────────────────────────────────────\n');
 
+  if (estado === 'DUPLICADO') {
+    await responder(`ℹ️ Ese comprobante ya estaba registrado (operación ${lectura.idOperacion || '—'}).`);
+    return;
+  }
+  if (estado !== 'REGISTRADO') {
+    await responder(`⚠️ No se registró: ${resultado?.mensaje || 'el receptor no es un empleado ni un proveedor conocido.'}`);
+    return;
+  }
+
+  // Registrado OK — distinguimos sueldo vs pago a proveedor
+  const tipoTxt = resultado.tipoReceptor === 'PROVEEDOR' ? 'Pago a proveedor' : 'Sueldo';
   let aviso = '';
   if (confianzaMonto === 'baja') aviso += `\n⚠️ No estoy seguro del monto, *verificalo*.`;
   if (!validacion.ok)            aviso += `\n⚠️ El comprobante no coincide del todo con "${pie.receptor}", *revisalo*.`;
 
   await responder(
-    `✅ *Cargado al sistema correctamente*\n` +
+    `✅ *Cargado al sistema correctamente* (${tipoTxt})\n` +
     `• Monto: $${montoFmt}\n` +
     `• Pagó: ${pie.emisor || '—'}\n` +
-    `• Recibió: ${pie.receptor}\n` +
+    `• Recibió: ${resultado.receptorResuelto || pie.receptor}\n` +
     `• N° operación: ${lectura.idOperacion || '—'}` +
     aviso
   );
@@ -535,6 +549,7 @@ async function registrarPago(datos) {
     comprobanteMime: datos.comprobanteMime,
     comprobanteNombre: datos.comprobanteNombre,
   }, { headers, timeout: 15000 });   // más timeout: el base64 puede pesar
+  return res.data;   // { estado, tipoReceptor, receptorResuelto, mensaje, ... }
 }
 
 // ─── Limpieza periódica de pendientes vencidos ──────────────────────────────

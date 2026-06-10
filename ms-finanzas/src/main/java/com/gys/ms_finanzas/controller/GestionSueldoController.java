@@ -63,9 +63,10 @@ public class GestionSueldoController {
      * El bot identifica al receptor por teléfono y manda el comprobante.
      */
     @PostMapping("/pago-automatico")
-    public ResponseEntity<PagoSueldoResponse> registrarPagoAutomatico(
+    public ResponseEntity<RegistroPagoBotResponse> registrarPagoAutomatico(
             @Valid @RequestBody PagoAutomaticoRequest req) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.registrarPagoAutomatico(req));
+        // Siempre 200: el resultado (registrado/rechazado/duplicado) viene en el body.
+        return ResponseEntity.ok(service.registrarPagoAutomatico(req));
     }
 
     /** Histórico de pagos de un empleado. */
@@ -84,5 +85,17 @@ public class GestionSueldoController {
     @GetMapping("/pagos/{pagoId}/comprobante")
     public ResponseEntity<Map<String, String>> urlComprobante(@PathVariable Long pagoId) {
         return ResponseEntity.ok(Map.of("url", service.urlComprobante(pagoId)));
+    }
+
+    /** Historial de TODO lo que procesó el bot (sueldos, proveedores y rechazos). */
+    @GetMapping("/registros-bot")
+    public ResponseEntity<List<RegistroPagoBotResponse>> registrosBot() {
+        return ResponseEntity.ok(service.listarRegistrosBot());
+    }
+
+    /** URL temporal para ver el comprobante de un registro del bot. */
+    @GetMapping("/registros-bot/{registroId}/comprobante")
+    public ResponseEntity<Map<String, String>> urlComprobanteRegistro(@PathVariable Long registroId) {
+        return ResponseEntity.ok(Map.of("url", service.urlComprobanteRegistro(registroId)));
     }
 }
