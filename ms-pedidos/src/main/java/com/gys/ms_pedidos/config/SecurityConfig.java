@@ -28,12 +28,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(cors -> cors.disable())
             .csrf(csrf -> csrf.disable())
+            .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/h2-console/**").permitAll()
                 // Lectura de pedidos — ADMIN y ADMINISTRATIVO
                 .requestMatchers(HttpMethod.GET, "/api/pedidos/**")
                     .hasAnyRole("ADMIN", "ADMINISTRATIVO", "TECNICO")
