@@ -16,6 +16,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.beans.factory.annotation.Value;
+import java.time.Duration;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +34,11 @@ public class AuthController {
     private final JwtEncoder jwtEncoder;
     private final AuthenticationManager authenticationManager;
     private final UsuarioService usuarioService;
+
+    // Duración del token de sesión. Default 12h (cubre una jornada larga).
+    // Override en prod con la env var GS_TOKEN_TTL_HOURS.
+    @Value("${gs.auth.token-ttl-hours:${GS_TOKEN_TTL_HOURS:12}}")
+    private long tokenTtlHours;
 
     public AuthController(JwtEncoder jwtEncoder,
                           AuthenticationManager authenticationManager,
@@ -55,7 +62,7 @@ public class AuthController {
             JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer("http://localhost:8081")
                 .issuedAt(Instant.now())
-                .expiresAt(Instant.now().plusSeconds(3600))
+                .expiresAt(Instant.now().plus(Duration.ofHours(tokenTtlHours)))
                 .subject(auth.getName())
                 .claim("roles", roles)
                 .build();
