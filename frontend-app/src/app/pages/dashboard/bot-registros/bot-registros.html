@@ -1,0 +1,71 @@
+<div class="bot-view">
+  <header class="bot-header">
+    <div>
+      <h1>Historial del bot</h1>
+      <p class="sub">Todo lo que el bot de WhatsApp procesó de cada comprobante recibido.</p>
+    </div>
+    <button class="btn-refresh" (click)="cargar()" [disabled]="cargando()">↻ Actualizar</button>
+  </header>
+
+  <div class="filtros">
+    <button class="pill" [class.active]="filtroEstado()==='TODOS'" (click)="setFiltro('TODOS')">
+      Todos ({{ registros().length }})
+    </button>
+    <button class="pill ok" [class.active]="filtroEstado()==='REGISTRADO'" (click)="setFiltro('REGISTRADO')">
+      Registrados ({{ contar('REGISTRADO') }})
+    </button>
+    <button class="pill err" [class.active]="filtroEstado()==='RECHAZADO'" (click)="setFiltro('RECHAZADO')">
+      Rechazados ({{ contar('RECHAZADO') }})
+    </button>
+    <button class="pill dup" [class.active]="filtroEstado()==='DUPLICADO'" (click)="setFiltro('DUPLICADO')">
+      Duplicados ({{ contar('DUPLICADO') }})
+    </button>
+  </div>
+
+  @if (cargando()) {
+    <p class="estado-msg">Cargando…</p>
+  } @else if (filtrados().length === 0) {
+    <div class="vacio">
+      <p>No hay registros del bot todavía.</p>
+      <span>Cuando llegue un comprobante al grupo, aparece acá.</span>
+    </div>
+  } @else {
+    <div class="tabla-wrap">
+      <table class="tabla">
+        <thead>
+          <tr>
+            <th>Fecha</th><th>Estado</th><th>Tipo</th><th>Monto</th>
+            <th>Pagó</th><th>Recibió</th><th>N° op.</th><th>Grupo</th><th>Comp.</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of filtrados(); track r.id) {
+            <tr>
+              <td class="nowrap">{{ r.fechaHora | date:'dd/MM HH:mm' }}</td>
+              <td><span class="badge" [class]="claseEstado(r.estado)">{{ r.estado }}</span></td>
+              <td><span class="tipo" [class]="claseTipo(r.tipoReceptor)">{{ labelTipo(r.tipoReceptor) }}</span></td>
+              <td class="monto">{{ r.monto ? ('$' + (r.monto | number:'1.0-0')) : '—' }}</td>
+              <td>{{ r.emisor || '—' }}</td>
+              <td>
+                <strong>{{ r.receptorResuelto || r.receptorNombre || '—' }}</strong>
+                @if (r.receptorResuelto && r.receptorNombre && r.receptorResuelto !== r.receptorNombre) {
+                  <span class="raw"> (detectado: "{{ r.receptorNombre }}")</span>
+                }
+                @if (r.mensaje) {
+                  <div class="msg" [class.err]="r.estado === 'RECHAZADO'">{{ r.mensaje }}</div>
+                }
+              </td>
+              <td class="nowrap">{{ r.idOperacion || '—' }}</td>
+              <td>{{ r.grupoOrigen || '—' }}</td>
+              <td>
+                @if (r.tieneComprobante) {
+                  <button class="link" (click)="verComprobante(r)">ver</button>
+                } @else { <span class="dim">—</span> }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>

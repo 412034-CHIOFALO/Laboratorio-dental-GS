@@ -21,8 +21,8 @@ public interface IGestionSueldoService {
     /** Pago manual desde la app. */
     PagoSueldoResponse registrarPago(PagoSueldoRequest req);
 
-    /** Pago detectado por el bot de WhatsApp. */
-    PagoSueldoResponse registrarPagoAutomatico(PagoAutomaticoRequest req);
+    /** Comprobante procesado por el bot de WhatsApp (sueldo, proveedor o rechazo). */
+    RegistroPagoBotResponse registrarPagoAutomatico(PagoAutomaticoRequest req);
 
     /** Ajuste manual del saldo devengado (corrección). */
     EmpleadoSueldoResponse ajustarDevengado(Long usuarioId, BigDecimal nuevoDevengado);
@@ -31,8 +31,14 @@ public interface IGestionSueldoService {
 
     List<PagoSueldoResponse> historialPagosGlobal();
 
+    /** Historial de TODO lo que procesó el bot (sueldos, proveedores y rechazos). */
+    List<RegistroPagoBotResponse> listarRegistrosBot();
+
     BigDecimal totalDevengado();
 
     /** URL temporal para ver el comprobante guardado de un pago (o null). */
     String urlComprobante(Long pagoId);
+
+    /** URL temporal para ver el comprobante de un registro del bot. */
+    String urlComprobanteRegistro(Long registroId);
 }

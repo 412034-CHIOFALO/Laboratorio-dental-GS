@@ -16,6 +16,7 @@ import { EscaneosComponent } from './pages/dashboard/escaneos/escaneos';
 import { AuditoriaComponent } from './pages/dashboard/auditoria/auditoria';
 import { OdontologosComponent } from './pages/dashboard/odontologos/odontologos';
 import { OdontologoHistorialComponent } from './pages/dashboard/odontologos/historial/odontologo-historial';
+import { BotRegistrosComponent } from './pages/dashboard/bot-registros/bot-registros';
 import { ErrorPageComponent } from './pages/error/error-page';
 import { authGuard } from './guards/auth.guard';
 
@@ -36,6 +37,7 @@ export const routes: Routes = [
       { path: 'catalogo',    component: CatalogoComponent },
       { path: 'stock',       component: StockComponent },
       { path: 'finanzas',    component: FinanzasComponent },
+      { path: 'bot-registros', component: BotRegistrosComponent },
       { path: 'reportes',    component: ReportesComponent },
       { path: 'documentos',  component: DocumentosComponent },
       { path: 'escaneos',    component: EscaneosComponent },
