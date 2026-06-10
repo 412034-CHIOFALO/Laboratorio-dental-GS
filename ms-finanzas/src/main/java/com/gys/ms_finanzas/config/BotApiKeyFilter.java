@@ -40,7 +40,7 @@ public class BotApiKeyFilter extends OncePerRequestFilter {
                                     FilterChain chain) throws ServletException, IOException {
         if (request.getRequestURI().endsWith(RUTA_BOT)) {
             String key = request.getHeader(HEADER);
-            if (botApiKey != null && !botApiKey.isBlank() && botApiKey.equals(key)) {
+            if (claveValida(key)) {
                 var auth = new UsernamePasswordAuthenticationToken(
                         "gs-bot", null,
                         List.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
@@ -48,5 +48,16 @@ public class BotApiKeyFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Compara la API key en tiempo constante (MessageDigest.isEqual) para no
+     * filtrar información por timing. Si no hay key configurada, siempre rechaza.
+     */
+    private boolean claveValida(String key) {
+        if (key == null || botApiKey == null || botApiKey.isBlank()) return false;
+        return java.security.MessageDigest.isEqual(
+                botApiKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

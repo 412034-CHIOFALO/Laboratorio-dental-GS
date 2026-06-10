@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
@@ -51,6 +53,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException ex, HttpServletRequest req) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(ErrorResponse.of(400, "Bad Request", "El cuerpo de la petición no se puede procesar", req.getRequestURI()));
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex, HttpServletRequest req) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse.of(400, "Bad Request", "Valor inválido para el parámetro '" + ex.getName() + "': " + ex.getValue(), req.getRequestURI()));
+    }
+
+    // ── 409 Conflict — violación de integridad (ej: username duplicado) ──
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest req) {
+        log.warn("[GS-AUTH] Violación de integridad en {}: {}", req.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(ErrorResponse.of(409, "Conflict", "El recurso ya existe o viola una restricción de unicidad.", req.getRequestURI()));
     }
 
     // ── 401 Unauthorized — credenciales inválidas ─────────────────────
