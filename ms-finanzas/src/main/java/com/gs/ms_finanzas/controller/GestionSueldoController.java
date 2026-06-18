@@ -1,0 +1,186 @@
+package com.gs.ms_finanzas.controller;
+
+import com.gs.ms_finanzas.dto.*;
+import com.gs.ms_finanzas.service.IGestionSueldoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * API de gestión de sueldos del personal (config + devengado + pagos).
+ *
+ * <p>Rutas bajo /api/finanzas/sueldos/empleados para no colisionar con el
+ * SueldoController legacy (/api/finanzas/sueldos?anio&amp;mes).</p>
+ *
+ * <p>El algoritmo de cascada distribuye los fondos disponibles de las cajas
+ * según la configuración de cada empleado (frecuencia y monto base) y maneja
+ * automáticamente los sobrantes entre ciclos.</p>
+ */
+@Tag(name = "Gestión de Sueldos", description = "Configuración de sueldos, registro de pagos y algoritmo de cascada para distribución de fondos")
+@RestController
+@RequestMapping("/api/finanzas/sueldos")
+@RequiredArgsConstructor
+public class GestionSueldoController {
+
+    private final IGestionSueldoService service;
+
+    @Operation(summary = "Lista todos los empleados con su estado de sueldo",
+               description = "Devuelve todos los integrantes del laboratorio con su configuración de sueldo actual (frecuencia, monto base) y el saldo devengado pendiente de pago.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Listado de empleados obtenido"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/empleados")
+    public ResponseEntity<List<EmpleadoSueldoResponse>> listarEmpleados() {
+        return ResponseEntity.ok(service.listarEmpleados());
+    }
+
+    @Operation(summary = "Busca un empleado por su ID de usuario",
+               description = "Devuelve la configuración de sueldo y estado de cuenta de un empleado específico.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Empleado encontrado"),
+        @ApiResponse(responseCode = "404", description = "Empleado no encontrado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/empleados/{usuarioId}")
+    public ResponseEntity<EmpleadoSueldoResponse> buscarEmpleado(
+            @Parameter(description = "ID del usuario en ms-auth", required = true)
+            @PathVariable Long usuarioId) {
+        return ResponseEntity.ok(service.buscarEmpleado(usuarioId));
+    }
+
+    @Operation(summary = "Configura o actualiza el sueldo de un empleado",
+               description = "Edición manual de la configuración de sueldo: frecuencia de pago (DIARIO/SEMANAL/QUINCENAL/MENSUAL) y monto base por ciclo.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Configuración guardada correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos del request inválidos"),
+        @ApiResponse(responseCode = "404", description = "Empleado no encontrado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @PutMapping("/empleados/{usuarioId}/config")
+    public ResponseEntity<EmpleadoSueldoResponse> guardarConfig(
+            @Parameter(description = "ID del usuario en ms-auth", required = true)
+            @PathVariable Long usuarioId,
+            @Valid @RequestBody ConfigSueldoRequest req) {
+        return ResponseEntity.ok(service.guardarConfig(usuarioId, req));
+    }
+
+    @Operation(summary = "Ajusta manualmente el saldo devengado de un empleado",
+               description = "Corrección puntual del saldo devengado, sin generar un pago real. Útil para reconciliaciones contables.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Devengado ajustado correctamente"),
+        @ApiResponse(responseCode = "404", description = "Empleado no encontrado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @PatchMapping("/empleados/{usuarioId}/devengado")
+    public ResponseEntity<EmpleadoSueldoResponse> ajustarDevengado(
+            @Parameter(description = "ID del usuario en ms-auth", required = true)
+            @PathVariable Long usuarioId,
+            @RequestBody Map<String, BigDecimal> body) {
+        return ResponseEntity.ok(service.ajustarDevengado(usuarioId, body.get("devengado")));
+    }
+
+    @Operation(summary = "Registra un pago de sueldo manual",
+               description = "Crea un registro de pago desde la aplicación web. Descuenta del saldo devengado del empleado y aplica la política de manejo de sobrante configurada.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Pago registrado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos del request inválidos"),
+        @ApiResponse(responseCode = "404", description = "Empleado no encontrado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @PostMapping("/pago")
+    public ResponseEntity<PagoSueldoResponse> registrarPago(@Valid @RequestBody PagoSueldoRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.registrarPago(req));
+    }
+
+    @Operation(summary = "Registra un pago detectado por el bot de WhatsApp",
+               description = "Endpoint exclusivo para el bot. El bot identifica al receptor (empleado o proveedor) por el número de teléfono extraído del comprobante " +
+                             "y llama a este endpoint con el resultado. Siempre retorna 200; el resultado real (REGISTRADO/RECHAZADO/DUPLICADO) viene en el body.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Procesamiento completado (ver campo estado en el body)"),
+        @ApiResponse(responseCode = "400", description = "Request del bot inválido"),
+        @ApiResponse(responseCode = "403", description = "API key del bot inválida o ausente")
+    })
+    @PostMapping("/pago-automatico")
+    public ResponseEntity<RegistroPagoBotResponse> registrarPagoAutomatico(
+            @Valid @RequestBody PagoAutomaticoRequest req) {
+        // Siempre 200: el resultado (registrado/rechazado/duplicado) viene en el body.
+        return ResponseEntity.ok(service.registrarPagoAutomatico(req));
+    }
+
+    @Operation(summary = "Historial de pagos de un empleado",
+               description = "Lista todos los pagos realizados a un empleado específico, ordenados por fecha descendente.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Historial obtenido"),
+        @ApiResponse(responseCode = "404", description = "Empleado no encontrado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/empleados/{usuarioId}/pagos")
+    public ResponseEntity<List<PagoSueldoResponse>> historialPagos(
+            @Parameter(description = "ID del usuario en ms-auth", required = true)
+            @PathVariable Long usuarioId) {
+        return ResponseEntity.ok(service.historialPagos(usuarioId));
+    }
+
+    @Operation(summary = "Historial global de todos los pagos de sueldos",
+               description = "Lista todos los pagos registrados (manuales y del bot) de todos los empleados, ordenados por fecha descendente.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Historial global obtenido"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/pagos")
+    public ResponseEntity<List<PagoSueldoResponse>> historialGlobal() {
+        return ResponseEntity.ok(service.historialPagosGlobal());
+    }
+
+    @Operation(summary = "URL temporal del comprobante de un pago",
+               description = "Genera una URL pre-firmada (válida por tiempo limitado) para ver o descargar el comprobante almacenado en MinIO de un pago específico.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "URL generada correctamente"),
+        @ApiResponse(responseCode = "404", description = "Pago no encontrado o sin comprobante"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/pagos/{pagoId}/comprobante")
+    public ResponseEntity<Map<String, String>> urlComprobante(
+            @Parameter(description = "ID del pago de sueldo", required = true)
+            @PathVariable Long pagoId) {
+        return ResponseEntity.ok(Map.of("url", service.urlComprobante(pagoId)));
+    }
+
+    @Operation(summary = "Historial de todos los registros procesados por el bot",
+               description = "Lista TODO lo que el bot procesó: pagos de sueldo exitosos, pagos a proveedores, rechazos por receptor desconocido y duplicados. " +
+                             "Útil para auditoría y diagnóstico.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Registros del bot obtenidos"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/registros-bot")
+    public ResponseEntity<List<RegistroPagoBotResponse>> registrosBot() {
+        return ResponseEntity.ok(service.listarRegistrosBot());
+    }
+
+    @Operation(summary = "URL temporal del comprobante de un registro del bot",
+               description = "Genera una URL pre-firmada para ver el comprobante asociado a un registro del bot (imagen enviada al grupo de WhatsApp).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "URL generada correctamente"),
+        @ApiResponse(responseCode = "404", description = "Registro no encontrado o sin comprobante"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/registros-bot/{registroId}/comprobante")
+    public ResponseEntity<Map<String, String>> urlComprobanteRegistro(
+            @Parameter(description = "ID del registro del bot", required = true)
+            @PathVariable Long registroId) {
+        return ResponseEntity.ok(Map.of("url", service.urlComprobanteRegistro(registroId)));
+    }
+}
