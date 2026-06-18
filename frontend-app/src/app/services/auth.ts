@@ -23,7 +23,7 @@ interface JwtPayload {
   providedIn: 'root'
 })
 export class AuthService {
-  private gatewayUrl = 'http://localhost:8080';
+  private gatewayUrl = environment.gatewayUrl || 'http://localhost:8080';
   private readonly TOKEN_KEY = 'gs_token';
 
   constructor(private http: HttpClient) {}
