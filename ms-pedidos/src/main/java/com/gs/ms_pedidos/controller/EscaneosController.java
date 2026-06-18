@@ -1,0 +1,176 @@
+package com.gs.ms_pedidos.controller;
+
+import com.gs.ms_pedidos.dto.EscaneoResponse;
+import com.gs.ms_pedidos.exception.BusinessException;
+import com.gs.ms_pedidos.exception.ResourceNotFoundException;
+import com.gs.ms_pedidos.model.EscaneosPedido;
+import com.gs.ms_pedidos.repository.EscaneosPedidoRepository;
+import com.gs.ms_pedidos.repository.PedidoRepository;
+import com.gs.ms_pedidos.service.MinioStorageService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+/**
+ * Controlador REST para la gestión de escaneos 3D asociados a pedidos.
+ * <p>
+ * Los escaneos son archivos STL, OBJ u otros formatos digitales de modelos dentales
+ * (arcadas, antagonistas, implantes, etc.) que el laboratorio recibe del odontólogo
+ * o genera internamente. Se almacenan en MinIO bajo el prefijo {@code escaneos/}.
+ * </p>
+ */
+@Tag(name = "Escaneos de pedido", description = "Gestión de archivos de escaneos 3D adjuntos a un pedido (STL, OBJ, modelos digitales dentales). Los archivos se almacenan en MinIO con prefijo 'escaneos/' y se acceden mediante URLs prefirmadas de 30 minutos.")
+@RestController
+@RequestMapping("/api/pedidos/{pedidoId}/escaneos")
+@RequiredArgsConstructor
+@Slf4j
+public class EscaneosController {
+
+    private final EscaneosPedidoRepository escaneoRepo;
+    private final PedidoRepository pedidoRepository;
+    private final MinioStorageService minioStorageService;
+
+    @Operation(
+        summary = "Listar escaneos de un pedido",
+        description = "Devuelve todos los escaneos adjuntos al pedido, ordenados del más reciente al más antiguo. Cada escaneo incluye su descripción y una URL preformada temporal."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Lista de escaneos obtenida correctamente"),
+        @ApiResponse(responseCode = "404", description = "Pedido no encontrado")
+    })
+    @GetMapping
+    public ResponseEntity<List<EscaneoResponse>> listar(
+            @Parameter(description = "ID del pedido", example = "42")
+            @PathVariable Long pedidoId) {
+        List<EscaneoResponse> resp = escaneoRepo
+                .findByPedidoIdOrderByFechaSubidaDesc(pedidoId)
+                .stream().map(this::toResponse).collect(Collectors.toList());
+        return ResponseEntity.ok(resp);
+    }
+
+    @Operation(
+        summary = "Subir escaneo a un pedido",
+        description = "Sube un archivo de escaneo (STL, OBJ, etc.) al pedido especificado. Se puede agregar una descripción libre, por ejemplo 'Arcada superior', 'Modelo antagonista'. El archivo se almacena en MinIO bajo el prefijo 'escaneos/'."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Escaneo subido correctamente"),
+        @ApiResponse(responseCode = "400", description = "Archivo vacío o error de lectura"),
+        @ApiResponse(responseCode = "404", description = "Pedido no encontrado"),
+        @ApiResponse(responseCode = "503", description = "MinIO no disponible — el archivo no pudo ser guardado")
+    })
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<EscaneoResponse> subir(
+            @Parameter(description = "ID del pedido al que se adjunta el escaneo", example = "42")
+            @PathVariable Long pedidoId,
+            @Parameter(description = "Archivo de escaneo a subir (STL, OBJ, etc.)")
+            @RequestParam("file") MultipartFile file,
+            @Parameter(description = "Descripción del escaneo. Ej: 'Arcada superior', 'Modelo antagonista'", example = "Arcada superior")
+            @RequestParam(value = "descripcion", required = false) String descripcion,
+            Authentication auth) {
+
+        if (!pedidoRepository.existsById(pedidoId)) {
+            throw new ResourceNotFoundException("Pedido no encontrado: " + pedidoId);
+        }
+        if (file.isEmpty()) {
+            throw new BusinessException("El archivo está vacío");
+        }
+
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            throw new BusinessException("Error al leer el archivo");
+        }
+
+        String objectKey = minioStorageService.subir(bytes, file.getContentType(),
+                file.getOriginalFilename(), pedidoId, "escaneos");
+        if (objectKey == null) {
+            throw new BusinessException("No se pudo guardar el archivo (MinIO no disponible)");
+        }
+
+        String subidoPor = auth != null ? auth.getName() : "desconocido";
+        EscaneosPedido escaneo = EscaneosPedido.builder()
+                .pedidoId(pedidoId)
+                .objectKey(objectKey)
+                .fileName(file.getOriginalFilename() != null ? file.getOriginalFilename() : "archivo")
+                .contentType(file.getContentType())
+                .tamanioBytes(file.getSize())
+                .descripcion(descripcion)
+                .subidoPor(subidoPor)
+                .build();
+
+        EscaneosPedido saved = escaneoRepo.save(escaneo);
+        log.info("[ESCANEO] '{}' subido al pedido {}", saved.getFileName(), pedidoId);
+        return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(saved));
+    }
+
+    @Operation(
+        summary = "Obtener URL temporal de descarga de un escaneo",
+        description = "Genera una URL preformada (presigned URL) de MinIO con 30 minutos de validez para descargar el escaneo indicado."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "URL generada correctamente"),
+        @ApiResponse(responseCode = "404", description = "Escaneo no encontrado o no pertenece al pedido"),
+        @ApiResponse(responseCode = "503", description = "MinIO no disponible — no se pudo generar la URL")
+    })
+    @GetMapping("/{escaneoId}/url")
+    public ResponseEntity<Map<String, String>> getUrl(
+            @Parameter(description = "ID del pedido", example = "42")
+            @PathVariable Long pedidoId,
+            @Parameter(description = "ID del escaneo", example = "3")
+            @PathVariable Long escaneoId) {
+        EscaneosPedido e = escaneoRepo.findById(escaneoId)
+                .filter(x -> x.getPedidoId().equals(pedidoId))
+                .orElseThrow(() -> new ResourceNotFoundException("Escaneo no encontrado"));
+        String url = minioStorageService.urlTemporal(e.getObjectKey(), 30);
+        if (url == null) {
+            return ResponseEntity.status(503).body(Map.of("error", "MinIO no disponible"));
+        }
+        return ResponseEntity.ok(Map.of("url", url, "fileName", e.getFileName()));
+    }
+
+    @Operation(
+        summary = "Eliminar escaneo de un pedido",
+        description = "Elimina el escaneo tanto de MinIO (objeto S3) como de la base de datos. La operación es irreversible."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Escaneo eliminado correctamente"),
+        @ApiResponse(responseCode = "404", description = "Escaneo no encontrado o no pertenece al pedido")
+    })
+    @DeleteMapping("/{escaneoId}")
+    public ResponseEntity<Void> eliminar(
+            @Parameter(description = "ID del pedido", example = "42")
+            @PathVariable Long pedidoId,
+            @Parameter(description = "ID del escaneo a eliminar", example = "3")
+            @PathVariable Long escaneoId) {
+        EscaneosPedido e = escaneoRepo.findById(escaneoId)
+                .filter(x -> x.getPedidoId().equals(pedidoId))
+                .orElseThrow(() -> new ResourceNotFoundException("Escaneo no encontrado"));
+        minioStorageService.eliminar(e.getObjectKey());
+        escaneoRepo.delete(e);
+        log.info("[ESCANEO] {} eliminado del pedido {}", escaneoId, pedidoId);
+        return ResponseEntity.noContent().build();
+    }
+
+    private EscaneoResponse toResponse(EscaneosPedido e) {
+        String url = minioStorageService.urlTemporal(e.getObjectKey(), 30);
+        return new EscaneoResponse(e.getId(), e.getPedidoId(), e.getFileName(),
+                e.getContentType(), e.getTamanioBytes(), e.getDescripcion(),
+                e.getSubidoPor(), e.getFechaSubida(), url);
+    }
+}

@@ -1,0 +1,55 @@
+.prov-view { padding: 1.5rem 2rem; }
+
+.prov-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.2rem; }
+.prov-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+.prov-header .sub { color: var(--dim); font-size: 0.85rem; margin-top: 2px; }
+.acciones { display: flex; gap: 8px; }
+
+.btn-refresh { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+.btn-refresh:hover { background: var(--neutral-tint); }
+.btn-primary { background: var(--grad-primary, var(--accent)); color: var(--on-accent, #fff); border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 600; font-size: 0.85rem; }
+.btn-primary:disabled { opacity: .6; cursor: default; }
+.btn-ghost { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+
+.cards { display: flex; gap: 12px; margin-bottom: 1.2rem; flex-wrap: wrap; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px 18px; min-width: 160px; display: flex; flex-direction: column; gap: 4px; }
+.card-label { font-size: 0.75rem; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; }
+.card-val { font-size: 1.4rem; font-weight: 700; color: var(--text); }
+.card-val.deuda { color: #dc2626; }
+
+.tabla-wrap { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.tabla { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.tabla thead th { text-align: left; padding: 10px 12px; background: var(--neutral-tint); color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+.tabla tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+.fila { cursor: pointer; }
+.fila:hover { background: var(--neutral-tint); }
+.chev { width: 28px; color: var(--dim); text-align: center; }
+.r { text-align: right; }
+.nowrap { white-space: nowrap; }
+.mono { font-variant-numeric: tabular-nums; }
+.sub2 { color: var(--dim); font-size: 0.78rem; margin-top: 2px; }
+
+.badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.74rem; font-weight: 700; }
+.badge.pend { background: rgba(220,38,38,.15); color: #dc2626; }
+.badge.ok { background: rgba(22,163,74,.15); color: #16a34a; }
+
+.detalle td { background: var(--bg, var(--neutral-tint)); padding: 0 12px 12px 40px; }
+.sub-tabla { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 4px; }
+.sub-tabla thead th { text-align: left; padding: 7px 10px; color: var(--dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+.sub-tabla tbody td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+.obs { color: var(--dim); font-size: 0.76rem; margin-top: 2px; font-style: italic; }
+
+.vacio { text-align: center; padding: 3rem 1rem; border: 1px dashed var(--border); border-radius: 12px; color: var(--dim); }
+.vacio p { font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+.estado-msg { color: var(--dim); padding: 0.8rem 0; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 1rem; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 1.5rem; width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 10px; }
+.modal h2 { font-size: 1.15rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.modal label { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.modal input { padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg, transparent); color: var(--text); font-size: 0.9rem; }
+.modal input:focus { outline: none; border-color: var(--accent); }
+.modal-acciones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+@media (max-width: 640px) { .prov-view { padding: 1rem; } .prov-header { flex-direction: column; } }
