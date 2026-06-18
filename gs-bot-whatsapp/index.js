@@ -22,6 +22,8 @@ const axios = require('axios');
 const { createWorker } = require('tesseract.js');
 const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const http = require('http');
+const QRCode = require('qrcode');
 
 let ocrWorker = null;
 
@@ -36,6 +38,9 @@ const GRUPOS = (process.env.GRUPOS || '')
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL   = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const GEMINI_ENABLED = process.env.GEMINI_ENABLED === 'true' && !!GEMINI_API_KEY;
+if (process.env.GEMINI_ENABLED === 'true' && !GEMINI_API_KEY) {
+  console.warn('[Bot] ADVERTENCIA: GEMINI_ENABLED=true pero GEMINI_API_KEY está vacía — se usarán reglas locales.');
+}
 let geminiModel = null;
 if (GEMINI_ENABLED) {
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -46,25 +51,63 @@ if (GEMINI_ENABLED) {
 const pendientes = new Map();
 const TIMEOUT_PENDIENTE = 5 * 60 * 1000;   // 5 minutos
 
+// Estado del bot expuesto a la pantalla web "Estado del bot".
+let estadoBot = {
+  conectado: false,
+  qrDataUrl: null,                         // QR como imagen (data URL) para re-vincular desde el navegador
+  motivo: 'Iniciando...',
+  ultimaActualizacion: new Date().toISOString(),
+};
+const BOT_HTTP_PORT = parseInt(process.env.BOT_HTTP_PORT || '3001', 10);
+
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
-  puppeteer: { headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox'] },
+  puppeteer: {
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    // En Docker usamos el Chromium del sistema; en dev queda undefined (puppeteer usa el suyo).
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+  },
 });
 
-client.on('qr', (qr) => {
+client.on('qr', async (qr) => {
   console.log('\n┌──────────────────────────────────────────────────────┐');
-  console.log('│  Escaneá este QR con el WhatsApp del chip del bot:    │');
+  console.log('│  Escaneá el QR (terminal) o desde la pantalla web:   │');
   console.log('│  WhatsApp → Dispositivos vinculados → Vincular        │');
   console.log('└──────────────────────────────────────────────────────┘\n');
   qrcode.generate(qr, { small: true });
+  // Lo exponemos también como imagen para la pantalla "Estado del bot"
+  try { estadoBot.qrDataUrl = await QRCode.toDataURL(qr); } catch (e) { estadoBot.qrDataUrl = null; }
+  estadoBot.conectado = false;
+  estadoBot.motivo = 'Esperando vinculación — escaneá el QR';
+  estadoBot.ultimaActualizacion = new Date().toISOString();
 });
 
 client.on('authenticated', () => console.log('🔐 Autenticado — sesión guardada.'));
-client.on('auth_failure', (m) => console.error('❌ Falló la autenticación:', m));
-client.on('disconnected', (r) => console.warn('⚠️  Bot desconectado:', r));
+client.on('auth_failure', (m) => {
+  console.error('❌ Falló la autenticación:', m);
+  estadoBot.conectado = false;
+  estadoBot.motivo = 'Falló la autenticación';
+  estadoBot.ultimaActualizacion = new Date().toISOString();
+});
+client.on('disconnected', async (r) => {
+  console.warn('⚠️  Bot desconectado:', r, '— intentando reconectar...');
+  estadoBot.conectado = false;
+  estadoBot.qrDataUrl = null;
+  estadoBot.motivo = 'Desconectado: ' + String(r);
+  estadoBot.ultimaActualizacion = new Date().toISOString();
+  // Reintenta: si se perdió la sesión, vuelve a disparar 'qr' (nuevo QR para la pantalla)
+  try { await client.initialize(); } catch (e) { console.error('No se pudo reiniciar:', e.message); }
+});
 
 client.on('ready', async () => {
+  estadoBot.conectado = true;
+  estadoBot.qrDataUrl = null;
+  estadoBot.motivo = GRUPOS.length
+    ? `Conectado y escuchando ${GRUPOS.length} grupo(s).`
+    : 'Conectado y escuchando todos los grupos.';
+  estadoBot.ultimaActualizacion = new Date().toISOString();
   console.log('\n✅ Bot CONECTADO y escuchando.');
   console.log(GRUPOS.length ? `   Grupos: ${GRUPOS.join(' · ')}` : '   Escuchando TODOS los grupos.');
   console.log(`   Backend: ${BACKEND_ENABLED ? BACKEND_URL + ' (ACTIVO)' : 'desactivado (solo logueo)'}`);
@@ -534,22 +577,42 @@ function validarPersonas(pie, lectura) {
 }
 
 // ─── Backend ─────────────────────────────────────────────────────────────────
+// Reintenta hasta 3 veces con 3 s de pausa si el backend no responde.
 async function registrarPago(datos) {
   const headers = { 'Content-Type': 'application/json' };
-  if (BOT_API_KEY) headers['X-Bot-Api-Key'] = BOT_API_KEY;   // auth permanente del bot
-  await axios.post(`${BACKEND_URL}/api/finanzas/sueldos/pago-automatico`, {
-    receptorNombre: datos.receptorNombre,
-    monto: datos.monto,
-    emisor: datos.emisor,
-    idOperacion: datos.idOperacion,
-    cargadoPorNombre: datos.cargadoPorNombre,
+  if (BOT_API_KEY) headers['X-Bot-Api-Key'] = BOT_API_KEY;
+  const body = {
+    receptorNombre:    datos.receptorNombre,
+    monto:             datos.monto,
+    emisor:            datos.emisor,
+    idOperacion:       datos.idOperacion,
+    cargadoPorNombre:  datos.cargadoPorNombre,
     cargadoPorTelefono: datos.cargadoPorTelefono,
-    grupoOrigen: datos.grupoOrigen,
+    grupoOrigen:       datos.grupoOrigen,
     comprobanteBase64: datos.comprobanteBase64,
-    comprobanteMime: datos.comprobanteMime,
+    comprobanteMime:   datos.comprobanteMime,
     comprobanteNombre: datos.comprobanteNombre,
-  }, { headers, timeout: 15000 });   // más timeout: el base64 puede pesar
-  return res.data;   // { estado, tipoReceptor, receptorResuelto, mensaje, ... }
+  };
+
+  const MAX_INTENTOS = 3;
+  let lastError;
+  for (let intento = 1; intento <= MAX_INTENTOS; intento++) {
+    try {
+      const res = await axios.post(
+        `${BACKEND_URL}/api/finanzas/sueldos/pago-automatico`,
+        body,
+        { headers, timeout: 15000 },
+      );
+      return res.data;  // { estado, tipoReceptor, receptorResuelto, mensaje, ... }
+    } catch (err) {
+      lastError = err;
+      if (intento < MAX_INTENTOS) {
+        console.warn(`[Bot] Backend no respondió (intento ${intento}/${MAX_INTENTOS}). Reintentando en 3 s…`);
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+  }
+  throw lastError;
 }
 
 // ─── Limpieza periódica de pendientes vencidos ──────────────────────────────
@@ -560,6 +623,110 @@ setInterval(() => {
   }
 }, 60 * 1000);
 
-// ─── Arranque ────────────────────────────────────────────────────────────────
+// ─── API HTTP interna ─────────────────────────────────────────────────────────
+// Usada por la UI (estado + QR) y por ms-pedidos (notificaciones proactivas).
+// Todos los POST requieren X-Bot-Api-Key coincidente con BOT_API_KEY del .env.
+http.createServer((req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Bot-Api-Key');
+
+  // ── GET /api/bot/estado ────────────────────────────────────────────────────
+  if (req.method === 'GET' && req.url.startsWith('/api/bot/estado')) {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({
+      conectado: estadoBot.conectado,
+      qrDataUrl: estadoBot.qrDataUrl,
+      motivo: estadoBot.motivo,
+      ultimaActualizacion: estadoBot.ultimaActualizacion,
+      grupos: GRUPOS,
+      backendActivo: BACKEND_ENABLED,
+    }));
+  }
+
+  // CORS preflight
+  if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+
+  // Autenticación para todos los POST
+  if (req.method === 'POST') {
+    if (BOT_API_KEY && req.headers['x-bot-api-key'] !== BOT_API_KEY) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: 'API key inválida' }));
+    }
+
+    // Leer body JSON
+    const chunks = [];
+    req.on('data', c => chunks.push(c));
+    req.on('end', async () => {
+      let body = {};
+      try { body = JSON.parse(Buffer.concat(chunks).toString()); } catch (_) { /* sin body */ }
+
+      // ── POST /api/bot/regenerar-qr ────────────────────────────────────────
+      if (req.url === '/api/bot/regenerar-qr') {
+        try {
+          console.log('🔄 Regenerando QR por solicitud de la UI...');
+          await client.logout();
+          await client.initialize();
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, mensaje: 'Cerrando sesión y regenerando QR...' }));
+        } catch (e) {
+          console.error('Error regenerando QR:', e.message);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
+      // ── POST /api/bot/notificar ───────────────────────────────────────────
+      // Body: { telefono: string, nombre: string, nroPedido: string, trabajo: string }
+      if (req.url === '/api/bot/notificar') {
+        const { telefono, nombre, nroPedido, trabajo } = body;
+        if (!telefono || !nroPedido) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Faltan campos: telefono, nroPedido' }));
+        }
+        if (!estadoBot.conectado) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Bot no conectado — no se puede enviar mensaje' }));
+        }
+        try {
+          const chatId = normalizarTelefono(telefono);
+          const texto =
+            `*Laboratorio G&S*\n` +
+            `Hola ${nombre || 'Dr./Dra.'}, su trabajo *${trabajo || 'trabajo solicitado'}* ` +
+            `(pedido *${nroPedido}*) ya está listo para retirar.\n` +
+            `_Por favor coordine el retiro con el laboratorio._`;
+          await client.sendMessage(chatId, texto);
+          console.log(`📲 Notificación WhatsApp enviada a ${chatId} — pedido ${nroPedido}`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, chatId }));
+        } catch (e) {
+          console.error('Error enviando notificación WhatsApp:', e.message);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
+      res.writeHead(404); res.end();
+    });
+    return;
+  }
+
+  res.writeHead(404); res.end();
+}).listen(BOT_HTTP_PORT, () =>
+  console.log(`🌐 Bot HTTP: http://localhost:${BOT_HTTP_PORT}/api/bot/estado`));
+
+/** Normaliza el teléfono a formato WhatsApp {countryCode}{number}@c.us.
+ *  Soporta formatos argentinos: 011-XXXX-XXXX, +54 9 11 XXXX, 15XXXXXXXX, etc. */
+function normalizarTelefono(telefono) {
+  const digitos = telefono.replace(/\D/g, '');
+  // Si ya tiene código de país Argentina (54) y 12+ dígitos: usar directo
+  if (digitos.length >= 12 && digitos.startsWith('54')) return digitos + '@c.us';
+  // Si empieza con 0 (formato local): reemplazar 0 inicial por 54
+  if (digitos.startsWith('0')) return '54' + digitos.slice(1) + '@c.us';
+  // Si empieza con 9 y 11 dígitos (formato sin 0): agregar 54
+  return '54' + digitos + '@c.us';
+}
+
 console.log('🤖 Iniciando bot de WhatsApp GS...');
 client.initialize();

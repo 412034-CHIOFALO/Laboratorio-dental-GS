@@ -4,20 +4,16 @@
  * URLs son relativas: no hay CORS porque comparten el mismo origen.
  */
 export const environment = {
-  production: false,
+  production: true,
+  useMocks: false,
 
-  // Mocks deshabilitados en producción
-  useMocks: true,
+  // URLs relativas — nginx hace proxy al api-gateway (mismo origen, sin CORS).
+  gatewayUrl: '',
+  apiUrl:     '',
+  pedidosUrl: '',
+  finanzasUrl:'',
+  stockUrl:   '',
 
-  // URLs relativas — nginx hace proxy al api-gateway
-  gatewayUrl:    '',
-  apiUrl:        '',
-  produccionUrl: '',
-  pedidosUrl:    '',
-  finanzasUrl:   '',
-  stockUrl:      '',
-
-  // En prod el login pasa por el gateway (relativo, vía nginx). NUNCA hardcodear
-  // localhost:8081 acá: en prod ese puerto no está expuesto.
+  // Login vía gateway (nginx lo rutea a ms-auth). NUNCA usar localhost:8081 acá.
   loginUrl: '/ms-auth/api/auth/login',
 };

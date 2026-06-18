@@ -1,14 +1,18 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription, interval } from 'rxjs';
+import { startWith, switchMap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 import {
   SueldosService, RegistroBot, EstadoRegistroBot, TipoReceptorBot,
 } from '../../../services/sueldos.service';
+import { BotEstadoService, EstadoBot } from '../../../services/bot-estado.service';
 import { NotificationService } from '../../../services/notification.service';
 
 /**
- * Historial del bot de WhatsApp: tabla con TODO lo que el bot procesó de cada
- * comprobante (sueldos, pagos a proveedor y también los rechazos/duplicados),
- * para tener visibilidad de cómo interpreta cada uno.
+ * Historial del bot de WhatsApp + estado de conexión en vivo.
+ * Muestra un badge de conexión arriba; si el bot se desvincula, aparece
+ * el panel con el QR para re-vincularlo sin salir de esta página.
  */
 @Component({
   selector: 'app-bot-registros',
@@ -17,16 +21,37 @@ import { NotificationService } from '../../../services/notification.service';
   templateUrl: './bot-registros.html',
   styleUrl: './bot-registros.css',
 })
-export class BotRegistrosComponent implements OnInit {
+export class BotRegistrosComponent implements OnInit, OnDestroy {
   private sueldos = inject(SueldosService);
+  private botEstado = inject(BotEstadoService);
   private notif = inject(NotificationService);
 
+  // ── Historial ──────────────────────────────────────────────────────────────
   registros = signal<RegistroBot[]>([]);
   cargando = signal(false);
   filtroEstado = signal<'TODOS' | EstadoRegistroBot>('TODOS');
 
-  ngOnInit(): void { this.cargar(); }
+  // ── Estado del bot ─────────────────────────────────────────────────────────
+  estado = signal<EstadoBot | null>(null);
+  sinConexionBot = signal(false);
+  modalAbierto = signal(false);
 
+  private pollSub?: Subscription;
+
+  ngOnInit(): void {
+    this.cargar();
+    this.pollSub = interval(3000).pipe(
+      startWith(0),
+      switchMap(() => this.botEstado.estado().pipe(catchError(() => of(null)))),
+    ).subscribe(e => {
+      if (e) { this.estado.set(e); this.sinConexionBot.set(false); }
+      else    { this.sinConexionBot.set(true); }
+    });
+  }
+
+  ngOnDestroy(): void { this.pollSub?.unsubscribe(); }
+
+  // ── Historial ──────────────────────────────────────────────────────────────
   cargar(): void {
     this.cargando.set(true);
     this.sueldos.registrosBot().subscribe({
@@ -62,5 +87,45 @@ export class BotRegistrosComponent implements OnInit {
   }
   labelTipo(t: TipoReceptorBot | null): string {
     return ({ EMPLEADO: 'Sueldo', PROVEEDOR: 'Proveedor', DESCONOCIDO: '—' } as const)[t ?? 'DESCONOCIDO'] ?? '—';
+  }
+
+  // ── Estado del bot ─────────────────────────────────────────────────────────
+  abrirModal(): void  { this.modalAbierto.set(true); }
+  cerrarModal(): void { this.modalAbierto.set(false); }
+
+  regenerandoQr = signal(false);
+
+  regenerarQr(): void {
+    if (this.regenerandoQr()) return;
+    this.regenerandoQr.set(true);
+    this.botEstado.regenerarQr().subscribe({
+      next: () => {
+        this.notif.exito('QR en regeneración — puede tardar unos segundos.');
+        this.regenerandoQr.set(false);
+      },
+      error: (e) => {
+        this.notif.errorHttp(e, 'No se pudo regenerar el QR');
+        this.regenerandoQr.set(false);
+      },
+    });
+  }
+
+  claseConexion(): 'ok' | 'warn' | 'err' {
+    if (this.sinConexionBot()) return 'err';
+    const e = this.estado();
+    if (!e) return 'warn';
+    return e.conectado ? 'ok' : 'warn';
+  }
+
+  labelConexion(): string {
+    if (this.sinConexionBot()) return 'Sin conexión con el bot';
+    const e = this.estado();
+    if (!e) return 'Consultando…';
+    return e.conectado ? 'Conectado' : 'Desvinculado — escaneá el QR';
+  }
+
+  mostrarQr(): boolean {
+    const e = this.estado();
+    return !this.sinConexionBot() && !!e && !e.conectado && !!e.qrDataUrl;
   }
 }

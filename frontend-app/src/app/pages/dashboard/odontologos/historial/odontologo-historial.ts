@@ -101,6 +101,10 @@ export class OdontologoHistorialComponent implements OnInit {
     return this.pedidos.filter(p => p.estado === 'ENTREGADO');
   }
 
+  get subtotalActivos(): number {
+    return this.pedidosActivos.reduce((sum, p) => sum + (p.precioAcordado ?? 0), 0);
+  }
+
   get totalFacturado(): number {
     return this.pedidos
       .filter(p => p.estado === 'ENTREGADO' || p.estado === 'LISTO')

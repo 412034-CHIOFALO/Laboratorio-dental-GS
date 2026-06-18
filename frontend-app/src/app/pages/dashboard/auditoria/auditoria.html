@@ -10,8 +10,19 @@
     <div class="event-count">{{ filtros.length }} eventos</div>
   </div>
 
+  @if (error) {
+    <div class="audit-error">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <div class="audit-loading">
+      <div class="audit-spinner"></div>
+      <span>Cargando registros...</span>
+    </div>
+  }
+
   <!-- Filtros -->
-  <div class="filter-bar">
+  <div class="filter-bar" [style.display]="loading ? 'none' : ''">
     <div class="search-wrap">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="text" placeholder="Buscar usuario, acción, entidad..." [(ngModel)]="busqueda" (ngModelChange)="filtrar()" class="search-input"/>

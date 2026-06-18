@@ -156,10 +156,78 @@
             }
           </div>
         </div>
-        <p class="placeholder-info">
-          Cuando esté integrado el módulo completo de Finanzas, verás aquí los comprobantes
-          emitidos, pagos recibidos y línea histórica de la cuenta corriente.
-        </p>
+
+        @if (pedidosActivos.length > 0) {
+          <section class="card-sec fin-sec">
+            <h3>Trabajos activos (por cobrar)</h3>
+            <div class="tabla-wrap">
+              <table class="pedidos-tabla">
+                <thead>
+                  <tr>
+                    <th>N°</th>
+                    <th>Trabajo</th>
+                    <th>Estado</th>
+                    <th class="num">Precio acordado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of pedidosActivos; track p.id) {
+                    <tr>
+                      <td><strong>{{ p.nroPedido }}</strong></td>
+                      <td>{{ p.trabajo }}</td>
+                      <td><span class="mini-estado" [attr.data-color]="colorEstado(p.estado)">{{ labelEstado(p.estado) }}</span></td>
+                      <td class="num">{{ p.precioAcordado ? formatMoney(p.precioAcordado) : '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr class="total-row">
+                    <td colspan="3" class="total-label">Subtotal activos</td>
+                    <td class="num total-val">{{ formatMoney(subtotalActivos) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+        }
+
+        @if (pedidosEntregados.length > 0) {
+          <section class="card-sec fin-sec">
+            <h3>Historial de entregas facturadas</h3>
+            <div class="tabla-wrap">
+              <table class="pedidos-tabla">
+                <thead>
+                  <tr>
+                    <th>N°</th>
+                    <th>Trabajo</th>
+                    <th>Entrega</th>
+                    <th class="num">Precio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (p of pedidosEntregados; track p.id) {
+                    <tr>
+                      <td><strong>{{ p.nroPedido }}</strong></td>
+                      <td>{{ p.trabajo }}</td>
+                      <td class="muted">{{ formatFecha(p.fechaEntrega) }}</td>
+                      <td class="num">{{ p.precioAcordado ? formatMoney(p.precioAcordado) : '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+                <tfoot>
+                  <tr class="total-row">
+                    <td colspan="3" class="total-label">Total facturado</td>
+                    <td class="num total-val">{{ formatMoney(totalFacturado) }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+        }
+
+        @if (pedidosActivos.length === 0 && pedidosEntregados.length === 0) {
+          <p class="empty-mini">No hay pedidos registrados con este odontólogo todavía.</p>
+        }
       }
 
       @if (tabActiva === 'escaneres') {

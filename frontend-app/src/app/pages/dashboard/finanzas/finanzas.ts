@@ -157,6 +157,8 @@ export class FinanzasComponent implements OnInit {
     { valor: 'MENSUAL',   label: 'Mensual' },
   ];
 
+  generandoPdf = false;
+
   constructor(
     private finanzasService: FinanzasService,
     private sueldosService: SueldosService,
@@ -695,5 +697,129 @@ export class FinanzasComponent implements OnInit {
   iconoSortCuenta(campo: keyof CuentaCorrienteOdontologoResponse): string {
     if (this.sortCuentas.campo !== campo) return '⇅';
     return this.sortCuentas.dir === 'asc' ? '↑' : '↓';
+  }
+
+  async exportarCierreDiario(): Promise<void> {
+    this.generandoPdf = true;
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+      const W = 210, MARGIN = 14, CW = W - MARGIN * 2;
+      const hoy = new Date();
+      const hoyIso = hoy.toISOString().slice(0, 10);
+
+      // Header bar
+      doc.setFillColor(22, 163, 74);
+      doc.rect(0, 0, W, 12, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text('LABORATORIO G&S', MARGIN, 8);
+      doc.text('Cierre Diario', W - MARGIN, 8, { align: 'right' as any });
+
+      // Titulo
+      let y = 22;
+      doc.setFontSize(18);
+      doc.setTextColor(20, 30, 48);
+      doc.text('Cierre Diario - ' + this.cajaActivaLabel, MARGIN, y);
+      doc.setFontSize(9);
+      doc.setTextColor(100, 110, 130);
+      doc.text(hoy.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }), MARGIN, y + 7);
+      y += 17;
+      doc.setDrawColor(220, 225, 235);
+      doc.line(MARGIN, y, W - MARGIN, y);
+      y += 8;
+
+      // Saldos
+      doc.setFontSize(8);
+      doc.setTextColor(80, 90, 110);
+      doc.text('SALDOS AL CIERRE', MARGIN, y);
+      y += 6;
+      if (this.resumen) {
+        for (const s of [
+          { l: 'Caja Fisica',   v: this.resumen.saldoFisica },
+          { l: 'Caja Bancaria', v: this.resumen.saldoBancaria },
+        ]) {
+          doc.setFontSize(10);
+          doc.setTextColor(40, 50, 65);
+          doc.text(s.l, MARGIN + 3, y);
+          doc.setTextColor(s.v >= 0 ? 22 : 220, s.v >= 0 ? 163 : 38, s.v >= 0 ? 74 : 38);
+          doc.text(this.formatMoney(s.v), W - MARGIN, y, { align: 'right' as any });
+          doc.setDrawColor(235, 237, 242);
+          doc.line(MARGIN + 3, y + 2, W - MARGIN, y + 2);
+          y += 8;
+        }
+      }
+      y += 4;
+
+      // Movimientos del dia
+      doc.setFontSize(8);
+      doc.setTextColor(80, 90, 110);
+      doc.text('MOVIMIENTOS DE HOY', MARGIN, y);
+      y += 6;
+
+      const movHoy = this.movimientos.filter(m => String(m.fechaMovimiento).startsWith(hoyIso));
+
+      if (movHoy.length === 0) {
+        doc.setFontSize(9);
+        doc.setTextColor(130, 140, 160);
+        doc.text('Sin movimientos registrados hoy en esta caja.', MARGIN + 3, y);
+        y += 10;
+      } else {
+        // Header tabla
+        doc.setFillColor(242, 244, 248);
+        doc.rect(MARGIN, y - 3, CW, 8, 'F');
+        doc.setFontSize(7.5);
+        doc.setTextColor(90, 100, 120);
+        doc.text('TIPO', MARGIN + 2, y + 2);
+        doc.text('CONCEPTO', MARGIN + 22, y + 2);
+        doc.text('REF.', MARGIN + 120, y + 2);
+        doc.text('MONTO', W - MARGIN, y + 2, { align: 'right' as any });
+        y += 8;
+
+        let totalIng = 0, totalEgr = 0;
+        for (const m of movHoy) {
+          if (y > 268) { doc.addPage(); y = 20; }
+          const isIng = m.tipo === 'INGRESO';
+          if (isIng) totalIng += Number(m.monto); else totalEgr += Number(m.monto);
+          doc.setFontSize(9);
+          doc.setTextColor(isIng ? 22 : 220, isIng ? 163 : 38, isIng ? 74 : 38);
+          doc.text(isIng ? 'Ingreso' : 'Egreso', MARGIN + 2, y + 4);
+          doc.setTextColor(40, 50, 65);
+          const conc = m.concepto.length > 48 ? m.concepto.substring(0, 48) + '...' : m.concepto;
+          doc.text(conc, MARGIN + 22, y + 4);
+          doc.setTextColor(110, 120, 140);
+          doc.text((m.referencia ?? '-').substring(0, 18), MARGIN + 120, y + 4);
+          doc.setTextColor(isIng ? 22 : 220, isIng ? 163 : 38, isIng ? 74 : 38);
+          doc.text(this.formatMoney(Number(m.monto)), W - MARGIN, y + 4, { align: 'right' as any });
+          doc.setDrawColor(235, 237, 242);
+          doc.line(MARGIN, y + 7, W - MARGIN, y + 7);
+          y += 9;
+        }
+
+        // Totales
+        y += 3;
+        doc.setFillColor(248, 250, 252);
+        doc.rect(MARGIN, y - 3, CW, 26, 'F');
+        doc.setFontSize(9);
+        doc.setTextColor(80, 90, 110); doc.text('Total ingresos del dia:', MARGIN + 3, y + 3);
+        doc.setTextColor(22, 163, 74);  doc.text(this.formatMoney(totalIng), W - MARGIN, y + 3, { align: 'right' as any });
+        doc.setTextColor(80, 90, 110); doc.text('Total egresos del dia:', MARGIN + 3, y + 11);
+        doc.setTextColor(220, 38, 38);  doc.text(this.formatMoney(totalEgr), W - MARGIN, y + 11, { align: 'right' as any });
+        const neto = totalIng - totalEgr;
+        doc.setFontSize(10);
+        doc.setTextColor(40, 50, 65); doc.text('Neto del dia:', MARGIN + 3, y + 20);
+        doc.setTextColor(neto >= 0 ? 22 : 220, neto >= 0 ? 163 : 38, neto >= 0 ? 74 : 38);
+        doc.text(this.formatMoney(neto), W - MARGIN, y + 20, { align: 'right' as any });
+      }
+
+      // Footer
+      doc.setFontSize(7);
+      doc.setTextColor(160, 170, 185);
+      doc.text('Generado: ' + hoy.toLocaleString('es-AR') + ' | Sistema ERP Laboratorio G&S', MARGIN, 288);
+
+      doc.save('cierre-diario-' + hoyIso + '.pdf');
+    } finally {
+      this.generandoPdf = false;
+    }
   }
 }
