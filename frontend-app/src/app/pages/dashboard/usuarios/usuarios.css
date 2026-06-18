@@ -104,14 +104,43 @@
 .badge-estado.activo    { background: var(--gs-green-soft);  color: var(--gs-green); border: 1px solid var(--gs-green-border); }
 .badge-estado.pendiente { background: var(--gs-amber-soft);  color: var(--gs-amber); }
 
-.btn-activar {
-  background: none; border: 1.5px solid var(--gs-green-border); color: var(--gs-green);
+.btn-activar, .btn-desactivar {
+  background: none; border: 1.5px solid;
   padding: 4px 12px; border-radius: 7px;
   font-size: 0.78rem; font-weight: 600;
   font-family: 'Inter', sans-serif; cursor: pointer;
-  transition: background 0.2s, color 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  white-space: nowrap;
 }
+.btn-activar    { border-color: var(--gs-green-border); color: var(--gs-green); }
 .btn-activar:hover { background: var(--gs-gradient-green); color: white; border-color: transparent; }
+.btn-desactivar { border-color: rgba(244,63,94,0.35); color: #fda4af; }
+.btn-desactivar:hover { background: var(--gs-rose-soft); border-color: rgba(244,63,94,0.5); }
+
+.td-tel {
+  display: flex; align-items: center; gap: 6px; white-space: nowrap;
+}
+.tel-val   { color: var(--gs-text); font-size: 0.82rem; }
+.tel-empty { color: var(--gs-text-dim); font-size: 0.82rem; }
+
+.btn-icon-tel {
+  background: none; border: none; cursor: pointer;
+  color: var(--gs-text-dim); padding: 3px; border-radius: 5px;
+  display: flex; align-items: center;
+  transition: color 0.2s, background 0.2s;
+  flex-shrink: 0;
+}
+.btn-icon-tel:hover { color: var(--gs-text); background: var(--gs-card-2); }
+
+.td-acciones { white-space: nowrap; }
+
+.modal-sm { max-width: 360px; }
+
+.modal-hint {
+  font-size: 0.8rem; color: var(--gs-text-muted); line-height: 1.5;
+  background: var(--gs-card-2); border-radius: 8px;
+  padding: 0.6rem 0.8rem; margin: 0;
+}
 
 .check-ok {
   display: inline-flex; align-items: center; gap: 5px;
@@ -219,5 +248,6 @@
 @media (max-width: 640px) {
   .page-content { padding: 1rem; }
   .fields-row { grid-template-columns: 1fr; }
-  .tabla th:nth-child(2), .tabla td:nth-child(2) { display: none; }
+  .tabla th:nth-child(2), .tabla td:nth-child(2),
+  .tabla th:nth-child(4), .tabla td:nth-child(4) { display: none; }
 }
