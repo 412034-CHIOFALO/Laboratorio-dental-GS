@@ -4,7 +4,6 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { TipoTrabajoResponse } from './catalogo.service';
-import { TareaResponse } from './produccion.service';
 
 // ── JWT FAKE ──────────────────────────────────────────────────
 // Token con payload { sub: "admin", roles: "ROLE_ADMIN", exp: 9999999999 }
@@ -116,149 +115,12 @@ export const MOCK_CATALOGO: TipoTrabajoResponse[] = [
   },
 ];
 
-// ── PRODUCCIÓN / KANBAN (10 tareas distribuidas) ──────────────
+// ── Fecha offset helper (usada en los mocks de pedidos, finanzas, stock, etc.) ──
 const hoyISO = (offsetDias: number): string => {
   const d = new Date();
   d.setDate(d.getDate() + offsetDias);
   return d.toISOString().split('T')[0];
 };
-
-export const MOCK_KANBAN: TareaResponse[] = [
-  // ── RECIBIDOS (3) ──
-  {
-    id: 1,
-    nroPedido: 'GS-2026-0042',
-    paciente: 'María González',
-    odontologo: 'Dr. Pérez',
-    trabajo: 'Corona Metal Porcelana',
-    tecnico: null,
-    estado: 'RECIBIDO',
-    prioridad: 'URGENTE',
-    fechaIngreso: hoyISO(-1),
-    fechaEntrega: hoyISO(3),
-    observaciones: 'Color A2, pieza 16',
-  },
-  {
-    id: 2,
-    nroPedido: 'GS-2026-0043',
-    paciente: 'Juan López',
-    odontologo: 'Dra. Martínez',
-    trabajo: 'Prótesis Acrílica Total',
-    tecnico: null,
-    estado: 'RECIBIDO',
-    prioridad: 'NORMAL',
-    fechaIngreso: hoyISO(0),
-    fechaEntrega: hoyISO(14),
-    observaciones: 'Prótesis superior completa',
-  },
-  {
-    id: 3,
-    nroPedido: 'GS-2026-0044',
-    paciente: 'Ana Rodríguez',
-    odontologo: 'Dr. Gómez',
-    trabajo: 'Carilla Porcelana',
-    tecnico: null,
-    estado: 'RECIBIDO',
-    prioridad: 'NORMAL',
-    fechaIngreso: hoyISO(0),
-    fechaEntrega: hoyISO(8),
-    observaciones: 'Pieza 11, color B1',
-  },
-  // ── EN PROCESO (3) ──
-  {
-    id: 4,
-    nroPedido: 'GS-2026-0040',
-    paciente: 'Carlos Sánchez',
-    odontologo: 'Dr. Pérez',
-    trabajo: 'Corona Zirconio',
-    tecnico: 'Juan Pereyra',
-    estado: 'EN_PROCESO',
-    prioridad: 'NORMAL',
-    fechaIngreso: hoyISO(-3),
-    fechaEntrega: hoyISO(5),
-    observaciones: 'Pieza 26',
-  },
-  {
-    id: 5,
-    nroPedido: 'GS-2026-0041',
-    paciente: 'Laura Fernández',
-    odontologo: 'Dra. Martínez',
-    trabajo: 'Aparato Ortodóntico Móvil',
-    tecnico: 'María Torres',
-    estado: 'EN_PROCESO',
-    prioridad: 'URGENTE',
-    fechaIngreso: hoyISO(-2),
-    fechaEntrega: hoyISO(1),
-    observaciones: 'Expansión maxilar',
-  },
-  {
-    id: 6,
-    nroPedido: 'GS-2026-0038',
-    paciente: 'Roberto Díaz',
-    odontologo: 'Dr. Gómez',
-    trabajo: 'Prótesis Esqueletal',
-    tecnico: 'Carlos Núñez',
-    estado: 'EN_PROCESO',
-    prioridad: 'NORMAL',
-    fechaIngreso: hoyISO(-5),
-    fechaEntrega: hoyISO(10),
-    observaciones: 'Pieza 35 a 37 ausentes',
-  },
-  // ── CONTROL (2) ──
-  {
-    id: 7,
-    nroPedido: 'GS-2026-0036',
-    paciente: 'Patricia Vega',
-    odontologo: 'Dr. Pérez',
-    trabajo: 'Placa Mio-relajante',
-    tecnico: 'Juan Pereyra',
-    estado: 'CONTROL',
-    prioridad: 'NORMAL',
-    fechaIngreso: hoyISO(-6),
-    fechaEntrega: hoyISO(1),
-    observaciones: 'Control de oclusión',
-  },
-  {
-    id: 8,
-    nroPedido: 'GS-2026-0037',
-    paciente: 'Marcos Herrera',
-    odontologo: 'Dra. Suárez',
-    trabajo: 'Corona Metal Porcelana',
-    tecnico: 'María Torres',
-    estado: 'CONTROL',
-    prioridad: 'URGENTE',
-    fechaIngreso: hoyISO(-7),
-    fechaEntrega: hoyISO(0),
-    observaciones: 'Revisar color cervical',
-  },
-  // ── LISTO (2) ──
-  {
-    id: 9,
-    nroPedido: 'GS-2026-0034',
-    paciente: 'Sofía Romero',
-    odontologo: 'Dr. Gómez',
-    trabajo: 'Provisorio Acrílico',
-    tecnico: 'Carlos Núñez',
-    estado: 'LISTO',
-    prioridad: 'NORMAL',
-    fechaIngreso: hoyISO(-4),
-    fechaEntrega: hoyISO(-1),
-    observaciones: 'Esperando retiro',
-  },
-  {
-    id: 10,
-    nroPedido: 'GS-2026-0035',
-    paciente: 'Federico Aguirre',
-    odontologo: 'Dr. Pérez',
-    trabajo: 'Modelo de Estudio',
-    tecnico: 'Juan Pereyra',
-    estado: 'LISTO',
-    prioridad: 'NORMAL',
-    fechaIngreso: hoyISO(-3),
-    fechaEntrega: hoyISO(0),
-    observaciones: '',
-  },
-];
 
 // ── USUARIOS DEL SISTEMA ──────────────────────────────────────
 export interface MockUsuario {
@@ -268,6 +130,8 @@ export interface MockUsuario {
   apellido: string;
   rol: string;
   enabled: boolean;
+  telefono?: string;
+  pendienteAprobacion?: boolean;
 }
 
 export const MOCK_USUARIOS: MockUsuario[] = [

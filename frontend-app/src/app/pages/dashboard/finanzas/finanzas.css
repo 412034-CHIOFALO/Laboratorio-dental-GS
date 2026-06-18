@@ -980,6 +980,25 @@
 .btn-nuevo-mov:hover { opacity: 0.9; }
 .btn-nuevo-mov:active { transform: translateY(1px); }
 
+.btn-pdf-cierre {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.95rem;
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  color: #818cf8;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-pdf-cierre:hover { background: rgba(99, 102, 241, 0.18); border-color: rgba(99, 102, 241, 0.5); }
+.btn-pdf-cierre:disabled { opacity: 0.5; cursor: default; }
+
 .mov-overlay {
   position: fixed;
   inset: 0;

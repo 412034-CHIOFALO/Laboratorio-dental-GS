@@ -43,6 +43,7 @@ export class DashboardComponent implements OnInit {
     { type: 'item', label: 'Odontólogos', icon: 'tooth',    route: '/dashboard/odontologos' },
     { type: 'item', label: 'Stock',       icon: 'box',      route: '/dashboard/stock' },
     { type: 'item', label: 'Finanzas',    icon: 'dollar',   route: '/dashboard/finanzas' },
+    { type: 'item', label: 'Proveedores', icon: 'briefcase', route: '/dashboard/proveedores' },
     { type: 'item', label: 'Bot WhatsApp', icon: 'chat',    route: '/dashboard/bot-registros', roles: ['ROLE_ADMIN'] },
     { type: 'item', label: 'Reportes',    icon: 'chart',    route: '/dashboard/reportes' },
 
