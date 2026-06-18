@@ -1,4 +1,4 @@
-package com.gys.discovery_server;
+package com.gs.discovery_server;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

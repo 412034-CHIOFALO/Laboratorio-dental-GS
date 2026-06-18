@@ -111,7 +111,7 @@ Si cambiás la password después del primer arranque, Docker NO actualiza la
 del volumen. Hay que borrarlo:
 ```bash
 docker compose down
-docker volume rm gys_mysql_data
+docker volume rm gs_mysql_data
 docker compose up -d
 ```
 
@@ -174,7 +174,7 @@ Lo que falta para pasar de "Docker local" a "Docker en VPS":
 
 1. **HTTPS**: agregar Caddy o Traefik con Let's Encrypt como front
 2. **Issuer real de OAuth2**: en `ms-auth/application-prod.properties`,
-   cambiar `AUTH_ISSUER` al dominio público (ej: `https://api.gys.com`)
+   cambiar `AUTH_ISSUER` al dominio público (ej: `https://api.gs.com`)
 3. **Keystore real**: generar uno nuevo con `keytool` y montarlo como secret,
    no usar el de desarrollo del repo
 4. **Backups de MySQL**: `docker compose exec mysql mysqldump ...` programado
