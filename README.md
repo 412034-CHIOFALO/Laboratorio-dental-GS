@@ -97,7 +97,7 @@ Controller → IService → ServiceImpl → Repository → BD
 ### Seguridad
 
 - `ms-auth` actúa como **OAuth2 Authorization Server** y emite JWT firmados con
-  RSA (clave en `ms-auth/src/main/resources/keys/gys-auth.p12`)
+  RSA (clave en `ms-auth/src/main/resources/keys/gs-auth.p12`)
 - Cada microservicio valida el JWT contra el JWK Set de `ms-auth`
 - Roles: `ADMIN`, `ADMINISTRATIVO`, `TECNICO`, `ODONTOLOGO`
 - El frontend obtiene el JWT al login y lo envía en cada request via interceptor
@@ -129,7 +129,7 @@ npm start            # o: ng serve --open
 Cada microservicio usa H2 en perfil `dev`. **No requiere MySQL ni Docker.**
 
 **Pre-requisitos:** Java 17+, Maven 3.8+, Node 20+, y el keystore JWT en
-`ms-auth/src/main/resources/keys/gys-auth.p12` (ver [Troubleshooting](#-troubleshooting)
+`ms-auth/src/main/resources/keys/gs-auth.p12` (ver [Troubleshooting](#-troubleshooting)
 si te falta).
 
 ```powershell
@@ -225,7 +225,7 @@ TRABAJO PRACTICO INTEGRADOR/
 ### Convención de paquetes Java
 
 ```
-com.gys.ms_<nombre>/
+com.gs.ms_<nombre>/
 ├── config/         Configuración (SecurityConfig, DataInitializer)
 ├── controller/     REST endpoints
 ├── service/        Interfaces (IService) e implementaciones
@@ -349,18 +349,18 @@ Tipos: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `style`.
 
 ### Generar el keystore de ms-auth (si falta tras clonar)
 
-Si después de clonar el repo no tenés `ms-auth/src/main/resources/keys/gys-auth.p12`:
+Si después de clonar el repo no tenés `ms-auth/src/main/resources/keys/gs-auth.p12`:
 
 ```bash
 keytool -genkeypair \
-  -alias gys-auth \
+  -alias gs-auth \
   -keyalg RSA \
   -keysize 2048 \
   -validity 3650 \
   -storetype PKCS12 \
-  -keystore ms-auth/src/main/resources/keys/gys-auth.p12 \
-  -storepass gys_keystore_2025 \
-  -dname "CN=gys-auth,OU=Laboratorio GyS,O=Tesis,L=BA,C=AR"
+  -keystore ms-auth/src/main/resources/keys/gs-auth.p12 \
+  -storepass gs_keystore_2025 \
+  -dname "CN=gs-auth,OU=Laboratorio GS,O=Tesis,L=BA,C=AR"
 ```
 
 ---

@@ -1,4 +1,4 @@
-package com.gys.api_gateway;
+package com.gs.api_gateway;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
