@@ -6,6 +6,7 @@ import com.gs.ms_stock.dto.MovimientoRequest;
 import com.gs.ms_stock.exception.ResourceNotFoundException;
 import com.gs.ms_stock.model.Material;
 import com.gs.ms_stock.model.MovimientoStock;
+import com.gs.ms_stock.model.TipoMovimiento;
 import com.gs.ms_stock.repository.MaterialRepository;
 import com.gs.ms_stock.repository.MovimientoStockRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,7 @@ public class StockService implements IStockService {
 
     private final MaterialRepository materialRepo;
     private final MovimientoStockRepository movimientoRepo;
+    private final AlertaStockService alertaService;
 
     public List<MaterialResponse> listarActivos() {
         return materialRepo.findByActivoTrue().stream().map(MaterialResponse::from).toList();
@@ -104,6 +106,12 @@ public class StockService implements IStockService {
                 .pedidoId(request.getPedidoId())
                 .build();
         movimientoRepo.save(mov);
+
+        if (request.getTipo() == TipoMovimiento.SALIDA
+                && material.getStockMinimo() != null
+                && nuevoStock <= material.getStockMinimo()) {
+            alertaService.notificarStockBajo(material);
+        }
 
         return MaterialResponse.from(material);
     }
