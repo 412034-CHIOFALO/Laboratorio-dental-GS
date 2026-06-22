@@ -583,6 +583,56 @@
               Acá configurás el sueldo de cada integrante y registrás los pagos (manual o triangulado).
             </p>
           }
+
+          <!-- ── Efectivo declarado pendiente ── -->
+          @if (pendientesEfectivo.length > 0 || loadingPendientes) {
+            <div class="efectivo-section">
+              <div class="efectivo-header">
+                <h3>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                  Efectivo pendiente de confirmación
+                </h3>
+                <span class="badge-pendiente">{{ pendientesEfectivo.length }}</span>
+              </div>
+              <p class="efectivo-hint">El bot detectó pagos en efectivo en el grupo. Confirmá o rechazá cada uno.</p>
+
+              @if (loadingPendientes) {
+                <div class="loading">Cargando efectivos pendientes...</div>
+              } @else {
+                <div class="efectivo-lista">
+                  @for (r of pendientesEfectivo; track r.id) {
+                    <div class="efectivo-item">
+                      <div class="efectivo-info">
+                        <div class="efectivo-receptor">
+                          <strong>{{ r.receptorNombre }}</strong>
+                          <span class="efectivo-monto">{{ formatMoney(r.monto ?? 0) }}</span>
+                        </div>
+                        <div class="efectivo-meta">
+                          <span class="muted">{{ r.cargadoPorNombre ?? '—' }}</span>
+                          <span class="muted"> · {{ r.grupoOrigen ?? '' }}</span>
+                          <span class="muted"> · {{ formatHora(r.fechaHora) }}</span>
+                        </div>
+                      </div>
+
+                      <div class="efectivo-acciones">
+                        @if (rechazandoId === r.id) {
+                          <div class="rechazo-form">
+                            <input class="rechazo-input" type="text" [(ngModel)]="motivoRechazo"
+                                   placeholder="Motivo del rechazo (opcional)">
+                            <button class="btn-pagar btn-sm" (click)="rechazarEfectivo()">Confirmar rechazo</button>
+                            <button class="btn-config btn-sm" (click)="rechazandoId = null">Cancelar</button>
+                          </div>
+                        } @else {
+                          <button class="btn-pagar btn-sm" (click)="confirmarEfectivo(r.id)">✓ Confirmar</button>
+                          <button class="btn-config btn-sm" (click)="abrirRechazo(r.id)">✗ Rechazar</button>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
         </section>
       }
 

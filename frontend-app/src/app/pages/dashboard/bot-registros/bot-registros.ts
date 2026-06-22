@@ -80,7 +80,7 @@ export class BotRegistrosComponent implements OnInit, OnDestroy {
   }
 
   claseEstado(e: EstadoRegistroBot): string {
-    return ({ REGISTRADO: 'badge-ok', RECHAZADO: 'badge-err', DUPLICADO: 'badge-dup' } as const)[e] ?? '';
+    return ({ REGISTRADO: 'badge-ok', RECHAZADO: 'badge-err', DUPLICADO: 'badge-dup', PENDIENTE: 'badge-pend' } as const)[e] ?? '';
   }
   claseTipo(t: TipoReceptorBot | null): string {
     return ({ EMPLEADO: 'tipo-emp', PROVEEDOR: 'tipo-prov', DESCONOCIDO: 'tipo-desc' } as const)[t ?? 'DESCONOCIDO'] ?? '';

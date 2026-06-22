@@ -305,6 +305,28 @@
   white-space: nowrap;
 }
 
+.tour-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.tour-btn:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
 .logout-btn {
   display: flex;
   align-items: center;

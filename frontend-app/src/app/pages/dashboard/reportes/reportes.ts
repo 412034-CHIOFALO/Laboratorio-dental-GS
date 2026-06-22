@@ -27,6 +27,8 @@ export class ReportesComponent implements OnInit {
   error = '';
   generandoPdf = false;
 
+  resumen: any = null;
+
   kpis: { label: string; value: string; sub: string; color: string; icon: string }[] = [];
   barData: BarData[] = [];
   lineData: LineData[] = [];
@@ -57,6 +59,7 @@ export class ReportesComponent implements OnInit {
     resumen: any,
     morosos: CuentaCorrienteOdontologoResponse[],
   ): void {
+    this.resumen = resumen;
     const hoy = new Date();
     const mesActual  = hoy.getMonth();
     const anioActual = hoy.getFullYear();
@@ -292,7 +295,51 @@ export class ReportesComponent implements OnInit {
         }
       }
 
+      // Sección financiera
+      y += 6;
+      doc.setFontSize(8);
+      doc.setTextColor(80, 90, 110);
+      doc.text('ESTADO DE CAJA Y OBLIGACIONES', MARGIN, y);
+      y += 6;
+
+      const r = this.resumen ?? {};
+      const saldoFisica       = r.saldoFisica        ?? 0;
+      const saldoBancaria     = r.saldoBancaria       ?? 0;
+      const saldoCompensacion = r.saldoCompensacion   ?? 0;
+      const totalCajas        = saldoFisica + saldoBancaria + saldoCompensacion;
+      const sueldosPend       = r.totalSueldosPendientes ?? 0;
+      const deudaProv         = r.totalDeudaProveedores  ?? 0;
+
+      const finFilas = [
+        { label: 'Caja física',          valor: saldoFisica,       color: [40,  50,  65] as [number,number,number] },
+        { label: 'Caja bancaria',         valor: saldoBancaria,     color: [40,  50,  65] as [number,number,number] },
+        { label: 'Caja compensación',     valor: saldoCompensacion, color: [40,  50,  65] as [number,number,number] },
+        { label: 'Total disponible',      valor: totalCajas,        color: [22, 101,  52] as [number,number,number] },
+        { label: 'Sueldos pendientes',    valor: -sueldosPend,      color: [185,  28,  28] as [number,number,number] },
+        { label: 'Deuda proveedores',     valor: -deudaProv,        color: [185,  28,  28] as [number,number,number] },
+        { label: 'Balance proyectado',    valor: totalCajas - sueldosPend - deudaProv,
+          color: (totalCajas - sueldosPend - deudaProv) >= 0 ? [22,101,52] as [number,number,number] : [185,28,28] as [number,number,number] },
+      ];
+
+      for (const fila of finFilas) {
+        if (y > 270) { doc.addPage(); y = 20; }
+        const isSeparator = fila.label === 'Total disponible' || fila.label === 'Balance proyectado';
+        if (isSeparator) {
+          doc.setDrawColor(200, 205, 215);
+          doc.line(MARGIN, y - 1, W - MARGIN, y - 1);
+        }
+        doc.setFontSize(isSeparator ? 9.5 : 9);
+        doc.setTextColor(...fila.color);
+        doc.text(fila.label, MARGIN + 3, y + 3);
+        const montoStr = (fila.valor < 0 ? '−' : '') + this.formatMoney(Math.abs(fila.valor));
+        doc.text(montoStr, W - MARGIN, y + 3, { align: 'right' as any });
+        doc.setDrawColor(235, 237, 242);
+        if (!isSeparator) doc.line(MARGIN, y + 6, W - MARGIN, y + 6);
+        y += isSeparator ? 10 : 8;
+      }
+
       // Footer
+      y += 4;
       doc.setFontSize(7);
       doc.setTextColor(160, 170, 185);
       doc.text('Generado: ' + hoy.toLocaleString('es-AR') + ' | Sistema ERP Laboratorio G&S', MARGIN, 288);

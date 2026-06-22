@@ -8,7 +8,7 @@ import {
 } from '../../../services/finanzas.service';
 import {
   SueldosService, EmpleadoSueldo, FrecuenciaPago, ConfigSueldoRequest, PagoSueldoRequest,
-  PagoSueldoResponse
+  PagoSueldoResponse, RegistroBot
 } from '../../../services/sueldos.service';
 import { NotificationService } from '../../../services/notification.service';
 
@@ -150,6 +150,12 @@ export class FinanzasComponent implements OnInit {
   busquedaComprobante = '';
   filtroOrigen: 'TODOS' | 'BOT_WHATSAPP' | 'MANUAL' = 'TODOS';
 
+  // ── Efectivo pendiente ───────────────────────────────────────────
+  pendientesEfectivo: RegistroBot[] = [];
+  loadingPendientes = false;
+  rechazandoId: number | null = null;
+  motivoRechazo = '';
+
   readonly frecuencias: { valor: FrecuenciaPago; label: string }[] = [
     { valor: 'DIARIO',    label: 'Por día trabajado' },
     { valor: 'SEMANAL',   label: 'Semanal' },
@@ -235,6 +241,7 @@ export class FinanzasComponent implements OnInit {
     this.cargarCuentasCorrientes();
     this.cargarEmpleados();
     this.cargarComprobantes();
+    this.cargarPendientesEfectivo();
   }
 
   // ═════════════════════════ COMPROBANTES (TRIANGULADOS) ═════════════════════════
@@ -697,6 +704,47 @@ export class FinanzasComponent implements OnInit {
   iconoSortCuenta(campo: keyof CuentaCorrienteOdontologoResponse): string {
     if (this.sortCuentas.campo !== campo) return '⇅';
     return this.sortCuentas.dir === 'asc' ? '↑' : '↓';
+  }
+
+  // ═════════════════════════ EFECTIVO PENDIENTE ═══════════════════════════════
+
+  cargarPendientesEfectivo(): void {
+    this.loadingPendientes = true;
+    this.sueldosService.pendientesEfectivo().subscribe({
+      next: data => { this.pendientesEfectivo = data; this.loadingPendientes = false; },
+      error: err => { this.loadingPendientes = false; this.notif.errorHttp(err, 'No se pudieron cargar los efectivos pendientes'); },
+    });
+  }
+
+  confirmarEfectivo(id: number): void {
+    this.sueldosService.confirmarEfectivo(id).subscribe({
+      next: reg => {
+        this.pendientesEfectivo = this.pendientesEfectivo.filter(r => r.id !== id);
+        this.notif.exito(`Efectivo confirmado → ${reg.estado === 'REGISTRADO' ? reg.receptorResuelto ?? reg.receptorNombre : '(no resuelto)'}`);
+      },
+      error: err => this.notif.errorHttp(err, 'No se pudo confirmar'),
+    });
+  }
+
+  abrirRechazo(id: number): void {
+    this.rechazandoId = id;
+    this.motivoRechazo = '';
+  }
+
+  rechazarEfectivo(): void {
+    if (this.rechazandoId == null) return;
+    this.sueldosService.rechazarEfectivo(this.rechazandoId, this.motivoRechazo || undefined).subscribe({
+      next: () => {
+        this.pendientesEfectivo = this.pendientesEfectivo.filter(r => r.id !== this.rechazandoId);
+        this.rechazandoId = null;
+        this.notif.alerta('Efectivo rechazado');
+      },
+      error: err => this.notif.errorHttp(err, 'No se pudo rechazar'),
+    });
+  }
+
+  formatHora(iso: string): string {
+    return new Date(iso).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
   async exportarCierreDiario(): Promise<void> {

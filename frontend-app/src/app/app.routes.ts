@@ -18,6 +18,8 @@ import { OdontologosComponent } from './pages/dashboard/odontologos/odontologos'
 import { OdontologoHistorialComponent } from './pages/dashboard/odontologos/historial/odontologo-historial';
 import { BotRegistrosComponent } from './pages/dashboard/bot-registros/bot-registros';
 import { ProveedoresComponent } from './pages/dashboard/proveedores/proveedores';
+import { ConfiguracionComponent } from './pages/dashboard/configuracion/configuracion';
+import { ManualComponent } from './pages/dashboard/manual/manual';
 import { ErrorPageComponent } from './pages/error/error-page';
 import { authGuard } from './guards/auth.guard';
 
@@ -43,8 +45,10 @@ export const routes: Routes = [
       { path: 'reportes',    component: ReportesComponent },
       { path: 'documentos',  component: DocumentosComponent },
       { path: 'escaneos',    component: EscaneosComponent },
-      { path: 'auditoria',   component: AuditoriaComponent },
-      { path: 'usuarios',    component: UsuariosComponent },
+      { path: 'auditoria',      component: AuditoriaComponent },
+      { path: 'usuarios',       component: UsuariosComponent },
+      { path: 'configuracion',  component: ConfiguracionComponent },
+      { path: 'manual',         component: ManualComponent },
     ]
   },
   // Páginas de error
