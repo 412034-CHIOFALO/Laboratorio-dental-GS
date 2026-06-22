@@ -60,7 +60,7 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
-    this.http.get<MockUsuario[]>(`${this.gatewayUrl}/ms-auth/api/auth/usuarios`, { headers: this.headers() })
+    this.http.get<MockUsuario[]>(`${this.gatewayUrl}/api/auth/usuarios`, { headers: this.headers() })
       .subscribe({
         next: (data) => { this.usuarios = data; this.loading = false; },
         error: () => { this.error = 'No se pudo cargar la lista de usuarios.'; this.loading = false; }
@@ -97,7 +97,7 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
-    this.http.post(`${this.gatewayUrl}/ms-auth/api/auth/register`, this.form, { headers: this.headers() })
+    this.http.post(`${this.gatewayUrl}/api/auth/register`, this.form, { headers: this.headers() })
       .subscribe({
         next: () => {
           this.saving = false; this.saveSuccess = 'Usuario creado correctamente.';
@@ -124,7 +124,7 @@ export class UsuariosComponent implements OnInit {
       this.cargarUsuarios();
       return;
     }
-    this.http.patch(`${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/estado`,
+    this.http.patch(`${this.gatewayUrl}/api/auth/usuarios/${id}/estado`,
       { activo }, { headers: this.headers() })
       .subscribe({ next: () => this.cargarUsuarios(), error: () => {} });
   }
@@ -155,7 +155,7 @@ export class UsuariosComponent implements OnInit {
       return;
     }
 
-    this.http.patch(`${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/telefono`,
+    this.http.patch(`${this.gatewayUrl}/api/auth/usuarios/${id}/telefono`,
       { telefono: this.formTel.telefono }, { headers: this.headers() })
       .subscribe({
         next: () => {

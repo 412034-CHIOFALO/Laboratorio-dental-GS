@@ -56,7 +56,7 @@ export class AuditoriaComponent implements OnInit {
       return;
     }
 
-    this.http.get<MockAuditEvent[]>(`${this.gatewayUrl}/ms-auth/api/auth/auditoria`, { headers: this.headers() })
+    this.http.get<MockAuditEvent[]>(`${this.gatewayUrl}/api/auth/auditoria`, { headers: this.headers() })
       .subscribe({
         next: (data) => {
           this.events  = data;

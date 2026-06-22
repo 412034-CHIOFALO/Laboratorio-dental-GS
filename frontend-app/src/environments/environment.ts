@@ -17,8 +17,7 @@ export const environment = {
   finanzasUrl: 'http://localhost:8080',  // → ms-finanzas   (/api/finanzas/**)
   stockUrl:    'http://localhost:8080',  // → ms-stock      (/api/stock/**)
 
-  // URL del login. En dev va directo a ms-auth (:8081) — workaround mientras el
-  // gateway (Spring Security 7) no deja pasar el endpoint público. En prod va por
-  // el gateway. El JWT resultante sirve igual en el gateway para el resto.
-  loginUrl: 'http://localhost:8081/api/auth/login',
+  // URL del login — va por el gateway, igual que el resto de los endpoints.
+  // El gateway whitelistea POST /api/auth/login como público (sin JWT).
+  loginUrl: 'http://localhost:8080/api/auth/login',
 };

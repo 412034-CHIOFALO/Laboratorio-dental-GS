@@ -1,7 +1,7 @@
 /**
- * Producción — el frontend se sirve desde nginx que hace proxy de /api/* y
- * /ms-auth/* hacia el api-gateway interno del container. Por eso todas las
- * URLs son relativas: no hay CORS porque comparten el mismo origen.
+ * Producción — el frontend se sirve desde nginx que hace proxy de /api/*
+ * hacia el api-gateway interno del container (incluido /api/auth/* para login).
+ * Por eso todas las URLs son relativas: no hay CORS porque comparten el origen.
  */
 export const environment = {
   production: true,
@@ -14,6 +14,6 @@ export const environment = {
   finanzasUrl:'',
   stockUrl:   '',
 
-  // Login vía gateway (nginx lo rutea a ms-auth). NUNCA usar localhost:8081 acá.
-  loginUrl: '/ms-auth/api/auth/login',
+  // Login vía gateway (nginx proxy /api/ → gateway). NUNCA usar localhost:8081 acá.
+  loginUrl: '/api/auth/login',
 };

@@ -27,8 +27,8 @@ import java.util.List;
  *      y aplica control de acceso por rol
  *
  * Rutas públicas (sin token):
- *   - POST /ms-auth/api/auth/login  → login
- *   - GET  /actuator/health          → health check del propio gateway
+ *   - POST /api/auth/login   → login
+ *   - GET  /actuator/health  → health check del propio gateway
  */
 @Configuration
 @EnableWebSecurity
@@ -43,15 +43,17 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 // Login — único endpoint realmente público (necesita llegar sin token)
-                .requestMatchers("/ms-auth/api/auth/login").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                 // Health checks del gateway para orquestadores y Eureka
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                // TODO: El endpoint /ms-auth/oauth2/jwks debe ser accesible para otros MS
-                //       que fetchen el JWK Set en sus arranques. Habilitarlo aquí.
-                .requestMatchers("/ms-auth/oauth2/jwks").permitAll()
-                // Endpoint del bot de WhatsApp: pasa sin JWT, lo protege la API key
+                // Nota: el JWK Set no se rutea por el gateway; cada MS (y el propio
+                // gateway) lo fetchea directo de ms-auth vía JWT_JWK_URI.
+                // Endpoints del bot de WhatsApp: pasan sin JWT, los protege la API key
                 // (X-Bot-Api-Key) que valida ms-finanzas internamente.
+                //   - pago-automatico → transferencia leída del comprobante
+                //   - pago-efectivo   → borrador de efectivo (pendiente de confirmar)
                 .requestMatchers(HttpMethod.POST, "/api/finanzas/sueldos/pago-automatico").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/finanzas/sueldos/pago-efectivo").permitAll()
                 // Todo lo demás (todos los MS) requiere JWT válido firmado por ms-auth
                 .anyRequest().authenticated()
             )
@@ -68,8 +70,16 @@ public class SecurityConfig {
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        // Orígenes configurables vía ALLOWED_ORIGINS (separados por coma), igual que
+        // en los 5 MS. Default = localhost:4200 para dev. En prod (nginx, mismo
+        // origen) no se usa CORS, pero queda correcto si se accede al gateway directo.
+        String origins = System.getenv("ALLOWED_ORIGINS");
+        List<String> allowed = (origins == null || origins.isBlank())
+            ? List.of("http://localhost:4200")
+            : List.of(origins.split("\\s*,\\s*"));
+
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOrigins(allowed);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowCredentials(true);

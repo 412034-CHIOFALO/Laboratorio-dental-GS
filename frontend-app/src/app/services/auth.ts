@@ -37,9 +37,8 @@ export class AuthService {
       return throwError(() => ({ status: 401, error: { error: 'Credenciales incorrectas' } }));
     }
 
-    // El endpoint de login viene de environment.loginUrl: en dev va directo a
-    // ms-auth (:8081) y en prod va por el gateway (relativo, vía nginx). Así no
-    // queda hardcodeado un puerto de dev en el build de producción.
+    // El endpoint de login viene de environment.loginUrl: en dev va por el
+    // gateway (:8080) y en prod va relativo (vía nginx). Siempre /api/auth/login.
     return this.http.post<{ access_token: string }>(
       environment.loginUrl,
       { username, password }
@@ -51,7 +50,7 @@ export class AuthService {
       return of({ mensaje: 'Usuario creado (demo)', username: payload.username }).pipe(delay(300));
     }
     return this.http.post<{ mensaje: string; username: string }>(
-      `${this.gatewayUrl}/ms-auth/api/auth/register`,
+      `${this.gatewayUrl}/api/auth/register`,
       payload,
       { headers: this.authHeaders() }
     );
@@ -62,7 +61,7 @@ export class AuthService {
       return of({ ok: true }).pipe(delay(200));
     }
     return this.http.put(
-      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/aprobar`,
+      `${this.gatewayUrl}/api/auth/usuarios/${id}/aprobar`,
       {},
       { headers: this.authHeaders() }
     );
@@ -74,7 +73,7 @@ export class AuthService {
       return of({ id, enabled: activo }).pipe(delay(200));
     }
     return this.http.patch(
-      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/estado`,
+      `${this.gatewayUrl}/api/auth/usuarios/${id}/estado`,
       { activo },
       { headers: this.authHeaders() }
     );
@@ -86,7 +85,7 @@ export class AuthService {
       return of({ id, telefono }).pipe(delay(200));
     }
     return this.http.patch(
-      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/telefono`,
+      `${this.gatewayUrl}/api/auth/usuarios/${id}/telefono`,
       { telefono },
       { headers: this.authHeaders() }
     );
