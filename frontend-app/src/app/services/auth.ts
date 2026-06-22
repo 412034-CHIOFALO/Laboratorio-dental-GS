@@ -23,7 +23,7 @@ interface JwtPayload {
   providedIn: 'root'
 })
 export class AuthService {
-  private gatewayUrl = 'http://localhost:8080';
+  private gatewayUrl = environment.gatewayUrl || 'http://localhost:8080';
   private readonly TOKEN_KEY = 'gs_token';
 
   constructor(private http: HttpClient) {}
@@ -37,8 +37,10 @@ export class AuthService {
       return throwError(() => ({ status: 401, error: { error: 'Credenciales incorrectas' } }));
     }
 
+    // El endpoint de login viene de environment.loginUrl: en dev va por el
+    // gateway (:8080) y en prod va relativo (vía nginx). Siempre /api/auth/login.
     return this.http.post<{ access_token: string }>(
-      `${this.gatewayUrl}/ms-auth/api/auth/login`,
+      environment.loginUrl,
       { username, password }
     );
   }
@@ -48,7 +50,7 @@ export class AuthService {
       return of({ mensaje: 'Usuario creado (demo)', username: payload.username }).pipe(delay(300));
     }
     return this.http.post<{ mensaje: string; username: string }>(
-      `${this.gatewayUrl}/ms-auth/api/auth/register`,
+      `${this.gatewayUrl}/api/auth/register`,
       payload,
       { headers: this.authHeaders() }
     );
@@ -59,7 +61,7 @@ export class AuthService {
       return of({ ok: true }).pipe(delay(200));
     }
     return this.http.put(
-      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/aprobar`,
+      `${this.gatewayUrl}/api/auth/usuarios/${id}/aprobar`,
       {},
       { headers: this.authHeaders() }
     );
@@ -71,7 +73,7 @@ export class AuthService {
       return of({ id, enabled: activo }).pipe(delay(200));
     }
     return this.http.patch(
-      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/estado`,
+      `${this.gatewayUrl}/api/auth/usuarios/${id}/estado`,
       { activo },
       { headers: this.authHeaders() }
     );
@@ -83,7 +85,7 @@ export class AuthService {
       return of({ id, telefono }).pipe(delay(200));
     }
     return this.http.patch(
-      `${this.gatewayUrl}/ms-auth/api/auth/usuarios/${id}/telefono`,
+      `${this.gatewayUrl}/api/auth/usuarios/${id}/telefono`,
       { telefono },
       { headers: this.authHeaders() }
     );

@@ -1,8 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #   ERP G&S — Stack completo (Producción)
 #
-#   Levanta: infra (MySQL, RabbitMQ, MinIO) + 8 microservicios + frontend
-#   Total: 11 containers + 1 red interna
+#   Levanta: infra (MySQL, MinIO) + 5 ms de negocio + discovery + gateway
+#            + frontend (nginx) + bot de WhatsApp
+#   Total: 10 containers + 1 red interna
 #
 #   Uso:
 #     docker compose up -d            # primer arranque, compila todo
@@ -14,11 +15,10 @@
 #     http://localhost          → Frontend (nginx)
 #     http://localhost:8761     → Eureka dashboard
 #     http://localhost:8080     → API Gateway (acceso directo, sin nginx)
-#     http://localhost:15672    → RabbitMQ management (admin/admin)
 #     http://localhost:9001     → MinIO console
 #
 #   Orden de arranque automático vía depends_on con healthchecks:
-#     mysql + rabbit + minio  (infra)
+#     mysql + minio  (infra)
 #     ↓
 #     discovery-server  (Eureka)
 #     ↓
@@ -31,48 +31,33 @@
 #     frontend (nginx)
 # ═══════════════════════════════════════════════════════════════════════════
 
+name: tfi
+
 services:
 
   # ═════════════════════════ INFRAESTRUCTURA ═══════════════════════════════
 
   mysql:
     image: mysql:8.0
-    container_name: gys-mysql
+    container_name: gs-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-gys_root_2025}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-gs_root_2025}"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     restart: unless-stopped
-    networks: [gys-net]
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: gys-rabbitmq
-    ports:
-      - "127.0.0.1:5672:5672"
-      - "127.0.0.1:15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin}
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   minio:
     image: minio/minio
-    container_name: gys-minio
+    container_name: gs-minio
     ports:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:9001:9001"
@@ -88,7 +73,7 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   # ═════════════════════════ DISCOVERY ════════════════════════════════════
 
@@ -96,7 +81,7 @@ services:
     build:
       context: ./discovery-server
       dockerfile: Dockerfile
-    container_name: gys-discovery
+    container_name: gs-discovery
     environment:
       SPRING_PROFILES_ACTIVE: prod
     ports:
@@ -108,7 +93,7 @@ services:
       retries: 8
       start_period: 60s
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   # ═════════════════════════ AUTH (primero después de discovery) ═══════════
 
@@ -116,17 +101,19 @@ services:
     build:
       context: ./ms-auth
       dockerfile: Dockerfile
-    container_name: gys-auth
+    container_name: gs-auth
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_NAME: gys_auth
+      DB_NAME: gs_auth
       DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       AUTH_ISSUER: http://localhost:8081
-      GYS_KEYSTORE_PASSWORD: ${GYS_KEYSTORE_PASSWORD:-gys_keystore_2025}
+      GS_KEYSTORE_PASSWORD: ${GS_KEYSTORE_PASSWORD:-gs_keystore_2025}
+      # Pass del usuario de servicio 'bot-pedidos' (debe coincidir con la del bot).
+      GS_BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
@@ -139,7 +126,7 @@ services:
       retries: 8
       start_period: 90s
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   # ═════════════════════════ MICROSERVICIOS DE NEGOCIO ═════════════════════
 
@@ -147,13 +134,13 @@ services:
     build:
       context: ./ms-catalogo
       dockerfile: Dockerfile
-    container_name: gys-catalogo
+    container_name: gs-catalogo
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: mysql
-      DB_NAME: gys_catalogo
+      DB_NAME: gs_catalogo
       DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
     depends_on:
@@ -167,25 +154,36 @@ services:
       retries: 8
       start_period: 60s
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   ms-pedidos:
     build:
       context: ./ms-pedidos
       dockerfile: Dockerfile
-    container_name: gys-pedidos
+    container_name: gs-pedidos
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: mysql
-      DB_NAME: gys_pedidos
+      DB_NAME: gs_pedidos
       DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      # MinIO para documentos y escaneos de pedidos
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_BUCKET_DOCS: documentos-pedidos
+      MINIO_ENABLED: "true"
+      # Bot de WhatsApp para notificaciones
+      BOT_URI: http://gs-bot:3001
+      BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
     depends_on:
       mysql: { condition: service_healthy }
       discovery-server: { condition: service_healthy }
       ms-auth: { condition: service_healthy }
+      minio: { condition: service_healthy }
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8082/actuator/health"]
       interval: 15s
@@ -193,25 +191,26 @@ services:
       retries: 8
       start_period: 60s
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   ms-finanzas:
     build:
       context: ./ms-finanzas
       dockerfile: Dockerfile
-    container_name: gys-finanzas
+    container_name: gs-finanzas
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: mysql
-      DB_NAME: gys_finanzas
+      DB_NAME: gs_finanzas
       DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
       # API key del bot de WhatsApp (debe coincidir con la del bot)
       GS_BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
       # MinIO para guardar comprobantes
-      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ENDPOINT: http://minio:9000              # host interno (container↔container)
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}  # host que ve el browser
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: comprobantes
@@ -227,21 +226,24 @@ services:
       retries: 8
       start_period: 60s
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   ms-stock:
     build:
       context: ./ms-stock
       dockerfile: Dockerfile
-    container_name: gys-stock
+    container_name: gs-stock
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: mysql
-      DB_NAME: gys_stock
+      DB_NAME: gs_stock
       DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gys_root_2025}
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      # Bot de WhatsApp — para enviar alertas de stock bajo al admin
+      BOT_URI: http://gs-bot:3001
+      BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
     depends_on:
       mysql: { condition: service_healthy }
       discovery-server: { condition: service_healthy }
@@ -253,7 +255,7 @@ services:
       retries: 8
       start_period: 60s
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   # ═════════════════════════ API GATEWAY ═══════════════════════════════════
 
@@ -261,12 +263,13 @@ services:
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
-    container_name: gys-gateway
+    container_name: gs-gateway
     environment:
       SPRING_PROFILES_ACTIVE: prod
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
       ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:4200
+      BOT_URI: http://gs-bot:3001          # ruta del gateway hacia el estado del bot
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:
@@ -283,7 +286,7 @@ services:
       retries: 8
       start_period: 90s
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
 
   # ═════════════════════════ FRONTEND (nginx) ══════════════════════════════
 
@@ -291,24 +294,72 @@ services:
     build:
       context: ./frontend-app
       dockerfile: Dockerfile
-    container_name: gys-frontend
+    container_name: gs-frontend
     ports:
       - "80:80"
     depends_on:
       api-gateway: { condition: service_healthy }
     restart: unless-stopped
-    networks: [gys-net]
+    networks: [gs-net]
+
+  # ═════════════════════════ BOT DE WHATSAPP ═══════════════════════════════
+  # Arranca con el stack. La sesión se persiste en el volumen wpp_auth, así que
+  # solo escaneás el QR UNA vez (mostralo con: docker compose logs -f gs-bot).
+  # Después se reconecta solo en cada reinicio/deploy.
+
+  gs-bot:
+    build:
+      context: ./gs-bot-whatsapp
+      dockerfile: Dockerfile
+    container_name: gs-bot
+    environment:
+      BACKEND_URL: http://api-gateway:8080
+      BACKEND_ENABLED: ${BOT_BACKEND_ENABLED:-true}
+      BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
+      GRUPOS: ${BOT_GRUPOS:-Comprobantes Transferencias,Comprobantes Efectivo}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_ENABLED: ${GEMINI_ENABLED:-false}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # ── Scraper de mails → crea pedidos desde email (IMAP + Gemini). OFF por defecto.
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_IMAP_HOST: ${MAIL_IMAP_HOST:-imap.gmail.com}
+      MAIL_IMAP_PORT: ${MAIL_IMAP_PORT:-993}
+      MAIL_IMAP_SECURE: ${MAIL_IMAP_SECURE:-true}
+      MAIL_IMAP_USER: ${MAIL_IMAP_USER:-}
+      MAIL_IMAP_PASSWORD: ${MAIL_IMAP_PASSWORD:-}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
+      MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-120}
+      # Usuario de servicio para crear pedidos (la pass coincide con ms-auth).
+      BOT_PEDIDOS_USER: ${BOT_PEDIDOS_USER:-bot-pedidos}
+      BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
+    # Healthcheck de liveness del servidor HTTP del bot (no de la conexión a
+    # WhatsApp). Usa node porque la imagen slim no trae wget/curl.
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/bot/estado',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      api-gateway: { condition: service_healthy }
+    volumes:
+      - wpp_auth:/app/.wwebjs_auth          # sesión de WhatsApp (QR 1 sola vez)
+    restart: unless-stopped
+    networks: [gs-net]
 
 
 # ═════════════════════════ NETWORK + VOLUMES ═════════════════════════════
 
 networks:
-  gys-net:
+  gs-net:
     driver: bridge
-    name: gys-net
+    name: gs-net
 
 volumes:
   mysql_data:
-    name: gys_mysql_data
+    name: gs_mysql_data
   minio_data:
-    name: gys_minio_data
+    name: gs_minio_data
+  wpp_auth:
+    name: gs_wpp_auth

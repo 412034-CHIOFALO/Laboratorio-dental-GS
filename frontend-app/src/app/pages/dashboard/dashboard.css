@@ -41,6 +41,19 @@
   grid-template-columns: var(--sidebar-collapsed-w) 1fr;
 }
 
+/* Sidebar colapsado: apilar logo GS y flecha en vertical para que no se encimen */
+.app-shell.sidebar-collapsed .sidebar-header {
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  height: auto;
+  padding: 12px 0;
+}
+.app-shell.sidebar-collapsed .brand {
+  justify-content: center;
+  gap: 0;
+}
+
 /* ── OVERLAY MÓVIL ── */
 .mobile-overlay {
   display: none;
@@ -290,6 +303,28 @@
   font-size: 10px;
   color: var(--dim);
   white-space: nowrap;
+}
+
+.tour-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.tour-btn:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .logout-btn {

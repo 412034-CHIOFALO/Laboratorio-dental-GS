@@ -69,13 +69,13 @@ vía **API Gateway**. Cada microservicio tiene su propia base de datos.
 │ Usuarios     │     │ trabajo      │         │ Odontólogos  │
 └──────────────┘     └──────────────┘         └──────────────┘
 
-┌──────────────┐     ┌──────────────┐         ┌──────────────┐
-│ms-produccion │     │ ms-finanzas  │         │   ms-stock   │
-│   (8084)     │     │   (8085)     │         │   (8086)     │
-│              │     │              │         │              │
-│ Kanban       │     │ 3 Cajas      │         │ Materiales   │
-│ tareas       │     │ Cobros       │         │ Movimientos  │
-└──────────────┘     └──────────────┘         └──────────────┘
+                     ┌──────────────┐         ┌──────────────┐
+                     │ ms-finanzas  │         │   ms-stock   │
+                     │   (8085)     │         │   (8086)     │
+                     │              │         │              │
+                     │ 3 Cajas      │         │ Materiales   │
+                     │ Cobros       │         │ Movimientos  │
+                     └──────────────┘         └──────────────┘
 
                     ┌─────────────────────┐
                     │ discovery-server    │
@@ -97,7 +97,7 @@ Controller → IService → ServiceImpl → Repository → BD
 ### Seguridad
 
 - `ms-auth` actúa como **OAuth2 Authorization Server** y emite JWT firmados con
-  RSA (clave en `ms-auth/src/main/resources/keys/gys-auth.p12`)
+  RSA (clave en `ms-auth/src/main/resources/keys/gs-auth.p12`)
 - Cada microservicio valida el JWT contra el JWK Set de `ms-auth`
 - Roles: `ADMIN`, `ADMINISTRATIVO`, `TECNICO`, `ODONTOLOGO`
 - El frontend obtiene el JWT al login y lo envía en cada request via interceptor
@@ -129,7 +129,7 @@ npm start            # o: ng serve --open
 Cada microservicio usa H2 en perfil `dev`. **No requiere MySQL ni Docker.**
 
 **Pre-requisitos:** Java 17+, Maven 3.8+, Node 20+, y el keystore JWT en
-`ms-auth/src/main/resources/keys/gys-auth.p12` (ver [Troubleshooting](#-troubleshooting)
+`ms-auth/src/main/resources/keys/gs-auth.p12` (ver [Troubleshooting](#-troubleshooting)
 si te falta).
 
 ```powershell
@@ -137,7 +137,7 @@ si te falta).
 .\start-dev.ps1
 ```
 
-El script abre 9 ventanas de PowerShell en el orden correcto:
+El script abre 8 ventanas de PowerShell en el orden correcto:
 
 | # | Servicio | Puerto | Esperar a ver |
 |---|----------|--------|---------------|
@@ -145,18 +145,17 @@ El script abre 9 ventanas de PowerShell en el orden correcto:
 | 2 | ms-auth | 8081 | `Started MsAuthApplication` |
 | 3 | ms-catalogo | 8083 | `Started MsCatalogoApplication` |
 | 4 | ms-pedidos | 8082 | `Started MsPedidosApplication` |
-| 5 | ms-produccion | 8084 | `Started MsProduccionApplication` |
-| 6 | ms-finanzas | 8085 | `Started MsFinanzasApplication` |
-| 7 | ms-stock | 8086 | `Started MsStockApplication` |
-| 8 | api-gateway | 8080 | `Started ApiGatewayApplication` |
-| 9 | frontend-app | 4200 | `Local: http://localhost:4200` |
+| 5 | ms-finanzas | 8085 | `Started MsFinanzasApplication` |
+| 6 | ms-stock | 8086 | `Started MsStockApplication` |
+| 7 | api-gateway | 8080 | `Started ApiGatewayApplication` |
+| 8 | frontend-app | 4200 | `Local: http://localhost:4200` |
 
 **Antes de arrancar el frontend** cambiá `useMocks: false` en
 `frontend-app/src/environments/environment.ts` para que apunte al gateway real.
 
 **Verificación:**
 
-- Panel Eureka: http://localhost:8761 — debería listar los 7 ms registrados
+- Panel Eureka: http://localhost:8761 — debería listar los 6 servicios registrados (auth, catalogo, pedidos, finanzas, stock, gateway)
 - Health Gateway: http://localhost:8080/actuator/health
 - Frontend: http://localhost:4200
 
@@ -167,7 +166,6 @@ cd discovery-server && mvn spring-boot:run    # esperá a que arranque
 cd ms-auth            && mvn spring-boot:run
 cd ms-catalogo        && mvn spring-boot:run
 cd ms-pedidos         && mvn spring-boot:run
-cd ms-produccion      && mvn spring-boot:run
 cd ms-finanzas        && mvn spring-boot:run
 cd ms-stock           && mvn spring-boot:run
 cd api-gateway        && mvn spring-boot:run
@@ -208,8 +206,7 @@ TRABAJO PRACTICO INTEGRADOR/
 │
 ├── ms-auth/                  Authorization Server (OAuth2 + JWT RSA)
 ├── ms-catalogo/              Tipos de trabajo del laboratorio
-├── ms-pedidos/               Pedidos + Odontólogos clientes
-├── ms-produccion/            Tablero Kanban (en transición — ver Roadmap)
+├── ms-pedidos/               Pedidos + Odontólogos clientes + Tablero Kanban
 ├── ms-finanzas/              Comprobantes, cajas, proveedores, sueldos
 ├── ms-stock/                 Materiales y movimientos de stock
 │
@@ -225,7 +222,7 @@ TRABAJO PRACTICO INTEGRADOR/
 ### Convención de paquetes Java
 
 ```
-com.gys.ms_<nombre>/
+com.gs.ms_<nombre>/
 ├── config/         Configuración (SecurityConfig, DataInitializer)
 ├── controller/     REST endpoints
 ├── service/        Interfaces (IService) e implementaciones
@@ -245,7 +242,7 @@ com.gys.ms_<nombre>/
 
 - [x] discovery-server, api-gateway, ms-auth (con JWT/RSA)
 - [x] ms-catalogo, ms-pedidos (con entidad `Odontologo` y find-or-create)
-- [x] ms-produccion, ms-finanzas, ms-stock
+- [x] ms-finanzas, ms-stock (el Kanban de producción quedó integrado en ms-pedidos)
 - [x] Patrón en capas en todos los ms
 - [x] GlobalExceptionHandler unificado (400/403/404/405/409/422/500)
 - [x] Perfil `dev` con H2 en todos los ms (no requiere MySQL)
@@ -349,18 +346,18 @@ Tipos: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `style`.
 
 ### Generar el keystore de ms-auth (si falta tras clonar)
 
-Si después de clonar el repo no tenés `ms-auth/src/main/resources/keys/gys-auth.p12`:
+Si después de clonar el repo no tenés `ms-auth/src/main/resources/keys/gs-auth.p12`:
 
 ```bash
 keytool -genkeypair \
-  -alias gys-auth \
+  -alias gs-auth \
   -keyalg RSA \
   -keysize 2048 \
   -validity 3650 \
   -storetype PKCS12 \
-  -keystore ms-auth/src/main/resources/keys/gys-auth.p12 \
-  -storepass gys_keystore_2025 \
-  -dname "CN=gys-auth,OU=Laboratorio GyS,O=Tesis,L=BA,C=AR"
+  -keystore ms-auth/src/main/resources/keys/gs-auth.p12 \
+  -storepass gs_keystore_2025 \
+  -dname "CN=gs-auth,OU=Laboratorio GS,O=Tesis,L=BA,C=AR"
 ```
 
 ---

@@ -47,3 +47,7 @@ docker-volumes/
 
 # ── Backup interno del vault Obsidian ──────────────────────
 _obsidian-backup/
+
+# ── Claude Code ────────────────────────────────────────────
+.claude/
+**/.claude/

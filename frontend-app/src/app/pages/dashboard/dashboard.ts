@@ -2,6 +2,7 @@ import { Component, OnInit, HostListener, inject } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import { ThemeService } from '../../services/theme.service';
+import { TutorialService } from '../../services/tutorial.service';
 
 interface NavItem {
   type: 'item';
@@ -9,6 +10,7 @@ interface NavItem {
   icon: string;
   route: string;
   roles?: string[];
+  tourId?: string;
 }
 
 interface NavGroup {
@@ -33,33 +35,42 @@ export class DashboardComponent implements OnInit {
 
   navEntries: NavEntry[] = [
     { type: 'group', label: 'Operativo' },
-    { type: 'item', label: 'Inicio',      icon: 'home',     route: '/dashboard' },
-    { type: 'item', label: 'Pedidos',     icon: 'package',  route: '/dashboard/pedidos' },
-    { type: 'item', label: 'Producción',  icon: 'layers',   route: '/dashboard/produccion' },
-    { type: 'item', label: 'Entregas',    icon: 'truck',    route: '/dashboard/entregas' },
+    { type: 'item', label: 'Inicio',       icon: 'home',      route: '/dashboard' },
+    { type: 'item', label: 'Pedidos',      icon: 'package',   route: '/dashboard/pedidos',      tourId: 'nav-pedidos' },
+    { type: 'item', label: 'Producción',   icon: 'layers',    route: '/dashboard/produccion',   tourId: 'nav-produccion' },
+    { type: 'item', label: 'Entregas',     icon: 'truck',     route: '/dashboard/entregas',     tourId: 'nav-entregas' },
 
     { type: 'group', label: 'Gestión' },
-    { type: 'item', label: 'Catálogo',    icon: 'list',     route: '/dashboard/catalogo' },
-    { type: 'item', label: 'Odontólogos', icon: 'tooth',    route: '/dashboard/odontologos' },
-    { type: 'item', label: 'Stock',       icon: 'box',      route: '/dashboard/stock' },
-    { type: 'item', label: 'Finanzas',    icon: 'dollar',   route: '/dashboard/finanzas' },
-    { type: 'item', label: 'Reportes',    icon: 'chart',    route: '/dashboard/reportes' },
+    { type: 'item', label: 'Catálogo',     icon: 'list',      route: '/dashboard/catalogo' },
+    { type: 'item', label: 'Odontólogos',  icon: 'tooth',     route: '/dashboard/odontologos' },
+    { type: 'item', label: 'Stock',        icon: 'box',       route: '/dashboard/stock',        tourId: 'nav-stock' },
+    { type: 'item', label: 'Finanzas',     icon: 'dollar',    route: '/dashboard/finanzas',     tourId: 'nav-finanzas' },
+    { type: 'item', label: 'Proveedores',  icon: 'briefcase', route: '/dashboard/proveedores' },
+    { type: 'item', label: 'Bot WhatsApp', icon: 'chat',      route: '/dashboard/bot-registros', roles: ['ROLE_ADMIN'], tourId: 'nav-bot' },
+    { type: 'item', label: 'Reportes',     icon: 'chart',     route: '/dashboard/reportes',     tourId: 'nav-reportes' },
 
     { type: 'group', label: 'Archivo' },
-    { type: 'item', label: 'Documentos',  icon: 'file',     route: '/dashboard/documentos' },
-    { type: 'item', label: 'Escaneos 3D', icon: 'cube',     route: '/dashboard/escaneos' },
-    { type: 'item', label: 'Auditoría',   icon: 'shield',   route: '/dashboard/auditoria', roles: ['ROLE_ADMIN'] },
+    { type: 'item', label: 'Documentos',   icon: 'file',      route: '/dashboard/documentos' },
+    { type: 'item', label: 'Escaneos 3D',  icon: 'cube',      route: '/dashboard/escaneos' },
+    { type: 'item', label: 'Auditoría',    icon: 'shield',    route: '/dashboard/auditoria', roles: ['ROLE_ADMIN'] },
 
     { type: 'group', label: 'Administración' },
-    { type: 'item', label: 'Usuarios',    icon: 'users',    route: '/dashboard/usuarios', roles: ['ROLE_ADMIN'] },
+    { type: 'item', label: 'Usuarios',     icon: 'users',     route: '/dashboard/usuarios',     roles: ['ROLE_ADMIN'] },
+    { type: 'item', label: 'Configuración', icon: 'settings', route: '/dashboard/configuracion', roles: ['ROLE_ADMIN'], tourId: 'nav-configuracion' },
+    { type: 'item', label: 'Manual',       icon: 'book',      route: '/dashboard/manual',       tourId: 'nav-manual' },
   ];
 
-  readonly themeService = inject(ThemeService);
+  readonly themeService    = inject(ThemeService);
+  readonly tutorialService = inject(TutorialService);
 
   constructor(private authService: AuthService, private router: Router) {}
 
   toggleTheme(): void {
     this.themeService.toggle();
+  }
+
+  iniciarTutorial(): void {
+    this.tutorialService.iniciarTour();
   }
 
   ngOnInit() {

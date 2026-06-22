@@ -1,0 +1,93 @@
+<div class="bot-view">
+
+  <header class="bot-header">
+    <div>
+      <h1>Estado del bot de WhatsApp</h1>
+      <p class="sub">Conexión en vivo del bot que registra los comprobantes. Si se desvincula, acá aparece el QR para volver a vincularlo.</p>
+    </div>
+    <button class="btn-refresh" (click)="refrescar()" [disabled]="cargando()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+      </svg>
+      Actualizar
+    </button>
+  </header>
+
+  <!-- Tarjeta de estado -->
+  <div class="status-card" [class]="claseEstado()">
+    <span class="dot"></span>
+    <div class="status-text">
+      <strong>{{ estadoLabel() }}</strong>
+      <span class="motivo">{{ motivo() }}</span>
+    </div>
+    <span class="live" [class.off]="sinConexion()">
+      <span class="live-dot"></span>{{ sinConexion() ? 'reintentando' : 'en vivo' }}
+    </span>
+  </div>
+
+  <!-- Bloque QR: sólo cuando está desvinculado -->
+  @if (mostrarQr()) {
+    <div class="qr-card">
+      <div class="qr-img">
+        <img [src]="estado()!.qrDataUrl" alt="Código QR para vincular el bot de WhatsApp" />
+      </div>
+      <div class="qr-instr">
+        <h2>Vinculá el bot</h2>
+        <ol>
+          <li>Abrí <strong>WhatsApp</strong> en el teléfono del laboratorio.</li>
+          <li>Andá a <strong>Configuración → Dispositivos vinculados</strong>.</li>
+          <li>Tocá <strong>Vincular un dispositivo</strong> y escaneá este código.</li>
+        </ol>
+        <p class="hint">El QR se regenera solo cada tanto. Cuando termines de vincular, esta pantalla pasa a <strong>Conectado</strong> automáticamente.</p>
+      </div>
+    </div>
+  }
+
+  <!-- Sin conexión con el bot -->
+  @if (sinConexion()) {
+    <div class="offline-card">
+      <strong>No llegamos al bot.</strong>
+      <p>El gateway no pudo contactar al bot. Revisá que esté levantado:</p>
+      <ul>
+        <li>En desarrollo: <code>node index.js</code> dentro de <code>gs-bot-whatsapp</code>.</li>
+        <li>En producción: el contenedor <code>gs-bot</code> (<code>docker compose ps</code>).</li>
+      </ul>
+    </div>
+  }
+
+  <!-- Detalles -->
+  @if (estado(); as e) {
+    <div class="detalles">
+      <div class="detalle">
+        <span class="k">Backend</span>
+        <span class="v">
+          @if (e.backendActivo) {
+            <span class="chip chip-ok">Registrando en el ERP</span>
+          } @else {
+            <span class="chip chip-warn">Sólo consola (no envía al backend)</span>
+          }
+        </span>
+      </div>
+      <div class="detalle">
+        <span class="k">Grupos que escucha</span>
+        <span class="v">
+          @if (e.grupos?.length) {
+            @for (g of e.grupos; track g) { <span class="chip">{{ g }}</span> }
+          } @else {
+            <span class="muted">— sin grupos configurados —</span>
+          }
+        </span>
+      </div>
+      <div class="detalle">
+        <span class="k">Última señal del bot</span>
+        <span class="v">{{ e.ultimaActualizacion | date:'dd/MM/yyyy HH:mm:ss' }}</span>
+      </div>
+    </div>
+  }
+
+  @if (ultimoChequeo(); as t) {
+    <p class="check">Último chequeo: {{ t | date:'HH:mm:ss' }} · se actualiza solo cada 3 segundos.</p>
+  }
+
+</div>

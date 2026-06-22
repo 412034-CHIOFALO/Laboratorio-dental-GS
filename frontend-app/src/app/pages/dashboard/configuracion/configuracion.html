@@ -1,0 +1,63 @@
+<div class="conf-page">
+  <div class="conf-header">
+    <div class="conf-title">
+      <h1>Configuración <span class="accent">del sistema</span></h1>
+      <p>Ajustes del laboratorio — solo accesibles para ADMIN</p>
+    </div>
+  </div>
+
+  @if (loading) {
+    <div class="conf-loading">Cargando configuración...</div>
+  } @else {
+
+    <!-- ── Alertas de stock ── -->
+    <section class="conf-card">
+      <div class="conf-card-head">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/>
+          <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+        </svg>
+        <h2>Alertas de stock bajo</h2>
+      </div>
+      <p class="conf-desc">
+        Cuando un material cae por debajo de su stock mínimo, el sistema enviará un
+        mensaje de WhatsApp al número configurado.
+      </p>
+
+      <div class="conf-fields">
+        <div class="conf-field">
+          <label for="phone">Número de WhatsApp del administrador</label>
+          <input id="phone" type="text" [(ngModel)]="config.adminWhatsappPhone"
+                 placeholder="5491155443322 (sin +, sin espacios)"
+                 [disabled]="!isAdmin">
+          <p class="conf-field-hint">
+            Formato internacional sin el signo +. Ej: 5491155443322 (Argentina +54 9 11 5544 3322)
+          </p>
+        </div>
+
+        <div class="conf-toggle-row">
+          <div>
+            <strong>Activar alertas de stock</strong>
+            <p class="conf-desc">El bot de WhatsApp enviará un mensaje cada vez que un material baje del mínimo.</p>
+          </div>
+          <label class="toggle" [class.disabled]="!isAdmin">
+            <input type="checkbox" [(ngModel)]="config.alertasActivas" [disabled]="!isAdmin">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      @if (!isAdmin) {
+        <p class="conf-no-perm">Solo el ADMIN puede modificar la configuración.</p>
+      }
+
+      <div class="conf-actions">
+        <button class="btn-guardar" [disabled]="!isAdmin || saving" (click)="guardar()">
+          @if (saving) { Guardando... } @else { Guardar cambios }
+        </button>
+      </div>
+    </section>
+
+  }
+</div>

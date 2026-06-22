@@ -68,6 +68,29 @@ export interface PagoSueldoResponse {
   grupoOrigen: string | null;
 }
 
+export type TipoReceptorBot = 'EMPLEADO' | 'PROVEEDOR' | 'DESCONOCIDO';
+export type EstadoRegistroBot = 'REGISTRADO' | 'RECHAZADO' | 'DUPLICADO' | 'PENDIENTE';
+export type FuentePago = 'TRANSFERENCIA' | 'EFECTIVO';
+
+/** Item del historial del bot: qué hizo con cada comprobante que recibió. */
+export interface RegistroBot {
+  id: number;
+  fechaHora: string;
+  monto: number | null;
+  idOperacion: string | null;
+  emisor: string | null;
+  receptorNombre: string | null;
+  tipoReceptor: TipoReceptorBot | null;
+  receptorId: number | null;
+  receptorResuelto: string | null;
+  estado: EstadoRegistroBot;
+  mensaje: string | null;
+  cargadoPorNombre: string | null;
+  grupoOrigen: string | null;
+  tieneComprobante: boolean;
+  fuente: FuentePago;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SueldosService {
 
@@ -125,6 +148,60 @@ export class SueldosService {
       return of({ url: 'https://ejemplo.com/comprobante-demo.pdf' }).pipe(delay(150));
     }
     return this.http.get<{ url: string }>(`${this.base}/pagos/${pagoId}/comprobante`);
+  }
+
+  /** Historial de TODO lo que procesó el bot (sueldos, proveedores y rechazos). */
+  registrosBot(): Observable<RegistroBot[]> {
+    if (environment.useMocks) {
+      return of(this.seedRegistrosBotMock()).pipe(delay(220));
+    }
+    return this.http.get<RegistroBot[]>(`${this.base}/registros-bot`);
+  }
+
+  /** URL temporal para ver el comprobante de un registro del bot. */
+  urlComprobanteRegistro(id: number): Observable<{ url: string }> {
+    if (environment.useMocks) {
+      return of({ url: 'https://ejemplo.com/comprobante-demo.pdf' }).pipe(delay(150));
+    }
+    return this.http.get<{ url: string }>(`${this.base}/registros-bot/${id}/comprobante`);
+  }
+
+  /** Registros del bot en estado PENDIENTE (efectivo sin confirmar). */
+  pendientesEfectivo(): Observable<RegistroBot[]> {
+    if (environment.useMocks) {
+      return of([]).pipe(delay(150));
+    }
+    return this.http.get<RegistroBot[]>(`${this.base}/pendientes-efectivo`);
+  }
+
+  /** Confirma un pago en efectivo pendiente: aplica el sueldo/deuda y egresa de caja física. */
+  confirmarEfectivo(id: number): Observable<RegistroBot> {
+    if (environment.useMocks) {
+      return of({} as RegistroBot).pipe(delay(200));
+    }
+    return this.http.post<RegistroBot>(`${this.base}/registros-bot/${id}/confirmar`, {});
+  }
+
+  /** Rechaza un pago en efectivo pendiente con motivo opcional. */
+  rechazarEfectivo(id: number, motivo?: string): Observable<RegistroBot> {
+    if (environment.useMocks) {
+      return of({} as RegistroBot).pipe(delay(200));
+    }
+    return this.http.post<RegistroBot>(
+      `${this.base}/registros-bot/${id}/rechazar`,
+      motivo ? { motivo } : {}
+    );
+  }
+
+  private seedRegistrosBotMock(): RegistroBot[] {
+    const now = Date.now();
+    const min = (m: number) => new Date(now - m * 60000).toISOString();
+    return [
+      { id: 4, fechaHora: min(2),   monto: 520,   idOperacion: '140949489171', emisor: 'Nicolás Chiofalo', receptorNombre: 'Luciano Giménez', tipoReceptor: 'PROVEEDOR',   receptorId: 2,    receptorResuelto: 'Luciano Giménez', estado: 'REGISTRADO', mensaje: 'Pago a proveedor registrado: Luciano Giménez', cargadoPorNombre: 'Vos', grupoOrigen: 'Prueba', tieneComprobante: true, fuente: 'TRANSFERENCIA' },
+      { id: 3, fechaHora: min(35),  monto: 30000, idOperacion: '998877',        emisor: 'Laboratorio GS',   receptorNombre: 'Carlos',          tipoReceptor: 'EMPLEADO',    receptorId: 2,    receptorResuelto: 'Carlos López',     estado: 'REGISTRADO', mensaje: 'Sueldo registrado para Carlos López', cargadoPorNombre: 'Vos', grupoOrigen: 'Comprobantes Transferencias', tieneComprobante: true, fuente: 'TRANSFERENCIA' },
+      { id: 2, fechaHora: min(90),  monto: 1500,  idOperacion: '112233',        emisor: 'Dr. García',       receptorNombre: 'gimenez',         tipoReceptor: 'DESCONOCIDO', receptorId: null, receptorResuelto: null,               estado: 'RECHAZADO',  mensaje: 'No se encontró ningún empleado ni proveedor que coincida con "gimenez"', cargadoPorNombre: 'Vos', grupoOrigen: 'Prueba', tieneComprobante: true, fuente: 'TRANSFERENCIA' },
+      { id: 1, fechaHora: min(140), monto: 520,   idOperacion: '140949489171', emisor: 'Nicolás Chiofalo', receptorNombre: 'Luciano Giménez', tipoReceptor: 'DESCONOCIDO', receptorId: null, receptorResuelto: null,               estado: 'DUPLICADO',  mensaje: 'El comprobante (operación 140949489171) ya fue registrado antes.', cargadoPorNombre: 'Vos', grupoOrigen: 'Prueba', tieneComprobante: true, fuente: 'TRANSFERENCIA' },
+    ];
   }
 
   /** Registra un pago al empleado, ajustando devengado/sobrante. */

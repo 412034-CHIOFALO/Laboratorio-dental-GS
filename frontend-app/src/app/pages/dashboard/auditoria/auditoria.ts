@@ -1,5 +1,8 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { AuthService } from '../../../services/auth';
+import { environment } from '../../../../environments/environment';
 import { clonar, MOCK_AUDIT, MockAuditEvent, TipoAudit } from '../../../services/mock-data';
 
 @Component({
@@ -9,11 +12,15 @@ import { clonar, MOCK_AUDIT, MockAuditEvent, TipoAudit } from '../../../services
   templateUrl: './auditoria.html',
   styleUrls: ['./auditoria.css'],
 })
-export class AuditoriaComponent {
-  events: MockAuditEvent[];
-  filtros: MockAuditEvent[];
-  busqueda = '';
+export class AuditoriaComponent implements OnInit {
+  private gatewayUrl = environment.gatewayUrl || 'http://localhost:8080';
+
+  events: MockAuditEvent[] = [];
+  filtros: MockAuditEvent[] = [];
+  busqueda   = '';
   tipoFiltro: TipoAudit | '' = '';
+  loading    = false;
+  error      = '';
 
   readonly tiposAudit: { valor: TipoAudit | ''; label: string }[] = [
     { valor: '',         label: 'Todos los eventos' },
@@ -25,23 +32,56 @@ export class AuditoriaComponent {
     { valor: 'ESTADO',   label: 'Cambio de estado'  },
   ];
 
-  constructor() {
-    this.events   = clonar(MOCK_AUDIT).sort((a: MockAuditEvent, b: MockAuditEvent) =>
-      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    this.filtros  = this.events;
+  constructor(private http: HttpClient, private authService: AuthService) {}
+
+  ngOnInit(): void {
+    this.cargar();
+  }
+
+  private headers(): HttpHeaders {
+    return new HttpHeaders({ Authorization: `Bearer ${this.authService.getToken()}` });
+  }
+
+  cargar(): void {
+    this.loading = true;
+    this.error   = '';
+
+    if (environment.useMocks) {
+      setTimeout(() => {
+        this.events  = clonar(MOCK_AUDIT).sort((a: MockAuditEvent, b: MockAuditEvent) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        this.filtros = this.events;
+        this.loading = false;
+      }, 200);
+      return;
+    }
+
+    this.http.get<MockAuditEvent[]>(`${this.gatewayUrl}/api/auth/auditoria`, { headers: this.headers() })
+      .subscribe({
+        next: (data) => {
+          this.events  = data;
+          this.filtros = data;
+          this.loading = false;
+        },
+        error: () => {
+          this.error   = 'No se pudo cargar el registro de auditoría.';
+          this.loading = false;
+        }
+      });
   }
 
   filtrar(): void {
     this.filtros = this.events.filter(e => {
-      const matchTipo  = !this.tipoFiltro || e.tipo === this.tipoFiltro;
-      const q = this.busqueda.toLowerCase();
-      const matchText  = !q || [e.usuario, e.accion, e.entidad, e.detalle].some(s => s.toLowerCase().includes(q));
+      const matchTipo = !this.tipoFiltro || e.tipo === this.tipoFiltro;
+      const q         = this.busqueda.toLowerCase();
+      const matchText = !q || [e.usuario, e.accion, e.entidad, e.detalle]
+        .some(s => s?.toLowerCase().includes(q));
       return matchTipo && matchText;
     });
   }
 
   formatTs(iso: string): string {
-    const d = new Date(iso);
+    const d   = new Date(iso);
     const hoy = new Date();
     const esHoy = d.toDateString() === hoy.toDateString();
     if (esHoy) return d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
