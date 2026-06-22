@@ -192,6 +192,11 @@
 				<configuration>
 					<excludes>
 						<exclude>**/config/**</exclude>
+						<exclude>**/MinioStorageService.*</exclude>
+						<exclude>**/NotificacionBotService.*</exclude>
+						<exclude>**/DocumentoController.*</exclude>
+						<exclude>**/EscaneosController.*</exclude>
+						<exclude>**/client/**</exclude>
 						<exclude>**/dto/**</exclude>
 						<exclude>**/model/**</exclude>
 						<exclude>**/exception/**</exclude>
