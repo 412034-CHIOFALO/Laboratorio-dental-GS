@@ -1,8 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #   ERP G&S — Stack completo (Producción)
 #
-#   Levanta: infra (MySQL, RabbitMQ, MinIO) + 8 microservicios + frontend
-#   Total: 11 containers + 1 red interna
+#   Levanta: infra (MySQL, MinIO) + 5 ms de negocio + discovery + gateway
+#            + frontend (nginx) + bot de WhatsApp
+#   Total: 10 containers + 1 red interna
 #
 #   Uso:
 #     docker compose up -d            # primer arranque, compila todo
@@ -14,11 +15,10 @@
 #     http://localhost          → Frontend (nginx)
 #     http://localhost:8761     → Eureka dashboard
 #     http://localhost:8080     → API Gateway (acceso directo, sin nginx)
-#     http://localhost:15672    → RabbitMQ management (admin/admin)
 #     http://localhost:9001     → MinIO console
 #
 #   Orden de arranque automático vía depends_on con healthchecks:
-#     mysql + rabbit + minio  (infra)
+#     mysql + minio  (infra)
 #     ↓
 #     discovery-server  (Eureka)
 #     ↓
@@ -52,23 +52,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-    restart: unless-stopped
-    networks: [gs-net]
-
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: gs-rabbitmq
-    ports:
-      - "127.0.0.1:5672:5672"
-      - "127.0.0.1:15672:15672"
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-admin}
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
     networks: [gs-net]
 
@@ -129,6 +112,8 @@ services:
       EUREKA_URI: http://discovery-server:8761/eureka/
       AUTH_ISSUER: http://localhost:8081
       GS_KEYSTORE_PASSWORD: ${GS_KEYSTORE_PASSWORD:-gs_keystore_2025}
+      # Pass del usuario de servicio 'bot-pedidos' (debe coincidir con la del bot).
+      GS_BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
     ports:
       - "127.0.0.1:8081:8081"
     depends_on:
@@ -256,6 +241,9 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      # Bot de WhatsApp — para enviar alertas de stock bajo al admin
+      BOT_URI: http://gs-bot:3001
+      BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
     depends_on:
       mysql: { condition: service_healthy }
       discovery-server: { condition: service_healthy }
@@ -332,6 +320,27 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_ENABLED: ${GEMINI_ENABLED:-false}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # ── Scraper de mails → crea pedidos desde email (IMAP + Gemini). OFF por defecto.
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_IMAP_HOST: ${MAIL_IMAP_HOST:-imap.gmail.com}
+      MAIL_IMAP_PORT: ${MAIL_IMAP_PORT:-993}
+      MAIL_IMAP_SECURE: ${MAIL_IMAP_SECURE:-true}
+      MAIL_IMAP_USER: ${MAIL_IMAP_USER:-}
+      MAIL_IMAP_PASSWORD: ${MAIL_IMAP_PASSWORD:-}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
+      MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-120}
+      # Usuario de servicio para crear pedidos (la pass coincide con ms-auth).
+      BOT_PEDIDOS_USER: ${BOT_PEDIDOS_USER:-bot-pedidos}
+      BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
+    # Healthcheck de liveness del servidor HTTP del bot (no de la conexión a
+    # WhatsApp). Usa node porque la imagen slim no trae wget/curl.
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/bot/estado',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     depends_on:
       api-gateway: { condition: service_healthy }
     volumes:

@@ -27,7 +27,7 @@ Revisión completa de código, seguridad y robustez + lo que se agregó en esta 
 - Snapshot de precios en pedidos y comprobantes (históricos no se rompen al cambiar el catálogo).
 
 ### 2.2 Deuda técnica / a limpiar
-- **Restos de `ms-produccion` en el frontend** (el backend ya se eliminó): `produccion.service.ts`, `MOCK_KANBAN` y `produccionUrl` son **código muerto self-contained** (solo se referencian entre sí; el Kanban usa `PedidosService`). → Pasos para limpiar en §3.
+- ✅ **Restos de `ms-produccion` en el frontend** — RESUELTO. `produccion.service.ts`, `MOCK_KANBAN` y `produccionUrl` ya fueron eliminados (no quedan referencias; el Kanban usa `PedidosService`). Ver §3.
 - **Beans `corsConfigurationSource`** quedaron sin uso en los MS de negocio tras `cors.disable()`. Inofensivos; se pueden borrar.
 - **`environment.prod.ts`** tiene `production: false` + `useMocks: true`. Para un build de **producción real** debería ser `production: true` + `useMocks: false`. (Lo dejé como estaba — es tu decisión.)
 
@@ -39,15 +39,16 @@ Revisión completa de código, seguridad y robustez + lo que se agregó en esta 
 
 ---
 
-## 3. Limpieza de `ms-produccion` (frontend) — pasos manuales
+## 3. Limpieza de `ms-produccion` (frontend) — ✅ COMPLETADA
 
-> No lo ejecuté para no dejar el front sin compilar sin poder probarlo. Son 3 pasos:
+Los 3 pasos ya se aplicaron y no quedan referencias en el código:
 
-1. **Borrar** `frontend-app/src/app/services/produccion.service.ts`.
-2. En `frontend-app/src/app/services/mock-data.ts`: borrar la línea `import { TareaResponse } from './produccion.service';` y la constante `export const MOCK_KANBAN: TareaResponse[] = [ ... ];` (es la única que usa ese tipo).
-3. En `environment.ts` y `environment.prod.ts`: borrar la propiedad `produccionUrl`.
+1. ✅ `frontend-app/src/app/services/produccion.service.ts` eliminado.
+2. ✅ `MOCK_KANBAN` y el import de `TareaResponse` removidos de `mock-data.ts`.
+3. ✅ Propiedad `produccionUrl` removida de `environment.ts` y `environment.prod.ts`.
 
-Verificar con `ng build` (no debería romper: nada más los usa).
+Verificado: `grep` sobre `app/` no encuentra usos de `ProduccionService`, `TareaResponse`,
+`MOCK_KANBAN` ni `produccionUrl`. El Kanban usa `PedidosService`.
 
 ---
 
