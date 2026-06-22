@@ -143,6 +143,13 @@ client.on('message', async (msg) => {
       }
 
     } else if (msg.body) {
+      // ── ¿Es declaración de efectivo? ──────────────────────────────────────
+      const efectivo = parsearEfectivo(msg.body);
+      if (efectivo) {
+        await registrarEfectivo(msg, chat, contacto, efectivo);
+        return;
+      }
+
       // ── Llegó texto: ¿es el pie de un comprobante pendiente? ──
       const pie = parsearPie(msg.body);
       if (!pie.receptor) return;
@@ -358,6 +365,21 @@ async function leerConGemini(media, textoPdf) {
 }
 
 // ─── Parsers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Detecta una declaración de efectivo en el grupo.
+ * Formato: "efectivo 50000 (Receptor)" o "efectivo $50.000 (Receptor)"
+ * Devuelve { monto, receptor } o null si no coincide.
+ */
+function parsearEfectivo(texto) {
+  if (!texto) return null;
+  const m = texto.trim().match(/^efectivo\s+\$?\s*([\d.,]+)\s*\(([^)]+)\)/i);
+  if (!m) return null;
+  const montoStr = m[1].replace(/\./g, '').replace(',', '.');
+  const monto = parseFloat(montoStr);
+  if (!monto || monto < 100) return null;
+  return { monto: Math.round(monto), receptor: m[2].trim() };
+}
 
 /**
  * Pie: "EMISOR (RECEPTOR)" → { emisor, receptor, montoManual }.
@@ -615,6 +637,39 @@ async function registrarPago(datos) {
   throw lastError;
 }
 
+// ─── Registro de efectivo (borrador pendiente de confirmación) ───────────────
+async function registrarEfectivo(msg, chat, contacto, efectivo) {
+  const cargadoPorNombre   = contacto.pushname || contacto.name || 'Desconocido';
+  const cargadoPorTelefono = contacto.number;
+  const montoFmt = efectivo.monto.toLocaleString('es-AR');
+  console.log(`\n💵 [${chat.name}] ${cargadoPorNombre} declaró efectivo $${montoFmt} para "${efectivo.receptor}"`);
+
+  if (!BACKEND_ENABLED) {
+    await msg.reply(`🧪 *Modo prueba* — Efectivo detectado:\n• Monto: $${montoFmt}\n• Para: ${efectivo.receptor}`);
+    return;
+  }
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (BOT_API_KEY) headers['X-Bot-Api-Key'] = BOT_API_KEY;
+    const res = await axios.post(
+      `${BACKEND_URL}/api/finanzas/sueldos/pago-efectivo`,
+      { receptorNombre: efectivo.receptor, monto: efectivo.monto, cargadoPorNombre, cargadoPorTelefono, grupoOrigen: chat.name },
+      { headers, timeout: 10000 }
+    );
+    console.log(`[BOT-EFECTIVO] Borrador id=${res.data?.id} creado para "${efectivo.receptor}"`);
+    await msg.reply(
+      `💵 Efectivo anotado como *pendiente de confirmación*\n` +
+      `• Monto: *$${montoFmt}*\n` +
+      `• Para: *${efectivo.receptor}*\n` +
+      `_El administrativo lo confirma desde el sistema._`
+    );
+  } catch (e) {
+    console.error('[BOT-EFECTIVO] Error:', e.message);
+    await msg.reply(`⚠️ No se pudo registrar el efectivo: ${e.response?.data?.mensaje || e.message}`);
+  }
+}
+
 // ─── Limpieza periódica de pendientes vencidos ──────────────────────────────
 setInterval(() => {
   const ahora = Date.now();
@@ -676,6 +731,33 @@ http.createServer((req, res) => {
         return;
       }
 
+      // ── POST /api/bot/mensaje ─────────────────────────────────────────────
+      // Body: { telefono: string, texto: string }
+      // Endpoint genérico para alertas de cualquier microservicio (ej: stock bajo).
+      if (req.url === '/api/bot/mensaje') {
+        const { telefono, texto } = body;
+        if (!telefono || !texto) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Faltan campos: telefono, texto' }));
+        }
+        if (!estadoBot.conectado) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Bot no conectado' }));
+        }
+        try {
+          const chatId = normalizarTelefono(telefono);
+          await client.sendMessage(chatId, texto);
+          console.log(`📲 Mensaje genérico enviado a ${chatId}`);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, chatId }));
+        } catch (e) {
+          console.error('Error enviando mensaje:', e.message);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+        return;
+      }
+
       // ── POST /api/bot/notificar ───────────────────────────────────────────
       // Body: { telefono: string, nombre: string, nroPedido: string, trabajo: string }
       if (req.url === '/api/bot/notificar') {
@@ -730,3 +812,6 @@ function normalizarTelefono(telefono) {
 
 console.log('🤖 Iniciando bot de WhatsApp GS...');
 client.initialize();
+
+// ─── Scraper de mails (pedidos recibidos por email) ──────────────────────────
+require('./mail-scraper').iniciar();
