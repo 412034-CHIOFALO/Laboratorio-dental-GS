@@ -35,17 +35,12 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.List;
 import java.util.UUID;
 
 @Configuration
@@ -88,7 +83,8 @@ public class SecurityConfig {
     @Order(2)
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            // CORS lo maneja unicamente el gateway (unico punto de entrada del browser).
+            .cors(cors -> cors.disable())
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
@@ -103,23 +99,6 @@ public class SecurityConfig {
             // Necesario para que H2 console cargue en iframe (solo dev)
             .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
         return http.build();
-    }
-
-    // 3. CORS — orígenes configurables via ALLOWED_ORIGINS (default: localhost:4200)
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration config = new CorsConfiguration();
-        String origins = System.getenv("ALLOWED_ORIGINS");
-        List<String> allowedOrigins = (origins != null && !origins.isBlank())
-            ? Arrays.asList(origins.split(","))
-            : List.of("http://localhost:4200", "http://localhost");
-        config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        config.setAllowCredentials(true);
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
     }
 
     // 4. BCrypt para contraseñas
