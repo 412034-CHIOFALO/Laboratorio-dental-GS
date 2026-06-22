@@ -1,6 +1,7 @@
 package com.gs.ms_finanzas.dto;
 
 import com.gs.ms_finanzas.model.EstadoRegistroBot;
+import com.gs.ms_finanzas.model.FuentePago;
 import com.gs.ms_finanzas.model.RegistroPagoBot;
 import com.gs.ms_finanzas.model.TipoReceptorBot;
 
@@ -22,7 +23,8 @@ public record RegistroPagoBotResponse(
         String mensaje,
         String cargadoPorNombre,
         String grupoOrigen,
-        boolean tieneComprobante
+        boolean tieneComprobante,
+        FuentePago fuente
 ) {
     public static RegistroPagoBotResponse from(RegistroPagoBot r) {
         return new RegistroPagoBotResponse(
@@ -39,7 +41,8 @@ public record RegistroPagoBotResponse(
                 r.getMensaje(),
                 r.getCargadoPorNombre(),
                 r.getGrupoOrigen(),
-                r.getComprobanteUrl() != null && !r.getComprobanteUrl().isBlank()
+                r.getComprobanteUrl() != null && !r.getComprobanteUrl().isBlank(),
+                r.getFuente()
         );
     }
 }

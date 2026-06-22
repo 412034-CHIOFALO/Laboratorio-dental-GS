@@ -183,4 +183,57 @@ public class GestionSueldoController {
             @PathVariable Long registroId) {
         return ResponseEntity.ok(Map.of("url", service.urlComprobanteRegistro(registroId)));
     }
+
+    // ── Efectivo: borrador + confirmación ──────────────────────────────
+
+    @Operation(summary = "Registra un pago en efectivo declarado en el grupo",
+               description = "El bot llama a este endpoint cuando detecta 'efectivo NNN (Receptor)' en el grupo. " +
+                             "El registro queda en PENDIENTE con fuente=EFECTIVO hasta que el administrativo lo confirme o rechace.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Registro PENDIENTE creado"),
+        @ApiResponse(responseCode = "400", description = "Request inválido"),
+        @ApiResponse(responseCode = "403", description = "API key del bot inválida")
+    })
+    @PostMapping("/pago-efectivo")
+    public ResponseEntity<RegistroPagoBotResponse> registrarPagoEfectivo(
+            @Valid @RequestBody PagoEfectivoRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.registrarPagoEfectivo(req));
+    }
+
+    @Operation(summary = "Lista los pagos en efectivo pendientes de confirmación",
+               description = "Devuelve todos los registros del bot con estado=PENDIENTE y fuente=EFECTIVO, " +
+                             "para que el administrativo los confirme o rechace desde la UI.")
+    @GetMapping("/pendientes-efectivo")
+    public ResponseEntity<List<RegistroPagoBotResponse>> listarPendientesEfectivo() {
+        return ResponseEntity.ok(service.listarPendientesEfectivo());
+    }
+
+    @Operation(summary = "Confirma un pago en efectivo pendiente",
+               description = "El administrativo confirma el pago: se aplica al sueldo del empleado (o a la deuda del proveedor) " +
+                             "y se registra el egreso de la caja física.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Efectivo confirmado y aplicado"),
+        @ApiResponse(responseCode = "404", description = "Registro no encontrado"),
+        @ApiResponse(responseCode = "400", description = "El registro no está en estado PENDIENTE")
+    })
+    @PostMapping("/registros-bot/{id}/confirmar")
+    public ResponseEntity<RegistroPagoBotResponse> confirmarEfectivo(@PathVariable Long id) {
+        return ResponseEntity.ok(service.confirmarEfectivo(id));
+    }
+
+    @Operation(summary = "Rechaza un pago en efectivo pendiente",
+               description = "El administrativo rechaza el pago con un motivo opcional. " +
+                             "El registro pasa a RECHAZADO y queda en el historial.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Efectivo rechazado"),
+        @ApiResponse(responseCode = "404", description = "Registro no encontrado"),
+        @ApiResponse(responseCode = "400", description = "El registro no está en estado PENDIENTE")
+    })
+    @PostMapping("/registros-bot/{id}/rechazar")
+    public ResponseEntity<RegistroPagoBotResponse> rechazarEfectivo(
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, String> body) {
+        String motivo = body != null ? body.get("motivo") : null;
+        return ResponseEntity.ok(service.rechazarEfectivo(id, motivo));
+    }
 }

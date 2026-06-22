@@ -145,4 +145,26 @@ public interface IGestionSueldoService {
      * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si el registro no existe.
      */
     String urlComprobanteRegistro(Long registroId);
+
+    /**
+     * Registra un pago en efectivo declarado en el grupo de WhatsApp.
+     * El registro queda en estado PENDIENTE hasta que el administrativo lo confirme.
+     */
+    RegistroPagoBotResponse registrarPagoEfectivo(PagoEfectivoRequest req);
+
+    /**
+     * Confirma un pago en efectivo PENDIENTE: aplica el sueldo al empleado
+     * (o descuenta la deuda del proveedor) y registra el egreso de la caja física.
+     */
+    RegistroPagoBotResponse confirmarEfectivo(Long registroId);
+
+    /**
+     * Rechaza un pago en efectivo PENDIENTE, dejando trazabilidad del motivo.
+     */
+    RegistroPagoBotResponse rechazarEfectivo(Long registroId, String motivo);
+
+    /**
+     * Lista todos los registros del bot en estado PENDIENTE (efectivo sin confirmar).
+     */
+    List<RegistroPagoBotResponse> listarPendientesEfectivo();
 }

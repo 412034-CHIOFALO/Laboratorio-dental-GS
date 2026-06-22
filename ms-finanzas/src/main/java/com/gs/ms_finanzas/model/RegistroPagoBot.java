@@ -106,6 +106,15 @@ public class RegistroPagoBot {
     private EstadoRegistroBot estado;
 
     /**
+     * Origen del pago: transferencia bancaria (flujo normal) o efectivo declarado en el grupo
+     * (requiere confirmación manual antes de aplicarse al sueldo/proveedor).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "fuente", length = 15, nullable = false)
+    @Builder.Default
+    private FuentePago fuente = FuentePago.TRANSFERENCIA;
+
+    /**
      * Mensaje descriptivo del resultado (ej: "Sueldo registrado para Juan Perez — $45.000"
      * o "Receptor desconocido: 'Lab Dental XYZ' no matchea con ningún empleado ni proveedor").
      */

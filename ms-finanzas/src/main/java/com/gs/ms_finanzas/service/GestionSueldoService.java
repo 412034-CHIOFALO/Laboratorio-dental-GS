@@ -404,6 +404,117 @@ public class GestionSueldoService implements IGestionSueldoService {
                 .build();
     }
 
+    // ── Efectivo (borrador + confirmación manual) ─────────────────────
+
+    @Override
+    @Transactional
+    public RegistroPagoBotResponse registrarPagoEfectivo(PagoEfectivoRequest req) {
+        RegistroPagoBot reg = RegistroPagoBot.builder()
+                .monto(req.getMonto())
+                .receptorNombre(req.getReceptorNombre())
+                .cargadoPorNombre(req.getCargadoPorNombre())
+                .cargadoPorTelefono(req.getCargadoPorTelefono())
+                .grupoOrigen(req.getGrupoOrigen())
+                .estado(EstadoRegistroBot.PENDIENTE)
+                .fuente(FuentePago.EFECTIVO)
+                .tipoReceptor(TipoReceptorBot.DESCONOCIDO)
+                .mensaje("Efectivo declarado en el grupo — pendiente de confirmación.")
+                .build();
+        log.info("[BOT-EFECTIVO] Borrador: {} → ${}", req.getReceptorNombre(), req.getMonto());
+        return RegistroPagoBotResponse.from(registroRepo.save(reg));
+    }
+
+    @Override
+    @Transactional
+    public RegistroPagoBotResponse confirmarEfectivo(Long registroId) {
+        RegistroPagoBot reg = registroRepo.findById(registroId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registro", registroId));
+        if (reg.getEstado() != EstadoRegistroBot.PENDIENTE || reg.getFuente() != FuentePago.EFECTIVO) {
+            throw new BusinessException("Solo se pueden confirmar registros de efectivo en estado PENDIENTE");
+        }
+
+        // 1) Empleado
+        Optional<ConfiguracionSueldo> empleado = resolverEmpleadoPorNombre(reg.getReceptorNombre());
+        if (empleado.isPresent()) {
+            ConfiguracionSueldo c = empleado.get();
+            try {
+                PagoSueldo pago = aplicarPago(c, reg.getMonto(), ManejoSobrante.DESCONTAR_PROXIMO,
+                        LocalDate.now(), OrigenPago.BOT_WHATSAPP, "Efectivo confirmado");
+                pago.setCargadoPorNombre(reg.getCargadoPorNombre());
+                pago.setCargadoPorTelefono(reg.getCargadoPorTelefono());
+                pago.setGrupoOrigen(reg.getGrupoOrigen());
+                pagoRepo.save(pago);
+                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
+                        "Efectivo confirmado: sueldo a " + c.getEmpleadoNombre(), null);
+                reg.setEstado(EstadoRegistroBot.REGISTRADO);
+                reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
+                reg.setReceptorId(c.getEmpleadoId());
+                reg.setReceptorResuelto(c.getEmpleadoNombre());
+                reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
+                log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
+            } catch (BusinessException e) {
+                reg.setEstado(EstadoRegistroBot.RECHAZADO);
+                reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
+                reg.setMensaje(e.getMessage());
+            }
+            return RegistroPagoBotResponse.from(registroRepo.save(reg));
+        }
+
+        // 2) Proveedor
+        Optional<Proveedor> proveedor = resolverProveedorOpt(reg.getReceptorNombre());
+        if (proveedor.isPresent()) {
+            Proveedor p = proveedor.get();
+            BigDecimal settled = settleDeudaProveedor(p.getId(), reg.getMonto());
+            registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
+                    "Efectivo a proveedor: " + p.getNombre(), null);
+            reg.setEstado(EstadoRegistroBot.REGISTRADO);
+            reg.setTipoReceptor(TipoReceptorBot.PROVEEDOR);
+            reg.setReceptorId(p.getId());
+            reg.setReceptorResuelto(p.getNombre());
+            reg.setMensaje("Efectivo a proveedor: " + p.getNombre()
+                    + (settled.signum() > 0 ? " (deuda -$" + settled.toBigInteger() + ")" : ""));
+            log.info("[BOT-EFECTIVO] Confirmado: proveedor {} recibió ${}", p.getNombre(), reg.getMonto());
+            return RegistroPagoBotResponse.from(registroRepo.save(reg));
+        }
+
+        // 3) No reconocido
+        reg.setEstado(EstadoRegistroBot.RECHAZADO);
+        reg.setTipoReceptor(TipoReceptorBot.DESCONOCIDO);
+        reg.setMensaje("No se encontró empleado ni proveedor que coincida con \""
+                + reg.getReceptorNombre() + "\"");
+        return RegistroPagoBotResponse.from(registroRepo.save(reg));
+    }
+
+    @Override
+    @Transactional
+    public RegistroPagoBotResponse rechazarEfectivo(Long registroId, String motivo) {
+        RegistroPagoBot reg = registroRepo.findById(registroId)
+                .orElseThrow(() -> new ResourceNotFoundException("Registro", registroId));
+        if (reg.getEstado() != EstadoRegistroBot.PENDIENTE) {
+            throw new BusinessException("El registro no está en estado PENDIENTE");
+        }
+        reg.setEstado(EstadoRegistroBot.RECHAZADO);
+        reg.setMensaje("Rechazado: " + (motivo != null && !motivo.isBlank() ? motivo : "sin motivo"));
+        return RegistroPagoBotResponse.from(registroRepo.save(reg));
+    }
+
+    @Override
+    public List<RegistroPagoBotResponse> listarPendientesEfectivo() {
+        return registroRepo.findByEstadoOrderByFechaHoraDesc(EstadoRegistroBot.PENDIENTE).stream()
+                .map(RegistroPagoBotResponse::from)
+                .toList();
+    }
+
+    /** Match por nombre para la confirmación de efectivo (igual que el rama-nombre de resolverEmpleadoOpt). */
+    private Optional<ConfiguracionSueldo> resolverEmpleadoPorNombre(String nombre) {
+        if (nombre == null || nombre.isBlank()) return Optional.empty();
+        String q = nombre.trim().toLowerCase();
+        List<ConfiguracionSueldo> matches = configRepo.findAllByOrderByEmpleadoNombreAsc().stream()
+                .filter(x -> x.getEmpleadoNombre() != null && x.getEmpleadoNombre().toLowerCase().contains(q))
+                .toList();
+        return matches.size() == 1 ? Optional.of(matches.get(0)) : Optional.empty();
+    }
+
     private ConfiguracionSueldo getConfig(Long usuarioId) {
         return configRepo.findByEmpleadoId(usuarioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Empleado", usuarioId));

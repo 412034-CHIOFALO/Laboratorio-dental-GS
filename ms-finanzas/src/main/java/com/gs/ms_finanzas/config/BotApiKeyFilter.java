@@ -13,6 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Autenticación por API key para el bot de WhatsApp.
@@ -22,14 +23,17 @@ import java.util.List;
  * autentica como un usuario de servicio con ROLE_ADMIN, así puede registrar
  * pagos automáticos sin renovar tokens.
  *
- * Solo aplica al endpoint del bot ({@code /sueldos/pago-automatico}); el resto
- * de la API sigue protegido por JWT normal.
+ * Aplica a los endpoints del bot ({@code /sueldos/pago-automatico} para
+ * transferencias y {@code /sueldos/pago-efectivo} para borradores de efectivo);
+ * el resto de la API sigue protegido por JWT normal.
  */
 @Component
 public class BotApiKeyFilter extends OncePerRequestFilter {
 
     private static final String HEADER = "X-Bot-Api-Key";
-    private static final String RUTA_BOT = "/api/finanzas/sueldos/pago-automatico";
+    private static final Set<String> RUTAS_BOT = Set.of(
+            "/api/finanzas/sueldos/pago-automatico",
+            "/api/finanzas/sueldos/pago-efectivo");
 
     @Value("${gs.bot.api-key:}")
     private String botApiKey;
@@ -38,7 +42,7 @@ public class BotApiKeyFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        if (request.getRequestURI().endsWith(RUTA_BOT)) {
+        if (esRutaBot(request.getRequestURI())) {
             String key = request.getHeader(HEADER);
             if (claveValida(key)) {
                 var auth = new UsernamePasswordAuthenticationToken(
@@ -48,6 +52,10 @@ public class BotApiKeyFilter extends OncePerRequestFilter {
             }
         }
         chain.doFilter(request, response);
+    }
+
+    private boolean esRutaBot(String uri) {
+        return RUTAS_BOT.stream().anyMatch(uri::endsWith);
     }
 
     /**

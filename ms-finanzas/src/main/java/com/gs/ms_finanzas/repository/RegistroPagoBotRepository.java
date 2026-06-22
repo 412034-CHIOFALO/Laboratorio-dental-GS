@@ -14,4 +14,7 @@ public interface RegistroPagoBotRepository extends JpaRepository<RegistroPagoBot
 
     /** Anti-duplicado: ya existe un registro EXITOSO con ese nro de operación. */
     boolean existsByIdOperacionAndEstado(String idOperacion, EstadoRegistroBot estado);
+
+    /** Registros en un estado dado, ordenados más recientes primero. */
+    List<RegistroPagoBot> findByEstadoOrderByFechaHoraDesc(EstadoRegistroBot estado);
 }
