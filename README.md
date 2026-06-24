@@ -4,8 +4,9 @@
 > carrera de Programación — UTN. Reemplaza el flujo manual con Excel y WhatsApp
 > por una plataforma centralizada con arquitectura de microservicios.
 
-**Stack:** Spring Boot 3.5 + Spring Cloud · Angular 20 PWA · MySQL / H2 ·
-Docker Compose (RabbitMQ, MinIO para features futuras).
+**Stack:** Spring Boot 3.3 + Spring Cloud · Angular 20 PWA · MySQL / H2 ·
+MinIO (comprobantes y escaneos) · Bot de WhatsApp (Node + Gemini) ·
+Docker Compose (stack completo en un comando) · CI con GitHub Actions.
 
 ---
 
@@ -35,10 +36,14 @@ Este sistema implementa:
 - **Catálogo digital** de tipos de trabajo con precios y categorías
 - **Gestión de pedidos** con autocomplete inteligente de odontólogos (por
   nombre, DNI, CUIT o matrícula)
-- **Control financiero** con 3 cajas (Física, Bancaria, Compensación) y
-  cascada automática de sueldos
-- **Bot de WhatsApp** (próximamente) para recibir pedidos de odontólogos
-  directamente desde chat
+- **Control financiero** con 3 cajas (Física, Bancaria, Compensación), cascada
+  automática de sueldos, pagos a proveedores y triangulados
+- **Stock de materiales** con descuento automático desde la receta del catálogo
+  y alertas de stock bajo por WhatsApp
+- **Bot de WhatsApp** (Node + IA Gemini) que lee comprobantes de pago del grupo
+  y registra sueldos/proveedores/efectivo automáticamente
+- **Scraper de emails** (opcional) que convierte pedidos recibidos por mail en
+  pedidos del sistema, interpretando el contenido con IA
 
 ---
 
@@ -82,6 +87,11 @@ vía **API Gateway**. Cada microservicio tiene su propia base de datos.
                     │  Eureka (8761)      │
                     └─────────────────────┘
 ```
+
+**Componentes de apoyo:** **nginx** sirve el frontend y hace de reverse-proxy
+al gateway · **MinIO** guarda comprobantes y escaneos 3D · el **bot de WhatsApp**
+(Node) habla con el gateway por API key y con WhatsApp Web · **Eureka** registra
+los servicios y el gateway resuelve por nombre lógico (`lb://ms-*`).
 
 ### Patrón en capas
 
@@ -128,9 +138,8 @@ npm start            # o: ng serve --open
 
 Cada microservicio usa H2 en perfil `dev`. **No requiere MySQL ni Docker.**
 
-**Pre-requisitos:** Java 17+, Maven 3.8+, Node 20+, y el keystore JWT en
-`ms-auth/src/main/resources/keys/gs-auth.p12` (ver [Troubleshooting](#-troubleshooting)
-si te falta).
+**Pre-requisitos:** Java 17+, Maven 3.8+, Node 20+. El keystore JWT lo **genera
+el script automáticamente** si no existe (no hay paso manual).
 
 ```powershell
 # Windows
@@ -175,24 +184,38 @@ cd frontend-app       && ng serve --open
 > En Linux/Mac usar `./mvnw spring-boot:run`. En Windows con Git Bash, el wrapper
 > `mvnw` puede no estar; usar `mvn` directo o el `mvnw.cmd`.
 
-### Modo 3 — Full stack con Docker (MySQL + RabbitMQ + MinIO)
+### Modo 3 — Stack completo con Docker (un solo comando)
 
-Si querés probar contra MySQL real (más parecido a producción):
+El modo más parecido a producción: levanta **los 11 containers** (MySQL, MinIO,
+discovery, ms-auth, los 4 ms de negocio, gateway, frontend nginx y el bot) con
+MySQL real. Funciona sobre un **clone limpio sin pasos manuales** — el keystore
+JWT se genera en el build y los `application-prod.properties` están versionados.
 
-```powershell
-.\start-dev.ps1 -WithDocker
+```bash
+docker compose up -d --build      # primer arranque: compila e inicia todo
+docker compose logs -f gs-bot     # mostrar el QR para vincular el WhatsApp del bot
+docker compose ps                 # ver el estado (healthy) de cada container
 ```
 
-Arranca primero `docker compose up -d` (MySQL, RabbitMQ, MinIO) y después los
-microservicios. Para forzar que los ms usen MySQL en vez de H2, definir
-`SPRING_PROFILES_ACTIVE=prod` antes de cada `mvn spring-boot:run`.
+Accesos desde el host:
+
+| URL | Servicio |
+|-----|----------|
+| http://localhost | Frontend (nginx) |
+| http://localhost:8080 | API Gateway (directo) |
+| http://localhost:8761 | Eureka dashboard |
+| http://localhost:9001 | MinIO console |
+
+> Variables de entorno opcionales en `.env` (ver `.env.example`): contraseñas de
+> MySQL/MinIO, `GEMINI_API_KEY` para la IA del bot, credenciales del scraper de
+> mails. Todas tienen defaults de desarrollo, así que `docker compose up` anda sin
+> configurar nada.
 
 ### Apagar todo
 
-- **Backend / Frontend:** cerrar las ventanas de PowerShell (o `Ctrl+C` en
-  cada una)
-- **Docker:** `docker compose down` (o `docker compose down -v` para borrar
-  también los volúmenes)
+- **Modo 2 (local):** cerrar las ventanas de PowerShell (o `Ctrl+C` en cada una)
+- **Modo 3 (Docker):** `docker compose down` (o `docker compose down -v` para
+  borrar también las bases y los archivos)
 
 ---
 
@@ -212,9 +235,11 @@ TRABAJO PRACTICO INTEGRADOR/
 │
 ├── frontend-app/             Angular 20 PWA
 │   └── src/app/pages/dashboard/     Páginas del SaaS
+├── gs-bot-whatsapp/          Bot de WhatsApp (Node + Gemini + scraper de mails)
 │
-├── docker-compose.yml        MySQL + RabbitMQ + MinIO
-├── start-dev.ps1             Script de arranque del stack completo
+├── docker-compose.yml        Stack completo (MySQL + MinIO + ms + frontend + bot)
+├── start-dev.ps1             Arranque local sin Docker (H2, keystore auto)
+├── test-e2e.ps1              Suite de pruebas E2E contra el stack vivo
 ├── .env.example              Plantilla de variables de entorno
 └── README.md                 Este archivo
 ```
@@ -236,42 +261,45 @@ com.gs.ms_<nombre>/
 
 ## ✅ Estado del desarrollo
 
-### Hecho
+### Backend
 
-**Backend** (todos los microservicios compilando y testeados manualmente):
+- [x] discovery-server, api-gateway (CORS centralizado, validación JWT), ms-auth (OAuth2 + JWT RSA, rate-limit de login, auditoría)
+- [x] ms-catalogo (tipos de trabajo + receta de materiales)
+- [x] ms-pedidos (pedidos, odontólogos con find-or-create + búsqueda inteligente, Kanban, entregas, pedidos atrasados, descuento de stock automático)
+- [x] ms-finanzas (3 cajas, cobros, comprobantes, proveedores, deudas, sueldos con devengado, pagos triangulados)
+- [x] ms-stock (CRUD de materiales, movimientos, configuración de alertas)
+- [x] Patrón en capas + `GlobalExceptionHandler` unificado (400/403/404/405/409/422/500) en todos los ms
+- [x] Perfil `dev` con H2 (sin Docker) y perfil `prod` con MySQL
+- [x] **Tests con JaCoCo — 80%+ de coverage en los 5 microservicios** (catálogo 100%, stock 86%, pedidos 81%, finanzas 82%, auth 83%)
 
-- [x] discovery-server, api-gateway, ms-auth (con JWT/RSA)
-- [x] ms-catalogo, ms-pedidos (con entidad `Odontologo` y find-or-create)
-- [x] ms-finanzas, ms-stock (el Kanban de producción quedó integrado en ms-pedidos)
-- [x] Patrón en capas en todos los ms
-- [x] GlobalExceptionHandler unificado (400/403/404/405/409/422/500)
-- [x] Perfil `dev` con H2 en todos los ms (no requiere MySQL)
+### Frontend
 
-**Frontend** (páginas implementadas):
+- [x] Landing pública, Login con AuthGuard, PWA (service worker offline)
+- [x] Catálogo, Pedidos (autocomplete inteligente), Odontólogos (vista 360°)
+- [x] Producción / Kanban (drag & drop desktop, "avanzar" en mobile), Entregas
+- [x] Finanzas (cajas en vivo, cobros, sueldos, proveedores, registros del bot)
+- [x] Stock, Reportes, Configuración, Usuarios, Auditoría
+- [x] Manual de usuario integrado + tour guiado (driver.js)
 
-- [x] Landing pública, Login con AuthGuard
-- [x] Dashboard shell (sidebar responsive, PWA)
-- [x] Catálogo (CRUD con foto, precio rápido inline)
-- [x] Pedidos (lista filtrable + modal con autocomplete inteligente)
-- [x] Odontólogos (CRUD completo, grid de cards)
-- [x] Producción / Kanban (drag & drop desktop, botón "avanzar" en mobile)
-- [x] Entregas (pendientes + historial + mensaje WhatsApp para cadetería)
-- [x] Finanzas — Tab Cajas (saldos en vivo + movimientos + alertas)
-- [x] Usuarios (CRUD básico, solo ADMIN)
+### Bot de WhatsApp (Node)
 
-### En progreso
+- [x] Lectura de comprobantes del grupo con IA (Gemini) + OCR
+- [x] Registro automático de pagos: sueldos, proveedores, triangulados y efectivo
+- [x] Alertas de stock bajo al administrador
+- [x] Scraper de emails → pedidos (opcional, `MAIL_ENABLED=true`)
 
-- [ ] Refactor del Kanban para que use `Pedido` directamente (en lugar de la
-      entidad separada `TareaProduccion`) — sincroniza el workflow end-to-end
+### Infraestructura
 
-### Pendiente
+- [x] Dockerfiles de los 9 servicios + `docker-compose.yml` (stack completo)
+- [x] Fresh-clone + `docker compose up` funciona out-of-the-box (keystore auto-generado, prod-properties versionados)
+- [x] CI con GitHub Actions (build + tests de los 5 ms + frontend + bot)
+- [x] Javadoc generable (`mvnw javadoc:javadoc`)
 
-- [ ] Finanzas — Cuentas / Cobros / Proveedores / Sueldos
-- [ ] Stock (CRUD de materiales y movimientos)
-- [ ] Reportes (KPIs, gráficos, exportar PDF)
-- [ ] Documentos, Escaneos 3D, Auditoría
-- [ ] Bot de WhatsApp
-- [ ] CI/CD y despliegue productivo
+### Pendiente / deuda
+
+- [ ] Migraciones de BD (Flyway) — hoy `ddl-auto=update`
+- [ ] CD real (deploy a servidor + registry de imágenes)
+- [ ] Tests E2E automatizados del stack vivo (`test-e2e.ps1` existe, falta integrarlo)
 
 ---
 
@@ -327,8 +355,10 @@ Tipos: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `style`.
 ### Reglas de seguridad
 
 - Claves criptográficas (`*.p12`, `*.jks`, `*.key`, `*.pem`) **nunca** se commitean
+  (el keystore JWT se genera en el build / `start-dev.ps1`)
 - El `.env` real **nunca** se commitea (solo `.env.example` con placeholders)
-- `application-prod.properties` está en `.gitignore`
+- `application-prod.properties` **sí se versiona**: solo tiene placeholders
+  `${VAR:default}` sin secretos, para que un clone limpio arranque sin configurar nada
 
 ---
 
@@ -344,20 +374,20 @@ Tipos: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `style`.
 | Script `.ps1` no ejecuta | ExecutionPolicy bloqueado | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
 | `keytool: command not found` | Java no está en PATH | Agregá `%JAVA_HOME%\bin` al PATH |
 
-### Generar el keystore de ms-auth (si falta tras clonar)
+### Keystore de ms-auth
 
-Si después de clonar el repo no tenés `ms-auth/src/main/resources/keys/gs-auth.p12`:
+El keystore JWT (`ms-auth/src/main/resources/keys/gs-auth.p12`) **no se versiona**
+(es una clave criptográfica) pero se **genera solo**:
+
+- **Docker:** el `Dockerfile` de ms-auth lo crea con `keytool` durante el build.
+- **Local:** `start-dev.ps1` lo crea al arrancar si no existe.
+
+Si querés generarlo a mano (raro):
 
 ```bash
-keytool -genkeypair \
-  -alias gs-auth \
-  -keyalg RSA \
-  -keysize 2048 \
-  -validity 3650 \
-  -storetype PKCS12 \
-  -keystore ms-auth/src/main/resources/keys/gs-auth.p12 \
-  -storepass gs_keystore_2025 \
-  -dname "CN=gs-auth,OU=Laboratorio GS,O=Tesis,L=BA,C=AR"
+keytool -genkeypair -alias gs-auth -keyalg RSA -keysize 2048 -validity 3650 \
+  -storetype PKCS12 -keystore ms-auth/src/main/resources/keys/gs-auth.p12 \
+  -storepass gs_keystore_2025 -dname "CN=gs-auth,OU=Laboratorio GS,O=Tesis,L=BA,C=AR"
 ```
 
 ---
@@ -371,10 +401,10 @@ keytool -genkeypair \
 | Sprint 2 | Catálogo + Dashboard | ✅ Finalizado |
 | Sprint 3 | Pedidos + Odontólogos + Entregas | ✅ Finalizado |
 | Sprint 4 | Finanzas — Cajas + dev sin Docker | ✅ Finalizado |
-| Sprint 5 | Refactor Kanban + Finanzas (resto) + Stock | 🔵 En curso |
-| Sprint 6 | Bot WhatsApp | 🔴 Pendiente |
-| Sprint 7 | Reportes + Auditoría | 🔴 Pendiente |
-| Sprint 8 | Despliegue y dominio propio | 🔴 Pendiente |
+| Sprint 5 | Kanban + Finanzas (cobros/sueldos/proveedores) + Stock | ✅ Finalizado |
+| Sprint 6 | Bot WhatsApp (comprobantes, triangulados, efectivo, scraper de mails) | ✅ Finalizado |
+| Sprint 7 | Reportes + Auditoría + Tests (80% coverage) + Dockerización | ✅ Finalizado |
+| Sprint 8 | Despliegue productivo y dominio propio | 🔵 En curso |
 
 ---
 
