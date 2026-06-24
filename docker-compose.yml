@@ -1,9 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #   ERP G&S — Stack completo (Producción)
 #
-#   Levanta: infra (MySQL, MinIO) + 5 ms de negocio + discovery + gateway
-#            + frontend (nginx) + bot de WhatsApp
-#   Total: 10 containers + 1 red interna
+#   Levanta: infra (MySQL, MinIO) + ms-auth + 4 ms de negocio + discovery
+#            + gateway + frontend (nginx) + bot de WhatsApp
+#   Total: 11 containers + 1 red interna
 #
 #   Uso:
 #     docker compose up -d            # primer arranque, compila todo

@@ -12,8 +12,8 @@ RUN mvn package -DskipTests -B
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
 
-RUN addgroup -S gys && adduser -S gys -G gys
-USER gys
+RUN addgroup -S gs && adduser -S gs -G gs
+USER gs
 
 COPY --from=build /app/target/ms-stock-0.0.1-SNAPSHOT.jar app.jar
 

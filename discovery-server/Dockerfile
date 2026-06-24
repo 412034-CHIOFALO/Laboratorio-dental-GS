@@ -15,8 +15,8 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # Usuario no-root por seguridad
-RUN addgroup -S gys && adduser -S gys -G gys
-USER gys
+RUN addgroup -S gs && adduser -S gs -G gs
+USER gs
 
 COPY --from=build /app/target/discovery-server-0.0.1-SNAPSHOT.jar app.jar
 

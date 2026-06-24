@@ -27,7 +27,9 @@ frontend-app/*.js.map
 # ── Variables de entorno / secretos ────────────────────────
 .env
 *.env.local
-application-prod.properties
+# NOTA: application-prod.properties SE VERSIONA. Solo usa placeholders
+# ${VAR:default} (sin secretos); los valores reales van por env/.env en runtime.
+# Asi un clone limpio + docker compose up funciona out-of-the-box.
 
 # ── Claves criptográficas (NUNCA commitear) ────────────────
 *.p12

@@ -28,6 +28,19 @@ Write-Host ""
 Write-Host "Levantando ERP G&S en modo dev (H2 en memoria)" -ForegroundColor Green
 Write-Host ""
 
+# -- 0. Keystore JWT (se genera si no existe; no se versiona) -------
+$keystore = "$root\ms-auth\src\main\resources\keys\gs-auth.p12"
+if (-not (Test-Path $keystore)) {
+    Write-Host "Generando keystore JWT (no estaba presente)..." -ForegroundColor Cyan
+    New-Item -ItemType Directory -Force -Path (Split-Path $keystore) | Out-Null
+    $ksPass = if ($env:GS_KEYSTORE_PASSWORD) { $env:GS_KEYSTORE_PASSWORD } else { "gs_keystore_2025" }
+    keytool -genkeypair -alias gs-auth -keyalg RSA -keysize 2048 -validity 3650 `
+        -storetype PKCS12 -keystore $keystore `
+        -storepass $ksPass -keypass $ksPass `
+        -dname "CN=gs-auth,OU=Laboratorio GS,O=Tesis,L=BA,C=AR"
+    Write-Host "  -> keystore creado en $keystore" -ForegroundColor Green
+}
+
 # -- 1. (Opcional) Docker ------------------------------------------
 if ($WithDocker) {
     Write-Host "Paso 0: Docker (MySQL + MinIO)" -ForegroundColor Cyan
