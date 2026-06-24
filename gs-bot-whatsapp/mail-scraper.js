@@ -119,7 +119,7 @@ let _transporter = null;
 function getTransporter() {
   if (_transporter) return _transporter;
   if (!SMTP_HOST) return null;
-  _transporter = nodemailer.createTransporter({
+  _transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
     secure: SMTP_PORT === 465,
