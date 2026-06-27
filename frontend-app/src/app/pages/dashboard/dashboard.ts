@@ -3,6 +3,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { AuthService } from '../../services/auth';
 import { ThemeService } from '../../services/theme.service';
 import { TutorialService } from '../../services/tutorial.service';
+import { NotificacionesService } from '../../services/notificaciones.service';
 
 interface NavItem {
   type: 'item';
@@ -32,16 +33,18 @@ export class DashboardComponent implements OnInit {
   roles: string[] = [];
   sidebarOpen = true;
   mobileMenuOpen = false;
+  profileMenuOpen = false;
+  notisOpen = false;
 
   navEntries: NavEntry[] = [
     { type: 'group', label: 'Operativo' },
-    { type: 'item', label: 'Inicio',       icon: 'home',      route: '/dashboard' },
+    { type: 'item', label: 'Inicio',       icon: 'home',      route: '/dashboard',              tourId: 'nav-inicio' },
     { type: 'item', label: 'Pedidos',      icon: 'package',   route: '/dashboard/pedidos',      tourId: 'nav-pedidos' },
     { type: 'item', label: 'Producción',   icon: 'layers',    route: '/dashboard/produccion',   tourId: 'nav-produccion' },
     { type: 'item', label: 'Entregas',     icon: 'truck',     route: '/dashboard/entregas',     tourId: 'nav-entregas' },
 
     { type: 'group', label: 'Gestión' },
-    { type: 'item', label: 'Catálogo',     icon: 'list',      route: '/dashboard/catalogo' },
+    { type: 'item', label: 'Catálogo',     icon: 'list',      route: '/dashboard/catalogo',     tourId: 'nav-catalogo' },
     { type: 'item', label: 'Odontólogos',  icon: 'tooth',     route: '/dashboard/odontologos' },
     { type: 'item', label: 'Stock',        icon: 'box',       route: '/dashboard/stock',        tourId: 'nav-stock' },
     { type: 'item', label: 'Finanzas',     icon: 'dollar',    route: '/dashboard/finanzas',     tourId: 'nav-finanzas' },
@@ -62,11 +65,37 @@ export class DashboardComponent implements OnInit {
 
   readonly themeService    = inject(ThemeService);
   readonly tutorialService = inject(TutorialService);
+  readonly notis           = inject(NotificacionesService);
 
   constructor(private authService: AuthService, private router: Router) {}
 
   toggleTheme(): void {
     this.themeService.toggle();
+  }
+
+  toggleProfileMenu(event: Event): void {
+    event.stopPropagation();
+    this.notisOpen = false;
+    this.profileMenuOpen = !this.profileMenuOpen;
+  }
+
+  toggleNotis(event: Event): void {
+    event.stopPropagation();
+    this.profileMenuOpen = false;
+    this.notisOpen = !this.notisOpen;
+    if (this.notisOpen) {
+      this.notis.refrescar();
+    }
+  }
+
+  get esAdmin(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    this.profileMenuOpen = false;
+    this.notisOpen = false;
   }
 
   iniciarTutorial(): void {

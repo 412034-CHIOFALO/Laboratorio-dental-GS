@@ -16,7 +16,7 @@
 .conf-loading { color: var(--gs-text-muted, #6b7280); padding: 2rem 0; }
 
 .conf-card {
-  background: var(--surface, #fff);
+  background: var(--card);
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 14px;
   padding: 1.5rem;
@@ -43,7 +43,7 @@
   padding: 0.55rem 0.85rem;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 8px;
-  background: var(--surface, #fff);
+  background: var(--card);
   color: var(--gs-text, #111);
   font-family: inherit;
   font-size: 0.9rem;

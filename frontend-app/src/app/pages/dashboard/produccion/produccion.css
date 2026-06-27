@@ -472,8 +472,8 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(260px, 1fr));
   gap: 1rem;
-  min-height: 420px;
-  align-items: start;
+  min-height: 520px;
+  align-items: stretch;
 }
 
 /* Column */
