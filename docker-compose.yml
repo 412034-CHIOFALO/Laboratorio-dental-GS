@@ -101,6 +101,10 @@ services:
     build:
       context: ./ms-auth
       dockerfile: Dockerfile
+      args:
+        # El keystore se genera en el build: debe usar el MISMO password que
+        # ms-auth leerá en runtime (GS_KEYSTORE_PASSWORD), si no, no abre la clave RSA.
+        KEYSTORE_PASSWORD: ${GS_KEYSTORE_PASSWORD:-gs_keystore_2025}
     container_name: gs-auth
     environment:
       SPRING_PROFILES_ACTIVE: prod

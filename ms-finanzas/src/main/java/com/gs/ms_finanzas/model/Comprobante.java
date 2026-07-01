@@ -78,6 +78,14 @@ public class Comprobante {
     private BigDecimal monto;
 
     /**
+     * Monto ya pagado de este comprobante (soporta pagos parciales/mensuales).
+     * El saldo pendiente es {@code monto - montoPagado}.
+     */
+    @Column(name = "monto_pagado", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal montoPagado = BigDecimal.ZERO;
+
+    /**
      * Estado actual del comprobante en el ciclo de cobro.
      * <ul>
      *   <li>{@link EstadoPago#PENDIENTE} — emitido, sin cobrar.</li>
@@ -124,5 +132,13 @@ public class Comprobante {
     protected void onCreate() {
         this.fechaCreacion = LocalDateTime.now();
         if (this.estadoPago == null) this.estadoPago = EstadoPago.PENDIENTE;
+        if (this.montoPagado == null) this.montoPagado = BigDecimal.ZERO;
+    }
+
+    /** Saldo que todavía resta cobrar de este comprobante. */
+    @Transient
+    public BigDecimal getSaldoPendiente() {
+        BigDecimal pagado = montoPagado != null ? montoPagado : BigDecimal.ZERO;
+        return monto.subtract(pagado).max(BigDecimal.ZERO);
     }
 }

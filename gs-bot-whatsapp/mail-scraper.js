@@ -139,14 +139,14 @@ async function enviarRespuesta(to, nombre, asuntoOriginal, pedido, mensajeError)
       `  Trabajo        : ${pedido.trabajo}\n` +
       `  Paciente       : ${pedido.paciente}\n` +
       `  Fecha entrega  : ${pedido.fechaEntrega}\n\n` +
-      `Ante cualquier consulta comuníquese con el laboratorio.\n\nLaboratorio G&S`
+      `Ante cualquier consulta comuníquese con el laboratorio.\n\nLaboratorio GS`
     : `Hola ${nombre},\n\n` +
       `Recibimos tu email pero ${mensajeError || 'no pudimos procesarlo automáticamente'}.\n\n` +
-      `Por favor comuníquese directamente con el laboratorio.\n\nLaboratorio G&S`;
+      `Por favor comuníquese directamente con el laboratorio.\n\nLaboratorio GS`;
 
   try {
     await t.sendMail({
-      from: `"Laboratorio G&S" <${SMTP_USER}>`,
+      from: `"Laboratorio GS" <${SMTP_USER}>`,
       to,
       subject: `Re: ${asuntoOriginal}`,
       text: cuerpo,
@@ -184,14 +184,14 @@ async function procesarEmail(uid, envelope, source) {
     console.error('[MailScraper]    ❌ Gemini falló:', e.message);
     await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
       'no fue posible interpretar el contenido del email');
-    return;
+    return true;  // problema de contenido: ya respondimos, no reintentar
   }
 
   if (!datos.trabajo) {
     console.log('[MailScraper]    ⚠ Sin trabajo identificado — email descartado');
     await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
       'no se pudo determinar el tipo de trabajo. Por favor reenvíe con más detalles');
-    return;
+    return true;  // problema de contenido: ya respondimos, no reintentar
   }
 
   // Fecha de entrega por defecto: 10 días corridos si Gemini no la detectó
@@ -245,11 +245,11 @@ async function procesarEmail(uid, envelope, source) {
         console.log(`[MailScraper]    ✅ Pedido creado (reintento): ${pedidoCreado.nroPedido}`);
       } catch (e2) {
         console.error('[MailScraper]    ❌ Error creando pedido:', e2.response?.data?.message || e2.message);
-        return;
+        return false;  // falla de infraestructura: NO marcar leído, reintentar luego
       }
     } else {
       console.error('[MailScraper]    ❌ Error creando pedido:', e.response?.data?.message || e.message);
-      return;
+      return false;  // falla de infraestructura: NO marcar leído, reintentar luego
     }
   }
 
@@ -281,6 +281,7 @@ async function procesarEmail(uid, envelope, source) {
 
   // Respuesta de confirmación al odontólogo
   await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, pedidoCreado, null);
+  return true;  // pedido creado OK → marcar leído
 }
 
 // ─── Poll IMAP ────────────────────────────────────────────────────────────────
@@ -304,13 +305,21 @@ async function pollMail() {
       console.log(`[MailScraper] ${uids.length} email(s) nuevo(s)`);
 
       for await (const msg of imap.fetch(uids, { envelope: true, source: true }, { uid: true })) {
+        let resuelto = false;
         try {
-          await procesarEmail(msg.uid, msg.envelope, msg.source);
+          // Solo se marca leído si el email quedó resuelto (pedido creado o
+          // descartado por contenido). Si falló por infraestructura (backend
+          // caído), se deja sin leer para reintentarlo en el próximo poll y no
+          // perder el pedido.
+          resuelto = await procesarEmail(msg.uid, msg.envelope, msg.source);
         } catch (e) {
           console.error('[MailScraper] Error procesando email:', e.message);
-        } finally {
-          // Marcar como leído sin importar si hubo error
+          resuelto = false;
+        }
+        if (resuelto) {
           await imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], { uid: true });
+        } else {
+          console.warn(`[MailScraper] Email uid=${msg.uid} sin marcar — se reintentará.`);
         }
       }
     } finally {

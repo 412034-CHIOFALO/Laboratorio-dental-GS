@@ -20,6 +20,7 @@ import { BotRegistrosComponent } from './pages/dashboard/bot-registros/bot-regis
 import { ProveedoresComponent } from './pages/dashboard/proveedores/proveedores';
 import { ConfiguracionComponent } from './pages/dashboard/configuracion/configuracion';
 import { ManualComponent } from './pages/dashboard/manual/manual';
+import { MiPerfilComponent } from './pages/dashboard/mi-perfil/mi-perfil';
 import { ErrorPageComponent } from './pages/error/error-page';
 import { authGuard } from './guards/auth.guard';
 
@@ -48,6 +49,7 @@ export const routes: Routes = [
       { path: 'auditoria',      component: AuditoriaComponent },
       { path: 'usuarios',       component: UsuariosComponent },
       { path: 'configuracion',  component: ConfiguracionComponent },
+      { path: 'mi-perfil',      component: MiPerfilComponent },
       { path: 'manual',         component: ManualComponent },
     ]
   },

@@ -28,18 +28,15 @@ public class DevDataInitializer implements CommandLineRunner {
     private final ComprobanteRepository repository;
     private final ProveedorRepository proveedorRepository;
     private final DeudaProveedorRepository deudaProveedorRepository;
-    private final SueldoEmpleadoRepository sueldoEmpleadoRepository;
     private final ConfiguracionSueldoRepository configSueldoRepository;
 
     public DevDataInitializer(ComprobanteRepository repository,
                               ProveedorRepository proveedorRepository,
                               DeudaProveedorRepository deudaProveedorRepository,
-                              SueldoEmpleadoRepository sueldoEmpleadoRepository,
                               ConfiguracionSueldoRepository configSueldoRepository) {
         this.repository = repository;
         this.proveedorRepository = proveedorRepository;
         this.deudaProveedorRepository = deudaProveedorRepository;
-        this.sueldoEmpleadoRepository = sueldoEmpleadoRepository;
         this.configSueldoRepository = configSueldoRepository;
     }
 
@@ -146,27 +143,6 @@ public class DevDataInitializer implements CommandLineRunner {
                 .build()
         );
         log.info("[GS-DEV] Deuda proveedor cargada: Cerámica Vita PM9 $25.000");
-
-        // ── Sueldos del mes actual ──────────────────────────────────────
-        int mes = hoy.getMonthValue();
-        int anio = hoy.getYear();
-        sueldoEmpleadoRepository.saveAll(List.of(
-            SueldoEmpleado.builder()
-                .empleadoId(1L)
-                .empleadoNombre("Carlos López")
-                .monto(new BigDecimal("180000.00"))
-                .mes(mes)
-                .anio(anio)
-                .build(),
-            SueldoEmpleado.builder()
-                .empleadoId(2L)
-                .empleadoNombre("Valentina Torres")
-                .monto(new BigDecimal("150000.00"))
-                .mes(mes)
-                .anio(anio)
-                .build()
-        ));
-        log.info("[GS-DEV] Sueldos del mes {}/{} cargados.", mes, anio);
     }
 
     /**

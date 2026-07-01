@@ -38,6 +38,8 @@ export interface EntregaRequest {
   retiradoPor: string;
   fechaEntregaReal?: string | null;
   observacionesEntrega?: string | null;
+  /** Monto a facturar — genera la deuda en cuenta corriente. */
+  monto?: number | null;
 }
 
 export interface PedidoRequest {

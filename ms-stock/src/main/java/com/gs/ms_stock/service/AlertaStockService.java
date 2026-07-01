@@ -45,7 +45,7 @@ public class AlertaStockService {
             }
 
             String texto =
-                "⚠️ *Alerta de Stock — Lab G\\&S*\n" +
+                "⚠️ *Alerta de Stock — Laboratorio GS*\n" +
                 "Material: *" + escape(material.getNombre()) + "*\n" +
                 "Stock actual: *" + material.getStockActual() + " " + escape(material.getUnidadMedida()) + "*\n" +
                 "Mínimo configurado: " + material.getStockMinimo() + " " + escape(material.getUnidadMedida()) + "\n" +

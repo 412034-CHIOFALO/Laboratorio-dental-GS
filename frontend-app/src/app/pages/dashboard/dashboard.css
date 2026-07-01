@@ -825,6 +825,31 @@
   border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
   border: 2px solid var(--bg);
+  z-index: 1;
+  animation: notis-pulse 1.6s ease-in-out infinite;
+}
+/* Halo rojo que late detrás del badge para llamar la atención */
+.notis-badge::after {
+  content: '';
+  position: absolute; inset: -2px;
+  border-radius: 999px;
+  background: var(--color-danger);
+  z-index: -1;
+  animation: notis-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes notis-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+@keyframes notis-ping {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  70%  { transform: scale(2.1); opacity: 0; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+/* Respeta a quienes prefieren menos movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .notis-badge { animation: none; }
+  .notis-badge::after { animation: none; opacity: 0; }
 }
 
 .notis-menu {

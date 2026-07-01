@@ -3,6 +3,8 @@ package com.gs.ms_finanzas.controller;
 import com.gs.ms_finanzas.dto.ComprobanteRequest;
 import com.gs.ms_finanzas.dto.ComprobanteResponse;
 import com.gs.ms_finanzas.dto.CuentaCorrienteOdontologoResponse;
+import com.gs.ms_finanzas.dto.PagoCuentaCorrienteRequest;
+import com.gs.ms_finanzas.dto.PagoCuentaCorrienteResponse;
 import com.gs.ms_finanzas.service.IFinanzasService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -148,5 +150,36 @@ public class FinanzasController {
     @GetMapping("/cuentas-corrientes")
     public ResponseEntity<List<CuentaCorrienteOdontologoResponse>> rankingMorosos() {
         return ResponseEntity.ok(service.rankingMorosos());
+    }
+
+    /**
+     * Registra un pago manual a la cuenta corriente de un odontólogo. El monto se
+     * imputa a sus deudas pendientes (más viejas primero, parcial o total) e
+     * ingresa a la caja según el medio (efectivo → Física, transferencia → Bancaria).
+     */
+    @Operation(summary = "Registrar pago a cuenta corriente",
+               description = "Imputa un pago manual a las deudas pendientes del odontólogo (más viejas primero, " +
+                             "permitiendo pagos parciales) y registra el ingreso de caja según el medio.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pago registrado e imputado"),
+        @ApiResponse(responseCode = "400", description = "El odontólogo no tiene deudas pendientes"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    @PostMapping("/odontologos/{odontologoId}/pagos")
+    public ResponseEntity<PagoCuentaCorrienteResponse> registrarPagoCuentaCorriente(
+            @Parameter(description = "ID del odontólogo", required = true)
+            @PathVariable Long odontologoId,
+            @Valid @RequestBody PagoCuentaCorrienteRequest request) {
+        return ResponseEntity.ok(service.registrarPagoCuentaCorriente(odontologoId, request));
+    }
+
+    @Operation(summary = "Histórico de pagos de un odontólogo",
+               description = "Lista los pagos a cuenta corriente registrados para el odontólogo, más recientes primero.")
+    @ApiResponse(responseCode = "200", description = "Histórico obtenido")
+    @GetMapping("/odontologos/{odontologoId}/pagos")
+    public ResponseEntity<List<PagoCuentaCorrienteResponse>> historialPagos(
+            @Parameter(description = "ID del odontólogo", required = true)
+            @PathVariable Long odontologoId) {
+        return ResponseEntity.ok(service.historialPagosOdontologo(odontologoId));
     }
 }

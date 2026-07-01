@@ -697,3 +697,14 @@ select.form-input { cursor: pointer; }
   .ped-table th, .ped-table td { padding: 0.65rem 0.7rem; }
   .detalle-grid { grid-template-columns: 1fr; }
 }
+
+/* Badge "sin precio" — pedidos sin monto cargado (se factura al entregar) */
+.badge-sin-precio {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.16);
+  color: #f59e0b;
+}

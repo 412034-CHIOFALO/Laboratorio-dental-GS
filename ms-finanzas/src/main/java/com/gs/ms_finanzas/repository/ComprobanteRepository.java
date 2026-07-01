@@ -18,8 +18,12 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
 
     List<Comprobante> findByOdontologoIdAndEstadoPago(Long odontologoId, EstadoPago estadoPago);
 
-    /** Suma total de cobros pendientes por odontólogo (cuenta corriente). */
-    @Query("SELECT COALESCE(SUM(c.monto), 0) FROM Comprobante c WHERE c.odontologoId = :odontologoId AND c.estadoPago = 'PENDIENTE'")
+    /** Comprobantes con saldo pendiente (PENDIENTE o PARCIAL) de un odontólogo. */
+    List<Comprobante> findByOdontologoIdAndEstadoPagoIn(Long odontologoId, List<EstadoPago> estados);
+
+    /** Saldo pendiente total de un odontólogo (cuenta corriente) = Σ(monto − pagado). */
+    @Query("SELECT COALESCE(SUM(c.monto - c.montoPagado), 0) FROM Comprobante c " +
+           "WHERE c.odontologoId = :odontologoId AND c.estadoPago IN ('PENDIENTE', 'PARCIAL')")
     BigDecimal sumMontosPendientesByOdontologo(Long odontologoId);
 
     /**
@@ -38,13 +42,13 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
     @Query("""
         SELECT c.odontologoId,
                MAX(c.odontologoNombre),
-               SUM(c.monto),
+               SUM(c.monto - c.montoPagado),
                COUNT(c),
                MIN(c.fechaEmision)
         FROM Comprobante c
-        WHERE c.estadoPago = 'PENDIENTE'
+        WHERE c.estadoPago IN ('PENDIENTE', 'PARCIAL')
         GROUP BY c.odontologoId
-        ORDER BY SUM(c.monto) DESC
+        ORDER BY SUM(c.monto - c.montoPagado) DESC
     """)
     List<Object[]> rankingDeudoresRaw();
 }

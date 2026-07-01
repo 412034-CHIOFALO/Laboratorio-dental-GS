@@ -108,7 +108,13 @@
                   }
                 </div>
               </td>
-              <td class="celda-precio">{{ formatPrecio(p.precioAcordado) }}</td>
+              <td class="celda-precio">
+                @if (p.precioAcordado == null) {
+                  <span class="badge-sin-precio" title="Se pedirá el monto al entregar">sin precio</span>
+                } @else {
+                  {{ formatPrecio(p.precioAcordado) }}
+                }
+              </td>
               <td class="celda-acciones">
                 <button class="btn-icono" (click)="abrirDetalle(p)" title="Ver detalle">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>

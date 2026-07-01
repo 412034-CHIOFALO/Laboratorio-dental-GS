@@ -46,9 +46,8 @@ public class SecurityConfig {
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Endpoint del bot: lo autentica el BotApiKeyFilter (API key), no JWT
                 .requestMatchers(HttpMethod.POST, "/api/finanzas/sueldos/pago-automatico").hasRole("ADMIN")
-                // Cajas y cobros — solo ADMIN
+                // Cajas — solo ADMIN
                 .requestMatchers("/api/finanzas/cajas/**").hasRole("ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/finanzas/cobros").hasRole("ADMIN")
                 // Sueldos — solo ADMIN
                 .requestMatchers("/api/finanzas/sueldos/**").hasRole("ADMIN")
                 // Proveedores — ADMIN y ADMINISTRATIVO
@@ -62,6 +61,9 @@ public class SecurityConfig {
                 // Registrar cobro legacy — solo ADMIN (operación financiera definitiva)
                 .requestMatchers(HttpMethod.PATCH, "/api/finanzas/comprobantes/*/cobrar")
                     .hasRole("ADMIN")
+                // Pagos a cuenta corriente del odontólogo — ADMIN y ADMINISTRATIVO
+                .requestMatchers(HttpMethod.POST, "/api/finanzas/odontologos/*/pagos")
+                    .hasAnyRole("ADMIN", "ADMINISTRATIVO")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

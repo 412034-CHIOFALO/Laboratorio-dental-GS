@@ -125,4 +125,39 @@ public class UsuarioService {
         usuario.setTelefono(telefono != null && !telefono.isBlank() ? telefono.trim() : null);
         return usuarioRepository.save(usuario);
     }
+
+    // ── Perfil propio (self-service) ─────────────────────────────
+
+    /** Busca al usuario por su username (el subject del JWT). */
+    public Usuario buscarPorUsername(String username) {
+        return usuarioRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
+    }
+
+    /**
+     * Actualiza los datos propios editables del usuario (nombre, apellido,
+     * teléfono). El username y el rol NO se tocan acá (eso es del admin).
+     */
+    public Usuario actualizarPerfil(String username, String nombre, String apellido, String telefono) {
+        Usuario u = buscarPorUsername(username);
+        if (nombre != null && !nombre.isBlank())   u.setNombre(nombre.trim());
+        if (apellido != null && !apellido.isBlank()) u.setApellido(apellido.trim());
+        u.setTelefono(telefono != null && !telefono.isBlank() ? telefono.trim() : null);
+        return usuarioRepository.save(u);
+    }
+
+    /**
+     * Cambia la contraseña propia. Verifica la contraseña actual antes de
+     * aplicar la nueva (encriptada con BCrypt).
+     *
+     * @throws IllegalArgumentException si la contraseña actual no coincide.
+     */
+    public Usuario cambiarPassword(String username, String actual, String nueva) {
+        Usuario u = buscarPorUsername(username);
+        if (!passwordEncoder.matches(actual, u.getPassword())) {
+            throw new IllegalArgumentException("La contraseña actual no es correcta.");
+        }
+        u.setPassword(passwordEncoder.encode(nueva));
+        return usuarioRepository.save(u);
+    }
 }

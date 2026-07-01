@@ -160,6 +160,34 @@ class GestionSueldoServiceExtraTest {
 
         RegistroPagoBotResponse res = service.registrarPagoAutomatico(r);
         assertThat(res.tipoReceptor()).isEqualTo(TipoReceptorBot.PROVEEDOR);
+        assertThat(res.mensaje()).contains("Triangulado");
+    }
+
+    /**
+     * Caso del profe: una misma entidad es proveedor del lab Y odontólogo cliente.
+     * No debe "triangular contra sí misma" → se registra como pago directo al
+     * proveedor (no triangulado).
+     */
+    @Test
+    void automatico_proveedorEsTambienOdontologo_noTriangulaContraSiMismo() {
+        Proveedor p = Proveedor.builder().id(9L).nombre("Garcia Dental").activo(true).build();
+        Comprobante oc = Comprobante.builder().id(2L).odontologoId(9L).odontologoNombre("Garcia Dental")
+                .monto(new BigDecimal("5000")).estadoPago(EstadoPago.PENDIENTE).fechaEmision(LocalDate.now()).build();
+        when(configRepo.findAllByOrderByEmpleadoNombreAsc()).thenReturn(List.of());
+        when(proveedorRepo.findByActivoTrue()).thenReturn(List.of(p));
+        when(comprobanteRepo.findAll()).thenReturn(List.of(oc));
+        when(deudaProveedorRepo.findByProveedorIdOrderByFechaCreacionDesc(9L)).thenReturn(List.of());
+        when(registroRepo.existsByIdOperacionAndEstado(anyString(), any())).thenReturn(false);
+        when(registroRepo.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        PagoAutomaticoRequest r = new PagoAutomaticoRequest();
+        r.setReceptorNombre("Garcia Dental"); r.setEmisor("Garcia Dental"); r.setIdOperacion("OP-SELF");
+        r.setMonto(new BigDecimal("5000"));
+
+        RegistroPagoBotResponse res = service.registrarPagoAutomatico(r);
+        assertThat(res.tipoReceptor()).isEqualTo(TipoReceptorBot.PROVEEDOR);
+        assertThat(res.mensaje()).doesNotContain("Triangulado");
+        assertThat(res.mensaje()).contains("Pago a proveedor");
     }
 
     // ── Devengado ───────────────────────────────────────────────

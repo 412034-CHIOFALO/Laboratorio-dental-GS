@@ -246,6 +246,54 @@
           <div class="full"><span class="detalle-label">Clínica</span><strong>{{ detalleAbierto.clinica ?? '— No cargada' }}</strong></div>
           <div class="full"><span class="detalle-label">Dirección</span><strong>{{ detalleAbierto.direccion ?? '— No cargada' }}</strong></div>
         </div>
+
+        <!-- ── Cuenta corriente ── -->
+        <div class="cc-seccion">
+          <div class="cc-head">
+            <div>
+              <span class="detalle-label">Cuenta corriente</span>
+              <strong class="cc-saldo" [class.cero]="ccSaldo <= 0">Saldo: {{ formatPrecio(ccSaldo) }}</strong>
+            </div>
+            <button class="btn-primary sm" (click)="abrirModalPago()" [disabled]="ccSaldo <= 0">
+              Registrar pago
+            </button>
+          </div>
+
+          @if (ccCargando) {
+            <p class="cc-empty">Cargando cuenta corriente…</p>
+          } @else if (ccComprobantes.length === 0) {
+            <p class="cc-empty">Sin comprobantes registrados.</p>
+          } @else {
+            <table class="cc-tabla">
+              <thead>
+                <tr><th>Comprobante</th><th>Trabajo</th><th class="num">Monto</th><th class="num">Saldo</th><th>Estado</th></tr>
+              </thead>
+              <tbody>
+                @for (c of ccComprobantes; track c.id) {
+                  <tr [class.saldado]="c.estadoPago === 'COBRADO'">
+                    <td>{{ c.nroComprobante }}</td>
+                    <td>{{ c.trabajo }}</td>
+                    <td class="num">{{ formatPrecio(c.monto) }}</td>
+                    <td class="num">{{ formatPrecio(c.saldoPendiente) }}</td>
+                    <td><span class="cc-estado" [attr.data-estado]="c.estadoPago">{{ c.estadoPago }}</span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+
+          @if (ccHistorial.length > 0) {
+            <div class="cc-historial">
+              <span class="detalle-label">Últimos pagos</span>
+              @for (p of ccHistorial; track p.id) {
+                <div class="cc-pago">
+                  <span>{{ p.fecha }} · {{ p.medio }}</span>
+                  <strong>{{ formatPrecio(p.montoImputado) }}</strong>
+                </div>
+              }
+            </div>
+          }
+        </div>
       </div>
 
       <div class="modal-footer detalle-footer">
@@ -261,6 +309,56 @@
         <div class="detalle-footer-acciones">
           <button class="btn-primary" (click)="abrirEditar(detalleAbierto)">Editar</button>
         </div>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ─────────────────────────────────────────────────────────────
+     REGISTRAR PAGO A CUENTA CORRIENTE
+     ───────────────────────────────────────────────────────────── -->
+@if (showModalPago && detalleAbierto) {
+  <div class="modal-overlay" (click)="cerrarModalPago()">
+    <div class="modal-panel" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>Registrar pago — {{ detalleAbierto.nombre }}</h2>
+        <button class="btn-close" (click)="cerrarModalPago()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="cc-saldo-info">Saldo actual: <strong>{{ formatPrecio(ccSaldo) }}</strong></p>
+
+        <div class="form-row">
+          <label>Monto del pago *</label>
+          <input type="number" min="0" step="100" class="form-input" [(ngModel)]="formPago.monto"
+                 placeholder="Cuánto pagó"/>
+          <small class="form-hint">Se imputa a las deudas más viejas primero (puede ser parcial).</small>
+        </div>
+
+        <div class="form-row">
+          <label>Medio</label>
+          <select class="form-input" [(ngModel)]="formPago.medio">
+            <option value="TRANSFERENCIA">Transferencia (Caja Bancaria)</option>
+            <option value="EFECTIVO">Efectivo (Caja Física)</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>Fecha</label>
+          <input type="date" class="form-input" [(ngModel)]="formPago.fecha"/>
+        </div>
+
+        <div class="form-row">
+          <label>Nota</label>
+          <input type="text" class="form-input" [(ngModel)]="formPago.nota" placeholder="Opcional"/>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="cerrarModalPago()">Cancelar</button>
+        <button class="btn-primary" (click)="confirmarPago()" [disabled]="!formPagoValido || pagoSaving">
+          {{ pagoSaving ? 'Registrando…' : 'Registrar pago' }}
+        </button>
       </div>
     </div>
   </div>

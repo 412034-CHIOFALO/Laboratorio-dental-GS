@@ -270,6 +270,63 @@ public class AuthController {
         }
     }
 
+    // ── Perfil propio (self-service) ─────────────────────────────
+
+    @Operation(summary = "Ver mi perfil",
+               description = "Devuelve los datos del usuario autenticado (según el JWT).")
+    @ApiResponse(responseCode = "200", description = "Perfil del usuario actual")
+    @GetMapping("/me")
+    public ResponseEntity<?> miPerfil(@AuthenticationPrincipal Jwt jwt) {
+        try {
+            Usuario u = usuarioService.buscarPorUsername(jwt.getSubject());
+            return ResponseEntity.ok(UsuarioResponse.from(u));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Editar mi perfil",
+               description = "Actualiza los datos propios editables (nombre, apellido, teléfono). " +
+                             "El username y el rol no se modifican acá.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Perfil actualizado"),
+        @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+    })
+    @PatchMapping("/me")
+    public ResponseEntity<?> editarMiPerfil(@Valid @RequestBody PerfilRequest request,
+                                            @AuthenticationPrincipal Jwt jwt) {
+        try {
+            Usuario u = usuarioService.actualizarPerfil(
+                jwt.getSubject(), request.nombre(), request.apellido(), request.telefono());
+            auditoriaService.registrar(jwt.getSubject(), "EDITAR", "Actualización de perfil propio",
+                "Usuario " + u.getUsername(), "Datos de contacto actualizados");
+            return ResponseEntity.ok(UsuarioResponse.from(u));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @Operation(summary = "Cambiar mi contraseña",
+               description = "Cambia la contraseña propia. Requiere la contraseña actual para validar.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Contraseña actualizada"),
+        @ApiResponse(responseCode = "400", description = "La contraseña actual no es correcta")
+    })
+    @PostMapping("/me/password")
+    public ResponseEntity<?> cambiarMiPassword(@Valid @RequestBody CambioPasswordRequest request,
+                                               @AuthenticationPrincipal Jwt jwt) {
+        try {
+            usuarioService.cambiarPassword(jwt.getSubject(), request.actual(), request.nueva());
+            auditoriaService.registrar(jwt.getSubject(), "EDITAR", "Cambio de contraseña propia",
+                "Usuario " + jwt.getSubject(), "Contraseña actualizada por el usuario");
+            return ResponseEntity.ok(Map.of("mensaje", "Contraseña actualizada correctamente."));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", e.getMessage()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     public record LoginRequest(
         @NotBlank(message = "El username no puede estar vacío")
         @Size(min = 3, max = 50, message = "El username debe tener entre 3 y 50 caracteres")
@@ -278,5 +335,20 @@ public class AuthController {
         @NotBlank(message = "La contraseña no puede estar vacía")
         @Size(min = 6, max = 100, message = "La contraseña debe tener entre 6 y 100 caracteres")
         String password
+    ) {}
+
+    public record PerfilRequest(
+        @Size(max = 100) String nombre,
+        @Size(max = 100) String apellido,
+        @Size(max = 30)  String telefono
+    ) {}
+
+    public record CambioPasswordRequest(
+        @NotBlank(message = "La contraseña actual es obligatoria")
+        String actual,
+
+        @NotBlank(message = "La nueva contraseña es obligatoria")
+        @Size(min = 6, max = 100, message = "La nueva contraseña debe tener entre 6 y 100 caracteres")
+        String nueva
     ) {}
 }

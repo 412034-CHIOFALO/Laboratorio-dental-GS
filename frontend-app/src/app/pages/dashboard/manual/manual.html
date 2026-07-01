@@ -1,360 +1,62 @@
 <div class="manual-page">
+  <!-- Navegación lateral -->
+  <aside class="manual-nav">
+    <h2>Manual de uso</h2>
+    <nav>
+      @for (s of secciones; track s.id) {
+        <button class="manual-nav-item" [class.activa]="activa() === s.id" (click)="seleccionar(s.id)">
+          {{ s.titulo }}
+        </button>
+      }
+    </nav>
+  </aside>
 
-  <div class="manual-hero">
-    <div class="manual-hero-icon">
-      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-      </svg>
-    </div>
-    <div>
-      <h1>Manual de usuario</h1>
-      <p>Laboratorio dental G&amp;S — Sistema ERP</p>
-    </div>
+  <!-- Contenido -->
+  <div class="manual-contenido">
+    @for (s of secciones; track s.id) {
+      @if (activa() === s.id) {
+        <article class="manual-seccion">
+          <h1>{{ s.titulo }}</h1>
+          <p class="manual-intro">{{ s.intro }}</p>
+
+          @if (s.queVes?.length) {
+            <div class="manual-bloque">
+              <h3>👀 Qué ves</h3>
+              <ul>@for (t of s.queVes; track t) { <li>{{ t }}</li> }</ul>
+            </div>
+          }
+
+          @if (s.queHaces?.length) {
+            <div class="manual-bloque">
+              <h3>🖱️ Qué hacés</h3>
+              <ul>@for (t of s.queHaces; track t) { <li>{{ t }}</li> }</ul>
+            </div>
+          }
+
+          @if (s.flujo?.length) {
+            <div class="manual-bloque flujo">
+              <h3>🔗 El flujo</h3>
+              <ul>@for (t of s.flujo; track t) { <li>{{ t }}</li> }</ul>
+            </div>
+          }
+
+          @if (s.captura; as cap) {
+            <figure class="manual-captura" [attr.data-cap]="cap.id">
+              <img [src]="'/manual/' + cap.id + '.png'" [alt]="cap.descripcion"
+                   class="captura-img" [class.oculta]="!conImagen().has(cap.id)"
+                   (load)="marcarImagen(cap.id)" (error)="null" />
+              @if (!conImagen().has(cap.id)) {
+                <div class="captura-placeholder">
+                  <span class="captura-ico">📸</span>
+                  <span class="captura-label">Captura pendiente</span>
+                  <span class="captura-desc">{{ cap.descripcion }}</span>
+                  <code class="captura-id">{{ cap.id }}</code>
+                </div>
+              }
+            </figure>
+          }
+        </article>
+      }
+    }
   </div>
-
-  <!-- TOC -->
-  <nav class="manual-toc">
-    <span class="toc-label">Contenido</span>
-    <a href="#overview">Visión general</a>
-    <a href="#pedidos">Pedidos</a>
-    <a href="#produccion">Producción</a>
-    <a href="#entregas">Entregas</a>
-    <a href="#catalogo">Catálogo</a>
-    <a href="#odontologos">Odontólogos</a>
-    <a href="#stock">Stock</a>
-    <a href="#finanzas">Finanzas</a>
-    <a href="#proveedores">Proveedores</a>
-    <a href="#bot">Bot WhatsApp</a>
-    <a href="#reportes">Reportes</a>
-    <a href="#configuracion">Configuración</a>
-    <a href="#usuarios">Usuarios</a>
-  </nav>
-
-  <!-- Secciones -->
-  <div class="manual-body">
-
-    <!-- Overview -->
-    <section id="overview" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon blue">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-        </div>
-        <h2>Visión general del sistema</h2>
-      </div>
-      <p>
-        El ERP de G&amp;S es una aplicación web integral para la gestión del laboratorio dental.
-        Permite administrar el ciclo completo de trabajo: desde la recepción de un pedido de un
-        odontólogo hasta la entrega del trabajo terminado, incluyendo la gestión de materiales,
-        finanzas, proveedores y comunicación vía WhatsApp.
-      </p>
-      <div class="info-grid">
-        <div class="info-card">
-          <strong>Roles disponibles</strong>
-          <ul>
-            <li><span class="badge badge-admin">ADMIN</span> — acceso total</li>
-            <li><span class="badge badge-tec">TÉCNICO</span> — operativo + producción</li>
-            <li><span class="badge badge-adm">ADMINISTRATIVO</span> — finanzas + clientes</li>
-          </ul>
-        </div>
-        <div class="info-card">
-          <strong>Flujo básico de trabajo</strong>
-          <ol>
-            <li>Se carga el pedido del odontólogo</li>
-            <li>Producción lo procesa y registra avances</li>
-            <li>Se entrega y factura</li>
-            <li>El bot de WhatsApp registra pagos automáticamente</li>
-          </ol>
-        </div>
-      </div>
-    </section>
-
-    <!-- Pedidos -->
-    <section id="pedidos" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon green">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-          </svg>
-        </div>
-        <h2>Pedidos</h2>
-      </div>
-      <p>
-        Módulo central del sistema. Cada trabajo solicitado por un odontólogo se registra aquí con
-        fecha de entrega, tipo de trabajo y estado.
-      </p>
-      <div class="manual-steps">
-        <div class="step"><span class="step-n">1</span><div><strong>Nuevo pedido</strong> — clic en <em>+ Nuevo pedido</em>. Elegir odontólogo del catálogo, tipo de trabajo y fecha comprometida.</div></div>
-        <div class="step"><span class="step-n">2</span><div><strong>Estados</strong> — PENDIENTE → EN_PROCESO → TERMINADO → ENTREGADO. El estado cambia desde Pedidos o desde Producción.</div></div>
-        <div class="step"><span class="step-n">3</span><div><strong>Pedidos atrasados</strong> — el sistema resalta en rojo los pedidos cuya fecha límite ya pasó y aún no fueron entregados.</div></div>
-        <div class="step"><span class="step-n">4</span><div><strong>Prioridad</strong> — los pedidos se pueden ordenar por fecha de entrega o por odontólogo.</div></div>
-      </div>
-    </section>
-
-    <!-- Producción -->
-    <section id="produccion" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon yellow">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="3" width="7" height="7"/><rect x="15" y="3" width="7" height="7"/>
-            <rect x="2" y="14" width="7" height="7"/><rect x="15" y="14" width="7" height="7"/>
-          </svg>
-        </div>
-        <h2>Producción</h2>
-      </div>
-      <p>
-        Vista operativa del laboratorio. Los técnicos ven los trabajos en curso y registran avances.
-        Al completarse el trabajo el pedido pasa a TERMINADO automáticamente.
-      </p>
-      <ul class="manual-list">
-        <li>Filtro por técnico asignado y estado</li>
-        <li>Registro de etapas: se puede anotar observaciones en cada fase</li>
-        <li>Al pasar a TERMINADO el técnico responsable queda registrado en el historial</li>
-      </ul>
-    </section>
-
-    <!-- Entregas -->
-    <section id="entregas" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon purple">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-          </svg>
-        </div>
-        <h2>Entregas</h2>
-      </div>
-      <p>
-        Gestiona las remisiones de trabajos terminados. Al confirmar una entrega el pedido pasa
-        a estado ENTREGADO y queda disponible para facturación en Finanzas.
-      </p>
-      <ul class="manual-list">
-        <li>Se puede imprimir un remito al confirmar la entrega</li>
-        <li>Historial de entregas filtrable por odontólogo y rango de fechas</li>
-      </ul>
-    </section>
-
-    <!-- Catálogo -->
-    <section id="catalogo" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon green">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-            <line x1="8" y1="18" x2="21" y2="18"/>
-            <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/>
-            <line x1="3" y1="18" x2="3.01" y2="18"/>
-          </svg>
-        </div>
-        <h2>Catálogo de trabajos</h2>
-      </div>
-      <p>
-        Define los tipos de trabajos que realiza el laboratorio con su precio base y la receta de
-        materiales necesarios.
-      </p>
-      <ul class="manual-list">
-        <li>Cada trabajo tiene nombre, precio, descripción y una lista de materiales con cantidad</li>
-        <li>Cuando se registra una producción el sistema descuenta automáticamente los materiales del stock según la receta</li>
-        <li>Los precios se pueden actualizar masivamente con un porcentaje de ajuste</li>
-      </ul>
-    </section>
-
-    <!-- Odontólogos -->
-    <section id="odontologos" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon blue">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-        </div>
-        <h2>Odontólogos</h2>
-      </div>
-      <p>
-        Directorio completo de clientes del laboratorio. Desde aquí se gestiona la cuenta corriente
-        de cada odontólogo.
-      </p>
-      <div class="manual-steps">
-        <div class="step"><span class="step-n">→</span><div>Historial: clic en el nombre de un odontólogo para ver todos sus pedidos, pagos y saldo actual.</div></div>
-        <div class="step"><span class="step-n">→</span><div>Morosos: el filtro de morosos muestra odontólogos con deuda vencida.</div></div>
-        <div class="step"><span class="step-n">→</span><div>El saldo se actualiza automáticamente cuando el bot registra un pago o cuando se factura una entrega.</div></div>
-      </div>
-    </section>
-
-    <!-- Stock -->
-    <section id="stock" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon red">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8"/>
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-            <line x1="12" y1="22.08" x2="12" y2="12"/>
-          </svg>
-        </div>
-        <h2>Stock de materiales</h2>
-      </div>
-      <p>
-        Inventario de materiales del laboratorio con control de stock mínimo.
-      </p>
-      <ul class="manual-list">
-        <li>Registrar ENTRADA (compra) o SALIDA (uso) de cada material</li>
-        <li>Cuando el stock cae por debajo del mínimo configurado, el sistema envía un WhatsApp de alerta al administrador (si las alertas están activas)</li>
-        <li>Stock mínimo configurable por material</li>
-        <li>El catálogo de trabajos puede descontar stock automáticamente al registrar producción</li>
-      </ul>
-    </section>
-
-    <!-- Finanzas -->
-    <section id="finanzas" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon green">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="1" x2="12" y2="23"/>
-            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-          </svg>
-        </div>
-        <h2>Finanzas</h2>
-      </div>
-      <p>
-        Módulo financiero con cajas, sueldos y pagos. Integrado con el bot de WhatsApp para
-        registrar transferencias automáticamente.
-      </p>
-      <div class="info-grid">
-        <div class="info-card">
-          <strong>Cajas</strong>
-          <ul>
-            <li><em>Física</em> — efectivo en caja</li>
-            <li><em>Bancaria</em> — cuenta bancaria del laboratorio</li>
-            <li><em>Compensación</em> — fondos retenidos</li>
-          </ul>
-        </div>
-        <div class="info-card">
-          <strong>Sueldos</strong>
-          <ul>
-            <li>Configuración de sueldo base por empleado</li>
-            <li>Registro de pagos desde el bot o manual</li>
-            <li>Pagos en efectivo: el bot los guarda como PENDIENTE para que el admin los confirme</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <!-- Proveedores -->
-    <section id="proveedores" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon yellow">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-          </svg>
-        </div>
-        <h2>Proveedores</h2>
-      </div>
-      <p>
-        Directorio de proveedores del laboratorio con registro de compras y deuda.
-        El bot de WhatsApp puede registrar transferencias a proveedores automáticamente
-        cuando reconoce el nombre del receptor.
-      </p>
-    </section>
-
-    <!-- Bot WhatsApp -->
-    <section id="bot" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon green">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-        </div>
-        <h2>Bot de WhatsApp</h2>
-      </div>
-      <p>
-        El bot conectado a WhatsApp lee los comprobantes de transferencia que se envíen al grupo
-        del laboratorio y los registra automáticamente en el sistema.
-      </p>
-      <div class="manual-steps">
-        <div class="step"><span class="step-n">📷</span><div><strong>Imagen de comprobante</strong> — el bot usa OCR para leer el monto, la fecha y el beneficiario, y crea un registro de pago.</div></div>
-        <div class="step"><span class="step-n">💵</span><div><strong>Pago en efectivo</strong> — escribir <code>efectivo $5000 (Juan García)</code> en el grupo. El bot guarda el registro como PENDIENTE para que el admin lo confirme desde Finanzas.</div></div>
-        <div class="step"><span class="step-n">🔔</span><div><strong>Alerta de stock</strong> — cuando un material cae bajo el mínimo, el bot envía un mensaje al número del admin configurado en Configuración.</div></div>
-        <div class="step"><span class="step-n">✅</span><div><strong>Estados de registros</strong> — REGISTRADO (procesado), PENDIENTE (efectivo sin confirmar), RECHAZADO (no pudo resolverse), DUPLICADO (ya existía).</div></div>
-      </div>
-    </section>
-
-    <!-- Reportes -->
-    <section id="reportes" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon blue">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
-            <line x1="6" y1="20" x2="6" y2="14"/>
-          </svg>
-        </div>
-        <h2>Reportes</h2>
-      </div>
-      <p>
-        Resúmenes mensuales del estado del laboratorio.
-      </p>
-      <ul class="manual-list">
-        <li>Seleccionar mes y año para ver totales de pedidos, facturación y cobranzas</li>
-        <li><strong>Exportar PDF</strong> — genera un PDF con el resumen financiero del mes: saldo de cajas, sueldos pendientes, deuda con proveedores y balance proyectado</li>
-        <li>Ranking de odontólogos por volumen de trabajo</li>
-      </ul>
-    </section>
-
-    <!-- Configuración -->
-    <section id="configuracion" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon purple">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
-        </div>
-        <h2>Configuración del sistema</h2>
-      </div>
-      <p>Solo accesible para el rol ADMIN.</p>
-      <ul class="manual-list">
-        <li><strong>Número de WhatsApp del administrador</strong> — número que recibe las alertas de stock bajo. Formato internacional sin el signo + (ej: 5491155443322).</li>
-        <li><strong>Alertas de stock activas</strong> — activa/desactiva el envío de alertas vía bot cuando los materiales bajan del mínimo.</li>
-      </ul>
-    </section>
-
-    <!-- Usuarios -->
-    <section id="usuarios" class="manual-section">
-      <div class="manual-section-head">
-        <div class="section-icon blue">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-        </div>
-        <h2>Gestión de usuarios</h2>
-      </div>
-      <p>Solo accesible para el rol ADMIN.</p>
-      <ul class="manual-list">
-        <li>Crear, editar y desactivar usuarios del sistema</li>
-        <li>Asignar roles: ADMIN, TÉCNICO, ADMINISTRATIVO</li>
-        <li>Cambiar contraseñas</li>
-        <li>Los usuarios desactivados no pueden iniciar sesión pero su historial se conserva</li>
-      </ul>
-    </section>
-
-  </div><!-- /manual-body -->
 </div>

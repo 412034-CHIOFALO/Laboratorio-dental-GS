@@ -2,9 +2,11 @@ package com.gs.ms_pedidos.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
@@ -23,4 +25,11 @@ public class EntregaRequest {
     private LocalDate fechaEntregaReal;
 
     private String observacionesEntrega;
+
+    /**
+     * Monto a facturar (genera la deuda en cuenta corriente). Si no viene, se usa
+     * el precio acordado del pedido. Si ninguno está, no se genera comprobante.
+     */
+    @Positive(message = "El monto a facturar debe ser mayor a cero")
+    private BigDecimal monto;
 }

@@ -773,7 +773,7 @@ http.createServer((req, res) => {
         try {
           const chatId = normalizarTelefono(telefono);
           const texto =
-            `*Laboratorio G&S*\n` +
+            `*Laboratorio GS*\n` +
             `Hola ${nombre || 'Dr./Dra.'}, su trabajo *${trabajo || 'trabajo solicitado'}* ` +
             `(pedido *${nroPedido}*) ya está listo para retirar.\n` +
             `_Por favor coordine el retiro con el laboratorio._`;

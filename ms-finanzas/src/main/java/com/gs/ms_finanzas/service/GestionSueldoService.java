@@ -74,7 +74,11 @@ public class GestionSueldoService implements IGestionSueldoService {
                 OrigenPago.MANUAL,
                 req.getNota()
         );
-        return PagoSueldoResponse.from(pagoRepo.save(pago));
+        PagoSueldo guardado = pagoRepo.save(pago);
+        // Egreso de caja: el pago manual sale de la caja fisica por defecto.
+        registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, req.getMonto(),
+                "Sueldo (manual) a " + c.getEmpleadoNombre(), null);
+        return PagoSueldoResponse.from(guardado);
     }
 
     /**
@@ -129,6 +133,9 @@ public class GestionSueldoService implements IGestionSueldoService {
                 pago.setIdOperacion(req.getIdOperacion());
                 pago.setComprobanteUrl(comprobanteRef);
                 pagoRepo.save(pago);
+                // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
+                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
+                        "Sueldo (transferencia) a " + c.getEmpleadoNombre(), req.getIdOperacion());
 
                 reg.setEstado(EstadoRegistroBot.REGISTRADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
@@ -158,7 +165,7 @@ public class GestionSueldoService implements IGestionSueldoService {
             reg.setReceptorResuelto(p.getNombre());
 
             // ¿El emisor es un odontólogo? → TRIANGULADO (el odontólogo le paga al proveedor del lab)
-            Optional<Comprobante> odo = resolverOdontologoEmisor(req.getEmisor());
+            Optional<Comprobante> odo = resolverOdontologoEmisor(req.getEmisor(), p.getNombre());
             if (odo.isPresent()) {
                 Comprobante oc = odo.get();
                 BigDecimal settOdo  = settleDeudaOdontologo(oc.getOdontologoId(), req.getMonto());
@@ -302,16 +309,26 @@ public class GestionSueldoService implements IGestionSueldoService {
     }
 
     /**
-     * ¿El emisor es un odontólogo? Se busca en los comprobantes (que llevan el
-     * snapshot del odontólogo). Vacío si no matchea → entonces NO es triangulado.
-     * Matchea por palabra (apellido) para tolerar "Dr. García" vs "Dr. Martín García".
+     * ¿El emisor es un odontólogo con DEUDA PENDIENTE? Solo en ese caso tiene
+     * sentido un triangulado: tiene que haber algo real para saldar. Se buscan
+     * los comprobantes PENDIENTE (que llevan el snapshot del odontólogo) y se
+     * matchea por palabra (apellido) para tolerar "Dr. García" vs "Dr. Martín García".
+     *
+     * <p>Se excluye explícitamente al propio proveedor receptor: si una misma
+     * persona/empresa es a la vez proveedor del lab y odontólogo cliente, no se
+     * la triangula "contra sí misma" — en ese caso se trata como pago directo al
+     * proveedor.</p>
      */
-    private Optional<Comprobante> resolverOdontologoEmisor(String emisor) {
+    private Optional<Comprobante> resolverOdontologoEmisor(String emisor, String proveedorNombre) {
         if (emisor == null || emisor.isBlank()) return Optional.empty();
         String[] palabras = emisor.trim().toLowerCase().split("\\s+");
+        String prov = proveedorNombre == null ? "" : proveedorNombre.trim().toLowerCase();
         return comprobanteRepo.findAll().stream()
+                .filter(c -> c.getEstadoPago() == EstadoPago.PENDIENTE)
                 .filter(c -> {
                     String nom = c.getOdontologoNombre() == null ? "" : c.getOdontologoNombre().toLowerCase();
+                    // Misma entidad que el proveedor receptor → no es triangulado.
+                    if (!prov.isBlank() && nom.contains(prov)) return false;
                     for (String w : palabras) if (w.length() > 3 && nom.contains(w)) return true;
                     return false;
                 })

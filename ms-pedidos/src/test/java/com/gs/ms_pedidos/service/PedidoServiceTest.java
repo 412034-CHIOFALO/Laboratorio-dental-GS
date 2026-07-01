@@ -35,6 +35,7 @@ class PedidoServiceTest {
     @Mock private IOdontologoService odontologoService;
     @Mock private ConsumoStockService consumoStockService;
     @Mock private NotificacionBotService notificacionBotService;
+    @Mock private EmisionComprobanteService emisionComprobanteService;
     @InjectMocks private PedidoService service;
 
     @BeforeEach

@@ -3,13 +3,16 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
 import { EscaneosService, EscaneoResponse } from '../../../services/escaneos.service';
+import { Visor3dComponent } from './visor3d.component';
 
 const EXTENSIONES_3D = ['.stl', '.obj', '.ply', '.3ds', '.step', '.stp', '.iges', '.igs'];
+// Formatos que el visor 3D embebido sabe renderizar.
+const VISUALIZABLES_3D = ['.stl', '.obj'];
 
 @Component({
   selector: 'app-escaneos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, Visor3dComponent],
   templateUrl: './escaneos.html',
   styleUrls: ['./escaneos.css'],
 })
@@ -31,6 +34,12 @@ export class EscaneosComponent implements OnInit {
 
   // Campo descripción para el upload
   descripcionInput = '';
+
+  // Visor 3D
+  visorAbierto    = signal(false);
+  visorUrl        = signal('');
+  visorFileName   = signal('');
+  cargandoVisorId = signal<number | null>(null);
 
   pedidosFiltrados = computed(() => {
     const q = this.busqueda().toLowerCase().trim();
@@ -109,6 +118,32 @@ export class EscaneosComponent implements OnInit {
       },
       error: () => { this.eliminandoId.set(null); },
     });
+  }
+
+  /** ¿El formato se puede abrir en el visor 3D embebido? */
+  esVisualizable3d(fileName: string): boolean {
+    return VISUALIZABLES_3D.includes(this.extension(fileName));
+  }
+
+  /** Pide la URL del escaneo y abre el visor 3D. */
+  verEscaneo(escaneo: EscaneoResponse): void {
+    const p = this.pedidoSeleccionado();
+    if (!p) return;
+    this.cargandoVisorId.set(escaneo.id);
+    this.escaneosService.url(p.id, escaneo.id).subscribe({
+      next: ({ url }) => {
+        this.visorUrl.set(url);
+        this.visorFileName.set(escaneo.fileName);
+        this.visorAbierto.set(true);
+        this.cargandoVisorId.set(null);
+      },
+      error: () => { this.cargandoVisorId.set(null); },
+    });
+  }
+
+  cerrarVisor(): void {
+    this.visorAbierto.set(false);
+    this.visorUrl.set('');
   }
 
   extension(fileName: string): string {

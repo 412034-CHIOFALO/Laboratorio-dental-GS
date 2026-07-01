@@ -4,12 +4,10 @@ import com.gs.ms_finanzas.dto.CajaMovimientoRequest;
 import com.gs.ms_finanzas.dto.CajaMovimientoResponse;
 import com.gs.ms_finanzas.dto.ResumenCajasResponse;
 import com.gs.ms_finanzas.model.CajaMovimiento;
-import com.gs.ms_finanzas.model.EstadoSueldo;
-import com.gs.ms_finanzas.model.SueldoEmpleado;
 import com.gs.ms_finanzas.model.TipoCaja;
 import com.gs.ms_finanzas.repository.CajaMovimientoRepository;
+import com.gs.ms_finanzas.repository.ConfiguracionSueldoRepository;
 import com.gs.ms_finanzas.repository.DeudaProveedorRepository;
-import com.gs.ms_finanzas.repository.SueldoEmpleadoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +24,7 @@ public class CajaService implements ICajaService {
 
     private final CajaMovimientoRepository cajaRepo;
     private final DeudaProveedorRepository deudaRepo;
-    private final SueldoEmpleadoRepository sueldoRepo;
+    private final ConfiguracionSueldoRepository configSueldoRepo;
 
     public ResumenCajasResponse obtenerResumen() {
         BigDecimal saldoFisica = cajaRepo.calcularSaldo(TipoCaja.FISICA);
@@ -34,13 +32,11 @@ public class CajaService implements ICajaService {
         BigDecimal saldoComp = cajaRepo.calcularSaldo(TipoCaja.COMPENSACION);
         BigDecimal deudaProveedores = deudaRepo.sumTotalDeudaPendiente();
 
-        int mes = LocalDate.now().getMonthValue();
-        int anio = LocalDate.now().getYear();
-        BigDecimal sueldosPendientes = sueldoRepo
-            .findByAnioAndMesAndEstadoOrderByEmpleadoNombreAsc(anio, mes, EstadoSueldo.PENDIENTE)
-            .stream()
-            .map(SueldoEmpleado::getMonto)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Lo que el lab le debe a los empleados = devengado acumulado del sistema
+        // unico de sueldos (ConfiguracionSueldo). Antes salia del sistema viejo
+        // (SueldoEmpleado), que estaba desconectado del devengado real.
+        BigDecimal sueldosPendientes = configSueldoRepo.totalDevengado();
+        if (sueldosPendientes == null) sueldosPendientes = BigDecimal.ZERO;
 
         List<String> alertas = new ArrayList<>();
         if (saldoFisica.compareTo(BigDecimal.ZERO) < 0)
@@ -50,7 +46,7 @@ public class CajaService implements ICajaService {
         if (saldoComp.compareTo(BigDecimal.ZERO) != 0)
             alertas.add("Caja compensacion desbalanceada: $" + saldoComp);
         if (sueldosPendientes.compareTo(BigDecimal.ZERO) > 0)
-            alertas.add("Sueldos pendientes del mes: $" + sueldosPendientes);
+            alertas.add("Sueldos devengados a pagar: $" + sueldosPendientes);
         if (deudaProveedores.compareTo(BigDecimal.ZERO) > 0)
             alertas.add("Deuda total proveedores: $" + deudaProveedores);
 

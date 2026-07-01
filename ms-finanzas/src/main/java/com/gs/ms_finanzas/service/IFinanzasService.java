@@ -3,6 +3,8 @@ package com.gs.ms_finanzas.service;
 import com.gs.ms_finanzas.dto.ComprobanteRequest;
 import com.gs.ms_finanzas.dto.ComprobanteResponse;
 import com.gs.ms_finanzas.dto.CuentaCorrienteOdontologoResponse;
+import com.gs.ms_finanzas.dto.PagoCuentaCorrienteRequest;
+import com.gs.ms_finanzas.dto.PagoCuentaCorrienteResponse;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -93,4 +95,24 @@ public interface IFinanzasService {
      * @return lista de cuentas corrientes ordenada por deuda descendente; vacía si nadie debe.
      */
     List<CuentaCorrienteOdontologoResponse> rankingMorosos();
+
+    /**
+     * Registra un pago manual a la cuenta corriente de un odontólogo, imputándolo
+     * a sus comprobantes con saldo (más viejos primero, parcial o total) e
+     * ingresando el dinero a la caja según el medio.
+     *
+     * @param odontologoId ID del odontólogo.
+     * @param request monto, medio (efectivo/transferencia), fecha y nota.
+     * @return resumen del pago: monto imputado, comprobantes afectados y saldo restante.
+     * @throws com.gs.ms_finanzas.exception.BusinessException si el odontólogo no tiene deudas pendientes.
+     */
+    PagoCuentaCorrienteResponse registrarPagoCuentaCorriente(Long odontologoId, PagoCuentaCorrienteRequest request);
+
+    /**
+     * Histórico de pagos a cuenta corriente de un odontólogo (más recientes primero).
+     *
+     * @param odontologoId ID del odontólogo.
+     * @return lista de pagos registrados; vacía si no hizo ninguno.
+     */
+    List<PagoCuentaCorrienteResponse> historialPagosOdontologo(Long odontologoId);
 }

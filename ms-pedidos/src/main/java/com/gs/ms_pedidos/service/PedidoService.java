@@ -29,6 +29,7 @@ public class PedidoService implements IPedidoService {
     private final IOdontologoService odontologoService;
     private final ConsumoStockService consumoStockService;
     private final NotificacionBotService notificacionBotService;
+    private final EmisionComprobanteService emisionComprobanteService;
 
     /**
      * Umbral de días hábiles a partir del cual un pedido se considera "atrasado".
@@ -178,6 +179,13 @@ public class PedidoService implements IPedidoService {
             request.getObservacionesEntrega() != null && !request.getObservacionesEntrega().isBlank()
                 ? request.getObservacionesEntrega().trim()
                 : null);
+
+        // Generar la cuenta por cobrar en finanzas (la entrega crea la DEUDA, no el
+        // cobro). Monto: el del request o, si no vino, el precio acordado del pedido.
+        java.math.BigDecimal monto = request.getMonto() != null
+            ? request.getMonto()
+            : pedido.getPrecioAcordado();
+        emisionComprobanteService.emitirSiCorresponde(pedido, monto);
 
         return toResponse(pedidoRepository.save(pedido));
     }

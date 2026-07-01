@@ -15,6 +15,8 @@ public record ComprobanteResponse(
         String odontologoNombre,
         String trabajo,
         BigDecimal monto,
+        BigDecimal montoPagado,
+        BigDecimal saldoPendiente,
         EstadoPago estadoPago,
         LocalDate fechaEmision,
         LocalDate fechaVencimiento,
@@ -26,7 +28,8 @@ public record ComprobanteResponse(
                 c.getId(), c.getNroComprobante(),
                 c.getPedidoId(), c.getNroPedido(),
                 c.getOdontologoId(), c.getOdontologoNombre(),
-                c.getTrabajo(), c.getMonto(), c.getEstadoPago(),
+                c.getTrabajo(), c.getMonto(),
+                c.getMontoPagado(), c.getSaldoPendiente(), c.getEstadoPago(),
                 c.getFechaEmision(), c.getFechaVencimiento(),
                 c.getFechaCobro(), c.getObservaciones()
         );

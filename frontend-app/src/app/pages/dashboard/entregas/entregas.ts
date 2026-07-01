@@ -30,6 +30,7 @@ export class EntregasComponent implements OnInit {
     retiradoPor: string;
     fechaEntregaReal: string;
     observacionesEntrega: string;
+    monto: number | null;
   } = this.formVacio();
 
   // Mensaje WhatsApp del recorrido del día
@@ -121,6 +122,8 @@ export class EntregasComponent implements OnInit {
     this.formEntrega = this.formVacio();
     // Sugerir el nombre del odontólogo por defecto (el caso más común)
     this.formEntrega.retiradoPor = p.odontologoNombre;
+    // Pre-cargar el monto a facturar con el precio acordado del pedido.
+    this.formEntrega.monto = p.precioAcordado ?? null;
     this.showModalEntregar = true;
   }
 
@@ -134,11 +137,14 @@ export class EntregasComponent implements OnInit {
       retiradoPor: '',
       fechaEntregaReal: new Date().toISOString().split('T')[0],
       observacionesEntrega: '',
+      monto: null as number | null,
     };
   }
 
   get formEntregaValido(): boolean {
-    return !!this.formEntrega.retiradoPor.trim();
+    return !!this.formEntrega.retiradoPor.trim()
+        && this.formEntrega.monto != null
+        && this.formEntrega.monto > 0;
   }
 
   confirmarEntrega(): void {
@@ -149,6 +155,7 @@ export class EntregasComponent implements OnInit {
       retiradoPor: this.formEntrega.retiradoPor.trim(),
       fechaEntregaReal: this.formEntrega.fechaEntregaReal,
       observacionesEntrega: this.formEntrega.observacionesEntrega?.trim() || null,
+      monto: this.formEntrega.monto,
     };
 
     this.pedidosService.marcarEntregado(this.pedidoAEntregar.id, request).subscribe({

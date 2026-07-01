@@ -26,8 +26,30 @@ export class EscaneosService {
   constructor(private http: HttpClient) {}
 
   listar(pedidoId: number): Observable<EscaneoResponse[]> {
-    if (environment.useMocks) return of([]).pipe(delay(200));
+    if (environment.useMocks) {
+      // Escaneo de muestra para poder demostrar el visor 3D sin backend.
+      const muestra: EscaneoResponse = {
+        id: 9000 + pedidoId,
+        pedidoId,
+        fileName: 'modelo-muestra.stl',
+        contentType: 'model/stl',
+        tamanioBytes: 2048,
+        descripcion: 'Modelo de demostración',
+        subidoPor: 'demo',
+        fechaSubida: new Date().toISOString(),
+        urlTemporal: '/sample-escaneo.stl',
+      };
+      return of([muestra]).pipe(delay(200));
+    }
     return this.http.get<EscaneoResponse[]>(this.base(pedidoId));
+  }
+
+  /** Devuelve una URL temporal (prefirmada) para ver/descargar el escaneo. */
+  url(pedidoId: number, escaneoId: number): Observable<{ url: string; fileName?: string }> {
+    if (environment.useMocks) {
+      return of({ url: '/sample-escaneo.stl', fileName: 'modelo-muestra.stl' }).pipe(delay(150));
+    }
+    return this.http.get<{ url: string; fileName?: string }>(`${this.base(pedidoId)}/${escaneoId}/url`);
   }
 
   subir(pedidoId: number, file: File, descripcion?: string): Observable<EscaneoResponse> {

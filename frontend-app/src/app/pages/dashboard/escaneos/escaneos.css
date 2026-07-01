@@ -91,6 +91,8 @@ h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
 .btn-accion { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--gs-border); background: var(--gs-card); color: var(--gs-text-muted); cursor: pointer; text-decoration: none; transition: background .12s, border-color .12s, color .12s; }
 .btn-accion:hover { color: var(--gs-text); border-color: var(--gs-border-md); }
 .btn-accion.download:hover { color: var(--gs-green); border-color: var(--gs-green-border); }
+.btn-accion.ver3d { color: var(--gs-green); border-color: var(--gs-green-border); }
+.btn-accion.ver3d:hover { background: var(--gs-green); color: #fff; border-color: var(--gs-green); }
 .btn-accion.delete:hover   { color: #ef4444; border-color: rgba(239,68,68,.4); }
 .btn-accion:disabled { opacity: .4; cursor: not-allowed; }
 

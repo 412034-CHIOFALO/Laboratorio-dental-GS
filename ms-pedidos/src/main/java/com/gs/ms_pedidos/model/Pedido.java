@@ -177,6 +177,14 @@ public class Pedido {
     @Column(name = "fecha_stock_consumido")
     private LocalDateTime fechaStockConsumido;
 
+    /**
+     * Indica si ya se generó el comprobante (cuenta por cobrar) en ms-finanzas
+     * al entregar el pedido. Flag de idempotencia para no duplicar la deuda.
+     */
+    @Column(name = "comprobante_generado", nullable = false)
+    @Builder.Default
+    private boolean comprobanteGenerado = false;
+
     @PrePersist
     protected void onCreate() {
         this.fechaCreacion = LocalDateTime.now();

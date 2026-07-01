@@ -173,6 +173,13 @@
         </div>
 
         <div class="form-row">
+          <label>Monto a facturar *</label>
+          <input type="number" min="0" step="100" class="form-input" [(ngModel)]="formEntrega.monto"
+                 placeholder="Precio del trabajo"/>
+          <small class="form-hint">Genera la deuda en la cuenta corriente del odontólogo. Editá si el precio cambió.</small>
+        </div>
+
+        <div class="form-row">
           <label>Fecha de entrega real</label>
           <input type="date" class="form-input" [(ngModel)]="formEntrega.fechaEntregaReal"/>
         </div>

@@ -577,3 +577,25 @@
   .search-input { width: 100%; }
   .detalle-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Cuenta corriente (detalle del odontólogo) ───────────────── */
+.cc-seccion { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--gs-border); }
+.cc-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.cc-saldo { display: block; font-size: 1.15rem; color: var(--gs-green); margin-top: 2px; }
+.cc-saldo.cero { color: var(--gs-text-muted); }
+.btn-primary.sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+.cc-empty { color: var(--gs-text-muted); font-size: 0.9rem; padding: 0.5rem 0; }
+.cc-tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cc-tabla th { text-align: left; color: var(--gs-text-muted); font-weight: 600; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--gs-border); }
+.cc-tabla th.num, .cc-tabla td.num { text-align: right; }
+.cc-tabla td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--gs-border); color: var(--gs-text); }
+.cc-tabla tr.saldado td { color: var(--gs-text-muted); }
+.cc-estado { font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+.cc-estado[data-estado="PENDIENTE"] { background: rgba(239,68,68,.14); color: #ef4444; }
+.cc-estado[data-estado="PARCIAL"]   { background: rgba(245,158,11,.16); color: #f59e0b; }
+.cc-estado[data-estado="COBRADO"]   { background: var(--gs-green-soft); color: var(--gs-green); }
+.cc-estado[data-estado="VENCIDO"]   { background: rgba(239,68,68,.14); color: #ef4444; }
+.cc-historial { margin-top: 0.9rem; }
+.cc-pago { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.3rem 0; color: var(--gs-text-dim); border-bottom: 1px dashed var(--gs-border); }
+.cc-saldo-info { color: var(--gs-text-dim); margin-bottom: 0.5rem; }
+.form-hint { display: block; color: var(--gs-text-muted); font-size: 0.78rem; margin-top: 3px; }

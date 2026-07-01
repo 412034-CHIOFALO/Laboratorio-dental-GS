@@ -5,8 +5,8 @@ import com.gs.ms_finanzas.dto.CajaMovimientoResponse;
 import com.gs.ms_finanzas.dto.ResumenCajasResponse;
 import com.gs.ms_finanzas.model.*;
 import com.gs.ms_finanzas.repository.CajaMovimientoRepository;
+import com.gs.ms_finanzas.repository.ConfiguracionSueldoRepository;
 import com.gs.ms_finanzas.repository.DeudaProveedorRepository;
-import com.gs.ms_finanzas.repository.SueldoEmpleadoRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,7 +19,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -27,7 +26,7 @@ class CajaServiceTest {
 
     @Mock private CajaMovimientoRepository cajaRepo;
     @Mock private DeudaProveedorRepository deudaRepo;
-    @Mock private SueldoEmpleadoRepository sueldoRepo;
+    @Mock private ConfiguracionSueldoRepository configSueldoRepo;
     @InjectMocks private CajaService service;
 
     private CajaMovimiento mov() {
@@ -43,25 +42,28 @@ class CajaServiceTest {
         when(cajaRepo.calcularSaldo(TipoCaja.BANCARIA)).thenReturn(new BigDecimal("-10"));
         when(cajaRepo.calcularSaldo(TipoCaja.COMPENSACION)).thenReturn(new BigDecimal("5"));
         when(deudaRepo.sumTotalDeudaPendiente()).thenReturn(new BigDecimal("200"));
-        SueldoEmpleado s = SueldoEmpleado.builder().empleadoId(1L).empleadoNombre("Ana")
-                .monto(new BigDecimal("300")).mes(1).anio(2026).estado(EstadoSueldo.PENDIENTE).build();
-        when(sueldoRepo.findByAnioAndMesAndEstadoOrderByEmpleadoNombreAsc(anyIntEq(), anyIntEq(), eq(EstadoSueldo.PENDIENTE)))
-                .thenReturn(List.of(s));
+        when(configSueldoRepo.totalDevengado()).thenReturn(new BigDecimal("300"));
 
         ResumenCajasResponse r = service.obtenerResumen();
 
+        // física<0, bancaria<0, compensación≠0, sueldos devengados>0, deuda proveedores>0
         assertThat(r.alertas()).hasSize(5);
     }
-
-    // helper para que Mockito acepte cualquier int (anio/mes calculados de LocalDate.now)
-    private int anyIntEq() { return org.mockito.ArgumentMatchers.anyInt(); }
 
     @Test
     void resumen_sinAlertas() {
         when(cajaRepo.calcularSaldo(any())).thenReturn(BigDecimal.ZERO);
         when(deudaRepo.sumTotalDeudaPendiente()).thenReturn(BigDecimal.ZERO);
-        when(sueldoRepo.findByAnioAndMesAndEstadoOrderByEmpleadoNombreAsc(anyIntEq(), anyIntEq(), any()))
-                .thenReturn(List.of());
+        when(configSueldoRepo.totalDevengado()).thenReturn(BigDecimal.ZERO);
+
+        assertThat(service.obtenerResumen().alertas()).isEmpty();
+    }
+
+    @Test
+    void resumen_totalDevengadoNull_noRompe() {
+        when(cajaRepo.calcularSaldo(any())).thenReturn(BigDecimal.ZERO);
+        when(deudaRepo.sumTotalDeudaPendiente()).thenReturn(BigDecimal.ZERO);
+        when(configSueldoRepo.totalDevengado()).thenReturn(null);
 
         assertThat(service.obtenerResumen().alertas()).isEmpty();
     }

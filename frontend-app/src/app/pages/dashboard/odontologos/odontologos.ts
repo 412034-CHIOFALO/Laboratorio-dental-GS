@@ -4,6 +4,9 @@ import { RouterLink } from '@angular/router';
 import {
   OdontologosService, OdontologoResponse, OdontologoRequest
 } from '../../../services/odontologos.service';
+import {
+  FinanzasService, ComprobanteResponse, PagoCuentaCorrienteResponse, MedioPago
+} from '../../../services/finanzas.service';
 import { NotificationService } from '../../../services/notification.service';
 
 @Component({
@@ -37,10 +40,22 @@ export class OdontologosComponent implements OnInit {
   // Detalle
   detalleAbierto: OdontologoResponse | null = null;
 
+  // Cuenta corriente del detalle
+  ccComprobantes: ComprobanteResponse[] = [];
+  ccHistorial: PagoCuentaCorrienteResponse[] = [];
+  ccSaldo = 0;
+  ccCargando = false;
+
+  // Modal registrar pago
+  showModalPago = false;
+  pagoSaving = false;
+  formPago: { monto: number | null; medio: MedioPago; fecha: string; nota: string } = this.formPagoVacio();
+
   // Confirm desactivar
   confirmDesactivarId: number | null = null;
 
   private notif = inject(NotificationService);
+  private finanzas = inject(FinanzasService);
 
   constructor(private service: OdontologosService) {}
 
@@ -203,10 +218,82 @@ export class OdontologosComponent implements OnInit {
 
   abrirDetalle(o: OdontologoResponse): void {
     this.detalleAbierto = o;
+    this.cargarCuentaCorriente(o.id);
   }
 
   cerrarDetalle(): void {
     this.detalleAbierto = null;
+    this.ccComprobantes = [];
+    this.ccHistorial = [];
+    this.ccSaldo = 0;
+  }
+
+  // ── CUENTA CORRIENTE ─────────────────────────────────────────
+
+  private cargarCuentaCorriente(odontologoId: number): void {
+    this.ccCargando = true;
+    this.finanzas.comprobantesPorOdontologo(odontologoId).subscribe({
+      next: comps => {
+        this.ccComprobantes = comps;
+        this.ccSaldo = comps.reduce((acc, c) => acc + (c.saldoPendiente ?? 0), 0);
+        this.ccCargando = false;
+      },
+      error: () => { this.ccCargando = false; },
+    });
+    this.finanzas.historialPagosOdontologo(odontologoId).subscribe({
+      next: pagos => { this.ccHistorial = pagos; },
+      error: () => {},
+    });
+  }
+
+  private formPagoVacio() {
+    return {
+      monto: null as number | null,
+      medio: 'TRANSFERENCIA' as MedioPago,
+      fecha: new Date().toISOString().split('T')[0],
+      nota: '',
+    };
+  }
+
+  abrirModalPago(): void {
+    this.formPago = this.formPagoVacio();
+    this.showModalPago = true;
+  }
+
+  cerrarModalPago(): void {
+    this.showModalPago = false;
+  }
+
+  get formPagoValido(): boolean {
+    return this.formPago.monto != null && this.formPago.monto > 0;
+  }
+
+  confirmarPago(): void {
+    if (!this.detalleAbierto || !this.formPagoValido) return;
+    this.pagoSaving = true;
+    const id = this.detalleAbierto.id;
+    this.finanzas.registrarPagoCuentaCorriente(id, {
+      monto: this.formPago.monto!,
+      medio: this.formPago.medio,
+      fecha: this.formPago.fecha,
+      nota: this.formPago.nota?.trim() || null,
+    }).subscribe({
+      next: res => {
+        this.pagoSaving = false;
+        this.showModalPago = false;
+        this.notif.exito(res.mensaje);
+        this.cargarCuentaCorriente(id);   // refresca saldo/comprobantes/historial
+      },
+      error: err => {
+        this.pagoSaving = false;
+        this.notif.errorHttp(err, 'No se pudo registrar el pago');
+      },
+    });
+  }
+
+  formatPrecio(n: number | null | undefined): string {
+    if (n == null) return '—';
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
   }
 
   // ── DESACTIVAR ───────────────────────────────────────────────

@@ -124,4 +124,50 @@ class UsuarioServiceTest {
         when(repo.findById(9L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.actualizarTelefono(9L, "123")).isInstanceOf(RuntimeException.class);
     }
+
+    // ── Perfil propio ────────────────────────────────────────────
+
+    @Test
+    void buscarPorUsername_inexistente_lanza() {
+        when(repo.findByUsername("nadie")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.buscarPorUsername("nadie")).isInstanceOf(RuntimeException.class);
+    }
+
+    @Test
+    void actualizarPerfil_actualizaNombreApellidoTelefono() {
+        Usuario u = usuario();
+        when(repo.findByUsername("jperez")).thenReturn(Optional.of(u));
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.actualizarPerfil("jperez", "  Juan Carlos ", " Gómez ", "  1122334455 ");
+
+        assertThat(u.getNombre()).isEqualTo("Juan Carlos");
+        assertThat(u.getApellido()).isEqualTo("Gómez");
+        assertThat(u.getTelefono()).isEqualTo("1122334455");
+    }
+
+    @Test
+    void cambiarPassword_ok_encriptaLaNueva() {
+        Usuario u = usuario();
+        u.setPassword("HASH_VIEJO");
+        when(repo.findByUsername("jperez")).thenReturn(Optional.of(u));
+        when(encoder.matches("actual", "HASH_VIEJO")).thenReturn(true);
+        when(encoder.encode("nueva123")).thenReturn("HASH_NUEVO");
+        when(repo.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        service.cambiarPassword("jperez", "actual", "nueva123");
+
+        assertThat(u.getPassword()).isEqualTo("HASH_NUEVO");
+    }
+
+    @Test
+    void cambiarPassword_actualIncorrecta_lanza() {
+        Usuario u = usuario();
+        u.setPassword("HASH_VIEJO");
+        when(repo.findByUsername("jperez")).thenReturn(Optional.of(u));
+        when(encoder.matches("mala", "HASH_VIEJO")).thenReturn(false);
+
+        assertThatThrownBy(() -> service.cambiarPassword("jperez", "mala", "nueva123"))
+            .isInstanceOf(IllegalArgumentException.class);
+    }
 }

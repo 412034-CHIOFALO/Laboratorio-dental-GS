@@ -18,7 +18,8 @@ import java.util.List;
  *       con algoritmo de <i>cascada</i> para manejar sobrantes entre ciclos.</li>
  * </ol></p>
  *
- * <p>Separado del {@link ISueldoService} legacy que opera sobre registros mensuales.</p>
+ * <p>Es el único sistema de sueldos del módulo: gestiona el devengado por
+ * empleado y registra los pagos (manuales, por bot y en efectivo).</p>
  */
 public interface IGestionSueldoService {
 

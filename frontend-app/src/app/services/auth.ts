@@ -13,6 +13,23 @@ export interface RegisterPayload {
   rol: 'TECNICO' | 'ADMINISTRATIVO' | 'ODONTOLOGO' | 'ADMIN';
 }
 
+export interface PerfilResponse {
+  id: number;
+  username: string;
+  nombre: string;
+  apellido: string;
+  telefono: string | null;
+  rol: string;
+  enabled: boolean;
+  pendienteAprobacion: boolean;
+}
+
+export interface PerfilUpdate {
+  nombre?: string;
+  apellido?: string;
+  telefono?: string | null;
+}
+
 interface JwtPayload {
   sub: string;
   roles: string;
@@ -23,7 +40,7 @@ interface JwtPayload {
   providedIn: 'root'
 })
 export class AuthService {
-  private gatewayUrl = environment.gatewayUrl || 'http://localhost:8080';
+  private gatewayUrl = environment.gatewayUrl;
   private readonly TOKEN_KEY = 'gs_token';
 
   constructor(private http: HttpClient) {}
@@ -89,6 +106,49 @@ export class AuthService {
       { telefono },
       { headers: this.authHeaders() }
     );
+  }
+
+  // ── Perfil propio (self-service) ──────────────────────────────
+
+  private _mockPerfil?: PerfilResponse;
+
+  private mockPerfil(): PerfilResponse {
+    if (!this._mockPerfil) {
+      const u = this.getUsername() || 'admin';
+      this._mockPerfil = {
+        id: 1, username: u,
+        nombre: u === 'admin' ? 'Rebeca' : u,
+        apellido: u === 'admin' ? 'González' : '',
+        telefono: '3516588576',
+        rol: this.getRoles()[0] || 'ROLE_ADMIN',
+        enabled: true, pendienteAprobacion: false,
+      };
+    }
+    return this._mockPerfil;
+  }
+
+  miPerfil(): Observable<PerfilResponse> {
+    if (environment.useMocks) return of({ ...this.mockPerfil() }).pipe(delay(150));
+    return this.http.get<PerfilResponse>(`${this.gatewayUrl}/api/auth/me`, { headers: this.authHeaders() });
+  }
+
+  editarPerfil(req: PerfilUpdate): Observable<PerfilResponse> {
+    if (environment.useMocks) {
+      this._mockPerfil = { ...this.mockPerfil(), ...req } as PerfilResponse;
+      return of({ ...this._mockPerfil }).pipe(delay(250));
+    }
+    return this.http.patch<PerfilResponse>(`${this.gatewayUrl}/api/auth/me`, req, { headers: this.authHeaders() });
+  }
+
+  cambiarPassword(actual: string, nueva: string): Observable<{ mensaje: string }> {
+    if (environment.useMocks) {
+      if (!actual || actual.length < 6) {
+        return throwError(() => ({ status: 400, error: { error: 'La contraseña actual no es correcta.' } }));
+      }
+      return of({ mensaje: 'Contraseña actualizada correctamente.' }).pipe(delay(250));
+    }
+    return this.http.post<{ mensaje: string }>(
+      `${this.gatewayUrl}/api/auth/me/password`, { actual, nueva }, { headers: this.authHeaders() });
   }
 
   saveToken(token: string): void {

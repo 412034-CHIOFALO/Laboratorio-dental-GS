@@ -56,6 +56,48 @@ export interface CuentaCorrienteOdontologoResponse {
   severidad: SeveridadDeuda;
 }
 
+export type EstadoPago = 'PENDIENTE' | 'PARCIAL' | 'COBRADO' | 'VENCIDO';
+export type MedioPago = 'EFECTIVO' | 'TRANSFERENCIA';
+
+export interface ComprobanteResponse {
+  id: number;
+  nroComprobante: string;
+  pedidoId: number | null;
+  nroPedido: string;
+  odontologoId: number;
+  odontologoNombre: string;
+  trabajo: string;
+  monto: number;
+  montoPagado: number;
+  saldoPendiente: number;
+  estadoPago: EstadoPago;
+  fechaEmision: string;
+  fechaVencimiento: string | null;
+  fechaCobro: string | null;
+  observaciones: string | null;
+}
+
+export interface PagoCuentaCorrienteRequest {
+  monto: number;
+  medio: MedioPago;
+  fecha?: string | null;
+  nota?: string | null;
+}
+
+export interface PagoCuentaCorrienteResponse {
+  id: number;
+  odontologoId: number;
+  odontologoNombre: string;
+  monto: number;
+  montoImputado: number;
+  medio: MedioPago;
+  fecha: string;
+  nota: string | null;
+  comprobantesAfectados: number;
+  saldoRestante: number;
+  mensaje: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class FinanzasService {
 
@@ -159,5 +201,115 @@ export class FinanzasService {
     }
     const params = new HttpParams().set('desde', desde).set('hasta', hasta);
     return this.http.get<CajaMovimientoResponse[]>(`${this.base}/cajas/movimientos`, { params });
+  }
+
+  // ── Cuenta corriente del odontólogo ───────────────────────────────
+
+  /** Store mutable de comprobantes por odontólogo (solo mocks). */
+  private ccStore: Record<number, ComprobanteResponse[]> = {};
+  private pagosStore: Record<number, PagoCuentaCorrienteResponse[]> = {};
+  private nextPagoId = 7000;
+
+  /** Comprobantes (deudas) de un odontólogo. */
+  comprobantesPorOdontologo(odontologoId: number): Observable<ComprobanteResponse[]> {
+    if (environment.useMocks) {
+      return of(clonar(this.mockComprobantes(odontologoId))).pipe(delay(180));
+    }
+    return this.http.get<ComprobanteResponse[]>(`${this.base}/comprobantes/odontologo/${odontologoId}`);
+  }
+
+  /** Registra un pago manual a la cuenta corriente, imputado a las deudas más viejas. */
+  registrarPagoCuentaCorriente(odontologoId: number, req: PagoCuentaCorrienteRequest): Observable<PagoCuentaCorrienteResponse> {
+    if (environment.useMocks) {
+      return of(this.imputarPagoMock(odontologoId, req)).pipe(delay(260));
+    }
+    return this.http.post<PagoCuentaCorrienteResponse>(`${this.base}/odontologos/${odontologoId}/pagos`, req);
+  }
+
+  /** Histórico de pagos a cuenta corriente de un odontólogo. */
+  historialPagosOdontologo(odontologoId: number): Observable<PagoCuentaCorrienteResponse[]> {
+    if (environment.useMocks) {
+      return of(clonar(this.pagosStore[odontologoId] ?? [])).pipe(delay(150));
+    }
+    return this.http.get<PagoCuentaCorrienteResponse[]>(`${this.base}/odontologos/${odontologoId}/pagos`);
+  }
+
+  /** Genera (una vez) comprobantes demo para el odontólogo a partir del ranking. */
+  private mockComprobantes(odontologoId: number): ComprobanteResponse[] {
+    if (this.ccStore[odontologoId]) return this.ccStore[odontologoId];
+    const cc = this.generarRankingMock().find(x => x.odontologoId === odontologoId);
+    const trabajos = ['Corona Zirconio', 'Placa Hawley', 'Provisorio Acrílico', 'Disyuntor McNamara', 'Placa de Relajación'];
+    const n = cc?.comprobantesPendientes ?? 0;
+    const total = cc?.totalDeuda ?? 0;
+    const base = n > 0 ? Math.round(total / n) : 0;
+    const lista: ComprobanteResponse[] = [];
+    for (let i = 0; i < n; i++) {
+      const monto = i === n - 1 ? total - base * (n - 1) : base;   // ajusta el redondeo en el último
+      lista.push({
+        id: odontologoId * 100 + i,
+        nroComprobante: `COMP-2026-${String(odontologoId * 100 + i).padStart(4, '0')}`,
+        pedidoId: null,
+        nroPedido: `GS-2026-${String(odontologoId * 10 + i).padStart(4, '0')}`,
+        odontologoId,
+        odontologoNombre: cc?.odontologoNombre ?? 'Odontólogo',
+        trabajo: trabajos[i % trabajos.length],
+        monto,
+        montoPagado: 0,
+        saldoPendiente: monto,
+        estadoPago: 'PENDIENTE',
+        fechaEmision: this.diasAtras((cc?.diasSinPagar ?? 30) - i * 5),
+        fechaVencimiento: this.diasAtras((cc?.diasSinPagar ?? 30) - i * 5 - 30),
+        fechaCobro: null,
+        observaciones: null,
+      });
+    }
+    this.ccStore[odontologoId] = lista;
+    return lista;
+  }
+
+  /** Imputa un pago a los comprobantes del odontólogo (más viejos primero). */
+  private imputarPagoMock(odontologoId: number, req: PagoCuentaCorrienteRequest): PagoCuentaCorrienteResponse {
+    const comps = this.mockComprobantes(odontologoId)
+      .filter(c => c.estadoPago === 'PENDIENTE' || c.estadoPago === 'PARCIAL')
+      .sort((a, b) => new Date(a.fechaEmision).getTime() - new Date(b.fechaEmision).getTime());
+
+    let restante = req.monto;
+    let imputado = 0;
+    let afectados = 0;
+    const hoy = new Date().toISOString().slice(0, 10);
+
+    for (const c of comps) {
+      if (restante <= 0) break;
+      const aplica = Math.min(restante, c.saldoPendiente);
+      c.montoPagado += aplica;
+      c.saldoPendiente -= aplica;
+      c.estadoPago = c.saldoPendiente <= 0 ? 'COBRADO' : 'PARCIAL';
+      if (c.estadoPago === 'COBRADO') c.fechaCobro = req.fecha ?? hoy;
+      restante -= aplica;
+      imputado += aplica;
+      afectados++;
+    }
+
+    const saldoRestante = this.mockComprobantes(odontologoId)
+      .reduce((acc, c) => acc + c.saldoPendiente, 0);
+
+    let mensaje = `Pago imputado a ${afectados} comprobante(s). Saldo restante: $${saldoRestante.toLocaleString('es-AR')}`;
+    if (restante > 0) mensaje += `. Excedente no imputado: $${restante.toLocaleString('es-AR')}`;
+
+    const pago: PagoCuentaCorrienteResponse = {
+      id: this.nextPagoId++,
+      odontologoId,
+      odontologoNombre: comps[0]?.odontologoNombre ?? 'Odontólogo',
+      monto: req.monto,
+      montoImputado: imputado,
+      medio: req.medio,
+      fecha: req.fecha ?? hoy,
+      nota: req.nota ?? null,
+      comprobantesAfectados: afectados,
+      saldoRestante,
+      mensaje,
+    };
+    (this.pagosStore[odontologoId] ??= []).unshift(pago);
+    return pago;
   }
 }
