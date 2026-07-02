@@ -88,7 +88,7 @@
             </div>
             <div class="widget-body">
               @if (top3Morosos.length === 0) {
-                <p class="widget-empty">Sin deudas pendientes 🎉</p>
+                <p class="widget-empty">Sin deudas pendientes </p>
               } @else {
                 @for (c of top3Morosos; track c.odontologoId; let i = $index) {
                   <div class="widget-row">
@@ -425,8 +425,8 @@
           <div class="cuentas-filtros">
             <div class="filtros-chips">
               <button class="chip" [class.active]="filtroOrigen === 'TODOS'" (click)="cambiarFiltroOrigen('TODOS')">Todos</button>
-              <button class="chip" [class.active]="filtroOrigen === 'BOT_WHATSAPP'" (click)="cambiarFiltroOrigen('BOT_WHATSAPP')">🤖 Bot</button>
-              <button class="chip" [class.active]="filtroOrigen === 'MANUAL'" (click)="cambiarFiltroOrigen('MANUAL')">✋ Manual</button>
+              <button class="chip" [class.active]="filtroOrigen === 'BOT_WHATSAPP'" (click)="cambiarFiltroOrigen('BOT_WHATSAPP')">Bot</button>
+              <button class="chip" [class.active]="filtroOrigen === 'MANUAL'" (click)="cambiarFiltroOrigen('MANUAL')">Manual</button>
             </div>
             <div class="busqueda-wrap">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -464,7 +464,7 @@
                       <td class="muted">{{ formatFechaCortaSueldo(c.fecha) }}</td>
                       <td>
                         <span class="origen-badge" [attr.data-origen]="c.origen">
-                          {{ c.origen === 'BOT_WHATSAPP' ? '🤖 Bot' : '✋ Manual' }}
+                          {{ c.origen === 'BOT_WHATSAPP' ? 'Bot' : 'Manual' }}
                         </span>
                       </td>
                       <td>{{ c.emisor ?? '—' }}</td>
@@ -579,7 +579,7 @@
             </div>
 
             <p class="sueldos-nota">
-              💡 Las altas y bajas de personal se gestionan en <strong>Usuarios</strong>.
+              Las altas y bajas de personal se gestionan en <strong>Usuarios</strong>.
               Acá configurás el sueldo de cada integrante y registrás los pagos (manual o triangulado).
             </p>
           }
@@ -853,7 +853,7 @@
                 </div>
                 <div class="hist-item-right">
                   <span class="hist-origen" [attr.data-origen]="p.origen">
-                    @if (p.origen === 'BOT_WHATSAPP') { 🤖 Bot } @else { ✋ Manual }
+                    @if (p.origen === 'BOT_WHATSAPP') { Bot } @else { Manual }
                   </span>
                   @if (p.emisor) { <span class="hist-emisor">de {{ p.emisor }}</span> }
                   @if (p.montoExcedente > 0) {

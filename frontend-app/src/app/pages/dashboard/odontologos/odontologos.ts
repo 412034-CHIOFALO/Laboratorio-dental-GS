@@ -172,8 +172,30 @@ export class OdontologosComponent implements OnInit {
     return !!this.form.nombre?.trim();
   }
 
+  /** Deja solo dígitos (DNI). */
+  sanitizarDni(v: string): string { return (v || '').replace(/[^0-9]/g, '').slice(0, 8); }
+  /** Deja solo dígitos y guiones (CUIT). */
+  sanitizarCuit(v: string): string { return (v || '').replace(/[^0-9-]/g, '').slice(0, 13); }
+  /** Deja solo números y símbolos de teléfono. */
+  sanitizarTelefono(v: string): string { return (v || '').replace(/[^0-9+()\-\s]/g, '').slice(0, 30); }
+
   guardar(): void {
     if (!this.formValido) return;
+
+    // Validaciones de formato (además del backend).
+    const dni = this.form.dni?.trim();
+    if (dni && !/^[0-9]{7,8}$/.test(dni)) {
+      this.notif.alerta('El DNI debe tener 7 u 8 dígitos.', 'DNI inválido'); return;
+    }
+    const cuit = this.form.cuit?.trim();
+    if (cuit && !/^[0-9]{2}-?[0-9]{8}-?[0-9]{1}$/.test(cuit)) {
+      this.notif.alerta('El CUIT debe tener 11 dígitos (ej: 20-28456789-3).', 'CUIT inválido'); return;
+    }
+    const tel = this.form.telefono?.trim();
+    if (tel && !/^[0-9+()\-\s]{6,30}$/.test(tel)) {
+      this.notif.alerta('El teléfono solo puede tener números y los símbolos + - ( ).', 'Teléfono inválido'); return;
+    }
+
     this.saving = true;
 
     const request: OdontologoRequest = {

@@ -116,7 +116,7 @@
       </header>
 
       @if (alertas.length === 0) {
-        <div class="panel__empty">Sin alertas por ahora ✨</div>
+        <div class="panel__empty">Sin alertas por ahora</div>
       } @else {
         <div class="alert-list">
           @for (a of alertas; track $index) {
@@ -125,7 +125,7 @@
               <div class="mini-text">
                 <strong>
                   {{ a.titulo }}
-                  @if (a.badge === 'URGENTE') { <span class="mini-badge urgent">⚡ URGENTE</span> }
+                  @if (a.badge === 'URGENTE') { <span class="mini-badge urgent">URGENTE</span> }
                   @if (a.badge === 'CRITICO') { <span class="mini-badge crit">CRÍTICO</span> }
                 </strong>
                 <small>{{ a.subtitulo }}</small>

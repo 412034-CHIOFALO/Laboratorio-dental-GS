@@ -46,7 +46,7 @@ export class AuthService {
   constructor(private http: HttpClient) {}
 
   login(username: string, password: string): Observable<{ access_token: string }> {
-    // 🎬 MODO DEMO: cualquier user/pass válido entra
+    // MODO DEMO: cualquier user/pass válido entra
     if (environment.useMocks) {
       if (username && password) {
         return of({ access_token: FAKE_JWT }).pipe(delay(400));

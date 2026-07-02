@@ -53,7 +53,7 @@ export class CatalogoService {
 
   private readonly base = `${environment.apiUrl}/api/catalogo`;
 
-  // 🎬 Estado mock en memoria (se mutila para que crear/editar/eliminar funcionen visualmente)
+  // Estado mock en memoria (se mutila para que crear/editar/eliminar funcionen visualmente)
   private mockStore: TipoTrabajoResponse[] = clonar(MOCK_CATALOGO);
   private nextMockId = 11;
 

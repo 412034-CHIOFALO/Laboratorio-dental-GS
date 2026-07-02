@@ -18,7 +18,7 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
     <div class="v3d-overlay" (click)="onCerrar()">
       <div class="v3d-modal" (click)="$event.stopPropagation()">
         <div class="v3d-head">
-          <span class="v3d-title">🦷 {{ fileName }}</span>
+          <span class="v3d-title">{{ fileName }}</span>
           <button class="v3d-close" (click)="onCerrar()" aria-label="Cerrar">✕</button>
         </div>
 

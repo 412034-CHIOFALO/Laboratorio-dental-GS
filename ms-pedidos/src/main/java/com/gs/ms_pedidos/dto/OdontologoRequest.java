@@ -21,7 +21,8 @@ public class OdontologoRequest {
     @Pattern(regexp = "^[0-9]{2}-?[0-9]{8}-?[0-9]{1}$|^$", message = "El CUIT no tiene un formato válido")
     private String cuit;
 
-    @Size(max = 30, message = "El teléfono no puede superar los 30 caracteres")
+    @Pattern(regexp = "^[0-9+()\\-\\s]{6,30}$|^$",
+             message = "El teléfono solo puede contener números y los símbolos + - ( )")
     private String telefono;
 
     @Email(message = "El email no es válido")

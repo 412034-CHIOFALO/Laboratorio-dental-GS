@@ -60,9 +60,26 @@ export class ProveedoresComponent implements OnInit {
   abrirModal(): void { this.form = this.formVacio(); this.modalAbierto.set(true); }
   cerrarModal(): void { this.modalAbierto.set(false); }
 
+  /** Deja solo dígitos y guiones en el CUIT mientras se tipea. */
+  sanitizarCuit(v: string): string { return (v || '').replace(/[^0-9-]/g, '').slice(0, 13); }
+
+  /** Deja solo números y símbolos de teléfono (+ - ( ) espacio). */
+  sanitizarTelefono(v: string): string { return (v || '').replace(/[^0-9+()\-\s]/g, '').slice(0, 20); }
+
   guardar(): void {
     if (!this.form.nombre?.trim()) {
       this.notif.alerta('El nombre es obligatorio.', 'Falta el nombre');
+      return;
+    }
+    // Validaciones de formato (además de la que hace el backend).
+    const cuit = this.form.cuit?.trim();
+    if (cuit && !/^[0-9]{2}-?[0-9]{8}-?[0-9]{1}$/.test(cuit)) {
+      this.notif.alerta('El CUIT debe tener 11 dígitos (ej: 30-12345678-9).', 'CUIT inválido');
+      return;
+    }
+    const tel = this.form.telefono?.trim();
+    if (tel && !/^[0-9+()\-\s]{6,20}$/.test(tel)) {
+      this.notif.alerta('El teléfono solo puede tener números y los símbolos + - ( ).', 'Teléfono inválido');
       return;
     }
     this.guardando.set(true);

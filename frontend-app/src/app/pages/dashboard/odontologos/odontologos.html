@@ -42,7 +42,7 @@
       }
     </div>
     @if (busqueda && tipoMatch !== 'NOMBRE') {
-      <span class="match-badge">🔎 Buscando por {{ tipoMatch }} exacto</span>
+      <span class="match-badge">Buscando por {{ tipoMatch }} exacto</span>
     }
 
     <!-- Filtro de actividad -->
@@ -158,11 +158,11 @@
         <div class="form-grid-2">
           <div class="form-row">
             <label>DNI</label>
-            <input type="text" class="form-input" [(ngModel)]="form.dni" placeholder="28456789" maxlength="8"/>
+            <input type="text" class="form-input" [(ngModel)]="form.dni" (ngModelChange)="form.dni = sanitizarDni($event)" inputmode="numeric" placeholder="28456789" maxlength="8"/>
           </div>
           <div class="form-row">
             <label>CUIT</label>
-            <input type="text" class="form-input" [(ngModel)]="form.cuit" placeholder="20-28456789-3"/>
+            <input type="text" class="form-input" [(ngModel)]="form.cuit" (ngModelChange)="form.cuit = sanitizarCuit($event)" inputmode="numeric" placeholder="20-28456789-3"/>
           </div>
         </div>
         <div class="form-row">
@@ -174,7 +174,7 @@
         <div class="form-grid-2">
           <div class="form-row">
             <label>Teléfono</label>
-            <input type="text" class="form-input" [(ngModel)]="form.telefono" placeholder="11-4567-8901"/>
+            <input type="text" class="form-input" [(ngModel)]="form.telefono" (ngModelChange)="form.telefono = sanitizarTelefono($event)" inputmode="tel" placeholder="11-4567-8901"/>
           </div>
           <div class="form-row">
             <label>Email</label>

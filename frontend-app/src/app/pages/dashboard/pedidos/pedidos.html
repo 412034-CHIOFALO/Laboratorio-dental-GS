@@ -82,11 +82,11 @@
               <td class="celda-nro">
                 <span class="nro-pedido">{{ p.nroPedido }}</span>
                 @if (p.prioridad === 'URGENTE') {
-                  <span class="badge-urgente">⚡ URGENTE</span>
+                  <span class="badge-urgente">URGENTE</span>
                 }
                 @if (estaAtrasado(p)) {
                   <span class="badge-atrasado" [title]="'Lleva ' + (p.diasHabilesTranscurridos ?? 0) + ' días hábiles sin entregar'">
-                    🕓 ATRASADO
+                    ATRASADO
                   </span>
                 }
               </td>
@@ -305,7 +305,7 @@
               <button type="button" class="prio-opt" [class.active]="form.prioridad === 'NORMAL'"
                       (click)="form.prioridad = 'NORMAL'">Normal</button>
               <button type="button" class="prio-opt urgente" [class.active]="form.prioridad === 'URGENTE'"
-                      (click)="form.prioridad = 'URGENTE'">⚡ Urgente</button>
+                      (click)="form.prioridad = 'URGENTE'">Urgente</button>
             </div>
           </div>
           <div class="form-row">
@@ -357,7 +357,7 @@
             {{ labelEstado(detalleAbierto.estado) }}
           </span>
           @if (detalleAbierto.prioridad === 'URGENTE') {
-            <span class="badge-urgente">⚡ URGENTE</span>
+            <span class="badge-urgente">URGENTE</span>
           }
         </div>
         <button class="btn-close" (click)="cerrarDetalle()">

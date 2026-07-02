@@ -21,21 +21,21 @@
 
           @if (s.queVes?.length) {
             <div class="manual-bloque">
-              <h3>👀 Qué ves</h3>
+              <h3>Qué ves</h3>
               <ul>@for (t of s.queVes; track t) { <li>{{ t }}</li> }</ul>
             </div>
           }
 
           @if (s.queHaces?.length) {
             <div class="manual-bloque">
-              <h3>🖱️ Qué hacés</h3>
+              <h3>Qué hacés</h3>
               <ul>@for (t of s.queHaces; track t) { <li>{{ t }}</li> }</ul>
             </div>
           }
 
           @if (s.flujo?.length) {
             <div class="manual-bloque flujo">
-              <h3>🔗 El flujo</h3>
+              <h3>El flujo</h3>
               <ul>@for (t of s.flujo; track t) { <li>{{ t }}</li> }</ul>
             </div>
           }
@@ -47,7 +47,7 @@
                    (load)="marcarImagen(cap.id)" (error)="null" />
               @if (!conImagen().has(cap.id)) {
                 <div class="captura-placeholder">
-                  <span class="captura-ico">📸</span>
+                  <span class="captura-ico"></span>
                   <span class="captura-label">Captura pendiente</span>
                   <span class="captura-desc">{{ cap.descripcion }}</span>
                   <code class="captura-id">{{ cap.id }}</code>

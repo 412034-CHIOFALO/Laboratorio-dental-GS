@@ -92,9 +92,11 @@
       <div class="modal" (click)="$event.stopPropagation()">
         <h2>Nuevo proveedor</h2>
         <label>Nombre *<input [(ngModel)]="form.nombre" placeholder="Razón social o nombre"></label>
-        <label>CUIT<input [(ngModel)]="form.cuit" placeholder="30-12345678-9"></label>
+        <label>CUIT<input [(ngModel)]="form.cuit" (ngModelChange)="form.cuit = sanitizarCuit($event)"
+               inputmode="numeric" placeholder="30-12345678-9"></label>
         <label>Email<input [(ngModel)]="form.email" type="email" placeholder="ventas@proveedor.com"></label>
-        <label>Teléfono<input [(ngModel)]="form.telefono" placeholder="11-4555-0000"></label>
+        <label>Teléfono<input [(ngModel)]="form.telefono" (ngModelChange)="form.telefono = sanitizarTelefono($event)"
+               inputmode="tel" placeholder="11-4555-0000"></label>
         <label>Dirección<input [(ngModel)]="form.direccion" placeholder="Calle 123, Ciudad"></label>
         <div class="modal-acciones">
           <button class="btn-ghost" (click)="cerrarModal()">Cancelar</button>
