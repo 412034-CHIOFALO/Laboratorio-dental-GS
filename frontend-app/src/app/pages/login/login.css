@@ -178,6 +178,28 @@
 
 .input-wrap:focus-within .input-icon { color: var(--gs-green); }
 
+/* Botón para mostrar/ocultar la contraseña */
+.input-wrap:has(.toggle-pass) input { padding-right: 2.8rem; }
+.toggle-pass {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--gs-text-dim);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color .15s, background .15s;
+}
+.toggle-pass:hover { color: var(--gs-green); background: var(--gs-green-soft); }
+.toggle-pass:focus-visible { outline: 2px solid var(--gs-green); outline-offset: 1px; }
+
 /* ── ERROR ── */
 .error-box {
   display: flex; align-items: flex-start; gap: 8px;

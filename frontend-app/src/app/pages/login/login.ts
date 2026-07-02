@@ -16,6 +16,7 @@ import { environment } from '../../../environments/environment';
 export class LoginComponent {
   username = '';
   password = '';
+  mostrarPassword = false;
   errorMessage = '';
   loginLoading = false;
 

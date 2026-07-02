@@ -466,9 +466,16 @@ html[data-theme="light"] #toast-container > .toast-warning {
 }
 
 @media (max-width: 540px) {
+  /* En mobile el container se estira de lado a lado (con margen), y cada toast
+     ocupa el 100%. Antes quedaba anclado a la derecha y el toast se desbordaba. */
+  #toast-container {
+    top: 12px !important;
+    left: 12px !important;
+    right: 12px !important;
+  }
   #toast-container > div {
-    width: calc(100vw - 24px) !important;
-    margin: 0 12px !important;
+    width: 100% !important;
+    margin: 0 0 10px 0 !important;
   }
 }
 
