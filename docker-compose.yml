@@ -116,6 +116,9 @@ services:
       EUREKA_URI: http://discovery-server:8761/eureka/
       AUTH_ISSUER: http://localhost:8081
       GS_KEYSTORE_PASSWORD: ${GS_KEYSTORE_PASSWORD:-gs_keystore_2025}
+      # Contraseñas iniciales de los usuarios que crea ms-auth en el primer arranque.
+      GS_ADMIN_PASSWORD: ${GS_ADMIN_PASSWORD:-admin123}
+      GS_TECNICO_PASSWORD: ${GS_TECNICO_PASSWORD:-tecnico123}
       # Pass del usuario de servicio 'bot-pedidos' (debe coincidir con la del bot).
       GS_BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
     ports:
