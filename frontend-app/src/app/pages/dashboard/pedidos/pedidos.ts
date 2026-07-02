@@ -335,6 +335,14 @@ export class PedidosComponent implements OnInit {
     }
   }
 
+  // ── Saneadores de input (odontólogo nuevo inline) ────────────
+  /** Deja solo dígitos (DNI). */
+  sanitizarDni(v: string): string { return (v || '').replace(/[^0-9]/g, '').slice(0, 8); }
+  /** Deja solo dígitos y guiones (CUIT). */
+  sanitizarCuit(v: string): string { return (v || '').replace(/[^0-9-]/g, '').slice(0, 13); }
+  /** Deja solo números y símbolos de teléfono. */
+  sanitizarTelefono(v: string): string { return (v || '').replace(/[^0-9+()\-\s]/g, '').slice(0, 30); }
+
   // ── Submit ───────────────────────────────────────────────────
 
   guardar(): void {

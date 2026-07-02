@@ -25,5 +25,6 @@ public class IngredienteRecetaRequest {
     @Size(max = 30)
     private String unidad;
 
+    @Size(max = 500)
     private String notas;
 }

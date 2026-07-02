@@ -32,7 +32,9 @@
         </div>
         <div class="form-row">
           <label>Teléfono</label>
-          <input type="text" class="form-input" [(ngModel)]="form.telefono" placeholder="Ej: 3511234567"/>
+          <input type="text" class="form-input" [(ngModel)]="form.telefono"
+                 (ngModelChange)="form.telefono = sanitizarTelefono($event)"
+                 inputmode="tel" placeholder="Ej: 3511234567"/>
           <small class="form-hint">El bot usa tu teléfono para identificarte al enviar comprobantes.</small>
         </div>
         <div class="form-row">

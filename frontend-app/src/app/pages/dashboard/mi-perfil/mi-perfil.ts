@@ -51,8 +51,16 @@ export class MiPerfilComponent implements OnInit {
     return (n + a) || n;
   }
 
+  /** Deja solo números y símbolos de teléfono (+ - ( ) espacio). */
+  sanitizarTelefono(v: string): string { return (v || '').replace(/[^0-9+()\-\s]/g, '').slice(0, 30); }
+
   guardarPerfil(): void {
     if (!this.form.nombre.trim()) { this.notif.alerta('El nombre no puede quedar vacío'); return; }
+    const tel = this.form.telefono?.trim();
+    if (tel && !/^[0-9+()\-\s]{6,30}$/.test(tel)) {
+      this.notif.alerta('El teléfono solo puede tener números y los símbolos + - ( ).', 'Teléfono inválido');
+      return;
+    }
     this.guardando.set(true);
     this.auth.editarPerfil({
       nombre: this.form.nombre.trim(),

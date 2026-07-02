@@ -24,6 +24,7 @@ public class EntregaRequest {
     @PastOrPresent(message = "La fecha de entrega no puede ser futura")
     private LocalDate fechaEntregaReal;
 
+    @Size(max = 1000)
     private String observacionesEntrega;
 
     /**

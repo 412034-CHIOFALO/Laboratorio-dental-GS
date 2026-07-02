@@ -24,6 +24,9 @@ export class ConfiguracionComponent implements OnInit {
 
   get isAdmin(): boolean { return this.auth.isAdmin(); }
 
+  /** Deja solo dígitos (número de WhatsApp en formato internacional). */
+  sanitizarWhatsapp(v: string): string { return (v || '').replace(/[^0-9]/g, '').slice(0, 15); }
+
   ngOnInit(): void {
     this.stockService.obtenerConfigAlerta().subscribe({
       next:  c => { this.config = c; this.loading = false; },

@@ -29,6 +29,8 @@
         <div class="conf-field">
           <label for="phone">Número de WhatsApp del administrador</label>
           <input id="phone" type="text" [(ngModel)]="config.adminWhatsappPhone"
+                 (ngModelChange)="config.adminWhatsappPhone = sanitizarWhatsapp($event)"
+                 inputmode="numeric" maxlength="15"
                  placeholder="5491155443322 (sin +, sin espacios)"
                  [disabled]="!isAdmin">
           <p class="conf-field-hint">

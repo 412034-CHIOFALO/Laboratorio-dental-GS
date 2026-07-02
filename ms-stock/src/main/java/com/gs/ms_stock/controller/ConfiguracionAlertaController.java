@@ -5,6 +5,7 @@ import com.gs.ms_stock.model.ConfiguracionAlerta;
 import com.gs.ms_stock.repository.ConfiguracionAlertaRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,7 +29,7 @@ public class ConfiguracionAlertaController {
                description = "Permite configurar el número de WhatsApp del administrador y activar/desactivar las alertas de stock bajo.")
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ConfiguracionAlerta> actualizar(@RequestBody ConfiguracionAlertaRequest req) {
+    public ResponseEntity<ConfiguracionAlerta> actualizar(@Valid @RequestBody ConfiguracionAlertaRequest req) {
         ConfiguracionAlerta config = getOrCreate();
         config.setAdminWhatsappPhone(req.getAdminWhatsappPhone());
         config.setAlertasActivas(req.isAlertasActivas());

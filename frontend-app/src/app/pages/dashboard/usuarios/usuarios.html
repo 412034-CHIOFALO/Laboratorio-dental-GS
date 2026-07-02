@@ -160,7 +160,9 @@
       <p class="modal-hint">El teléfono permite al bot de WhatsApp identificar al integrante cuando carga comprobantes.</p>
       <div class="field-group">
         <label>Número (ej: 5491112345678)</label>
-        <input type="tel" [(ngModel)]="formTel.telefono" name="telefono" placeholder="5491112345678">
+        <input type="tel" [(ngModel)]="formTel.telefono" name="telefono"
+               (ngModelChange)="formTel.telefono = sanitizarTelefono($event)"
+               inputmode="tel" maxlength="30" placeholder="5491112345678">
       </div>
       @if (telError)   { <div class="alert-error">{{ telError }}</div> }
       @if (telSuccess) { <div class="alert-success">{{ telSuccess }}</div> }

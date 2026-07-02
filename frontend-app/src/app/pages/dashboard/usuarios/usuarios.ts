@@ -140,8 +140,16 @@ export class UsuariosComponent implements OnInit {
 
   cerrarTelModal() { this.showTelModal = false; this.editandoUsuario = null; }
 
+  /** Deja solo números y símbolos de teléfono (+ - ( ) espacio). */
+  sanitizarTelefono(v: string): string { return (v || '').replace(/[^0-9+()\-\s]/g, '').slice(0, 30); }
+
   guardarTelefono() {
     if (!this.editandoUsuario) return;
+    const tel = this.formTel.telefono?.trim();
+    if (tel && !/^[0-9+()\-\s]{6,30}$/.test(tel)) {
+      this.telError = 'El teléfono solo puede tener números y los símbolos + - ( ).';
+      return;
+    }
     this.savingTel = true; this.telError = '';
     const id = this.editandoUsuario.id;
 

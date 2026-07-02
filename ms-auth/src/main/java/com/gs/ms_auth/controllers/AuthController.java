@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -260,8 +261,14 @@ public class AuthController {
             @PathVariable Long id,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal Jwt jwt) {
+        String telefono = body.get("telefono");
+        if (telefono != null && !telefono.isBlank()
+                && !telefono.matches("^[0-9+()\\-\\s]{6,30}$")) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "error", "El teléfono solo puede contener números y los símbolos + - ( )"));
+        }
         try {
-            Usuario u = usuarioService.actualizarTelefono(id, body.get("telefono"));
+            Usuario u = usuarioService.actualizarTelefono(id, telefono);
             auditoriaService.registrar(jwt.getSubject(), "EDITAR", "Actualización de teléfono",
                 "Usuario " + u.getUsername(), "Teléfono actualizado");
             return ResponseEntity.ok(UsuarioResponse.from(u));
@@ -340,7 +347,10 @@ public class AuthController {
     public record PerfilRequest(
         @Size(max = 100) String nombre,
         @Size(max = 100) String apellido,
-        @Size(max = 30)  String telefono
+        @Size(max = 30)
+        @Pattern(regexp = "^[0-9+()\\-\\s]{6,30}$|^$",
+                 message = "El teléfono solo puede contener números y los símbolos + - ( )")
+        String telefono
     ) {}
 
     public record CambioPasswordRequest(
