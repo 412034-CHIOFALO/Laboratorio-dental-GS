@@ -1,6 +1,7 @@
 package com.gs.ms_pedidos.dto;
 
 import com.gs.ms_pedidos.model.Prioridad;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -45,6 +46,7 @@ public class PedidoRequest {
     private Prioridad prioridad = Prioridad.NORMAL;
 
     @PositiveOrZero(message = "El precio no puede ser negativo")
+    @Digits(integer = 10, fraction = 2, message = "El precio excede el máximo permitido")
     private BigDecimal precioAcordado;
 
     @Size(max = 1000, message = "Las observaciones no pueden superar los 1000 caracteres")

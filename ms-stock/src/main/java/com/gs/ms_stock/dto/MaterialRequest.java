@@ -1,6 +1,7 @@
 package com.gs.ms_stock.dto;
 
 import com.gs.ms_stock.model.CategoriaMaterial;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -29,13 +30,14 @@ public class MaterialRequest {
     private Double stockMinimo;
 
     @NotBlank(message = "La unidad de medida es obligatoria")
-    @Size(max = 30, message = "La unidad de medida no puede superar los 30 caracteres")
+    @Size(max = 20, message = "La unidad de medida no puede superar los 20 caracteres")
     private String unidadMedida;
 
     @PositiveOrZero
+    @Digits(integer = 10, fraction = 2, message = "El precio excede el máximo permitido")
     private BigDecimal precioUnitario;
 
-    @Size(max = 200)
+    @Size(max = 100)
     private String proveedor;
 
     /**

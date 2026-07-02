@@ -18,7 +18,7 @@ public class MovimientoRequest {
     @NotNull @Positive(message = "La cantidad debe ser mayor que cero")
     private Double cantidad;
 
-    @Size(max = 300)
+    @Size(max = 255)
     private String motivo;
 
     private Long pedidoId;

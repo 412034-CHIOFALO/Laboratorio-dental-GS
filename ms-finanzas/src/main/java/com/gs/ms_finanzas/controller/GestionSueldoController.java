@@ -88,7 +88,11 @@ public class GestionSueldoController {
             @Parameter(description = "ID del usuario en ms-auth", required = true)
             @PathVariable Long usuarioId,
             @RequestBody Map<String, BigDecimal> body) {
-        return ResponseEntity.ok(service.ajustarDevengado(usuarioId, body.get("devengado")));
+        BigDecimal devengado = body.get("devengado");
+        if (devengado == null) {
+            throw new com.gs.ms_finanzas.exception.BusinessException("El campo 'devengado' es obligatorio.");
+        }
+        return ResponseEntity.ok(service.ajustarDevengado(usuarioId, devengado));
     }
 
     @Operation(summary = "Registra un pago de sueldo manual",

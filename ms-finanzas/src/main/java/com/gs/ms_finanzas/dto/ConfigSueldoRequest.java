@@ -1,6 +1,7 @@
 package com.gs.ms_finanzas.dto;
 
 import com.gs.ms_finanzas.model.FrecuenciaPago;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.Data;
@@ -15,5 +16,6 @@ public class ConfigSueldoRequest {
 
     @NotNull(message = "El monto base es obligatorio")
     @PositiveOrZero(message = "El monto base no puede ser negativo")
+    @Digits(integer = 10, fraction = 2, message = "El monto base excede el máximo permitido")
     private BigDecimal montoBase;
 }

@@ -1,5 +1,6 @@
 package com.gs.ms_catalogo.dto;
 
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -20,6 +21,7 @@ public class IngredienteRecetaRequest {
 
     @NotNull(message = "La cantidad es obligatoria")
     @Positive(message = "La cantidad debe ser mayor a 0")
+    @Digits(integer = 9, fraction = 3, message = "La cantidad excede el máximo permitido")
     private BigDecimal cantidad;
 
     @Size(max = 30)

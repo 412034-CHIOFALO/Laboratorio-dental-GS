@@ -228,6 +228,9 @@ public class AuthController {
             @PathVariable Long id,
             @RequestBody Map<String, Boolean> body,
             @AuthenticationPrincipal Jwt jwt) {
+        if (body == null || body.get("activo") == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "El campo 'activo' (true/false) es obligatorio."));
+        }
         try {
             boolean activo = Boolean.TRUE.equals(body.get("activo"));
             Usuario u = usuarioService.cambiarEstado(id, activo);

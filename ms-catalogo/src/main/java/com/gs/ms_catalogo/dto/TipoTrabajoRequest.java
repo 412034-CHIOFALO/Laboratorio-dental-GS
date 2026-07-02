@@ -2,6 +2,7 @@ package com.gs.ms_catalogo.dto;
 
 import com.gs.ms_catalogo.model.Categoria;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -23,6 +24,7 @@ public class TipoTrabajoRequest {
     private String descripcion;
 
     @PositiveOrZero(message = "El precio no puede ser negativo")
+    @Digits(integer = 10, fraction = 2, message = "El precio excede el máximo permitido")
     private BigDecimal precio;
 
     @NotNull(message = "La categoría es obligatoria")
