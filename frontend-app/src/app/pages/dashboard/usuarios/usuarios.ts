@@ -103,7 +103,7 @@ export class UsuariosComponent implements OnInit {
           this.saving = false; this.saveSuccess = 'Usuario creado correctamente.';
           setTimeout(() => { this.cerrarModal(); this.cargarUsuarios(); }, 1200);
         },
-        error: (err) => { this.saving = false; this.saveError = err.error?.error ?? 'Error al crear el usuario.'; }
+        error: (err) => { this.saving = false; this.saveError = this.mensajeError(err, 'Error al crear el usuario.'); }
       });
   }
 
@@ -143,6 +143,18 @@ export class UsuariosComponent implements OnInit {
   /** Deja solo números y símbolos de teléfono (+ - ( ) espacio). */
   sanitizarTelefono(v: string): string { return (v || '').replace(/[^0-9+()\-\s]/g, '').slice(0, 30); }
 
+  /**
+   * Extrae el mejor mensaje de un error HTTP del backend para mostrarlo inline.
+   * Prioriza el detalle de validación por campo, luego el mensaje de negocio.
+   */
+  private mensajeError(err: any, fallback: string): string {
+    const body = err?.error ?? {};
+    if (Array.isArray(body.campos) && body.campos.length > 0) {
+      return body.campos.map((c: any) => c.mensaje).join(' · ');
+    }
+    return body.mensaje ?? body.error ?? fallback;
+  }
+
   guardarTelefono() {
     if (!this.editandoUsuario) return;
     const tel = this.formTel.telefono?.trim();
@@ -170,7 +182,7 @@ export class UsuariosComponent implements OnInit {
           this.savingTel = false; this.telSuccess = 'Teléfono actualizado correctamente.';
           setTimeout(() => { this.cerrarTelModal(); this.cargarUsuarios(); }, 1000);
         },
-        error: (err) => { this.savingTel = false; this.telError = err.error?.error ?? 'Error al actualizar el teléfono.'; }
+        error: (err) => { this.savingTel = false; this.telError = this.mensajeError(err, 'Error al actualizar el teléfono.'); }
       });
   }
 
