@@ -35,13 +35,19 @@ import org.springframework.security.oauth2.server.authorization.settings.Authori
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 
 import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -95,10 +101,32 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/register", "/api/auth/usuarios/**", "/api/auth/auditoria").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
             // Necesario para que H2 console cargue en iframe (solo dev)
             .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()));
         return http.build();
+    }
+
+    /**
+     * Mapea el claim "roles" del JWT (emitido por este mismo ms-auth) a authorities.
+     * El claim llega como CSV: "ROLE_ADMIN" o "ROLE_TECNICO". Sin este converter,
+     * el mapeo por defecto usa el claim "scope"/"scp" y hasRole("ADMIN") daría 403
+     * en /api/auth/usuarios, /auditoria y /register. Mismo patrón que el resto de MS.
+     */
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            String roles = jwt.getClaimAsString("roles");
+            if (roles == null || roles.isBlank()) return Collections.emptyList();
+            return Arrays.stream(roles.split(","))
+                .map(String::trim)
+                .filter(r -> !r.isEmpty())
+                .map(r -> (GrantedAuthority) new SimpleGrantedAuthority(r))
+                .collect(Collectors.toList());
+        });
+        return converter;
     }
 
     // 4. BCrypt para contraseñas
