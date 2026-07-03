@@ -1,4 +1,6 @@
 package com.gs.ms_catalogo.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_catalogo.dto.TipoTrabajoRequest;
 import com.gs.ms_catalogo.dto.TipoTrabajoResponse;
@@ -37,6 +39,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/catalogo")
 @RequiredArgsConstructor
+@Validated
 public class TipoTrabajoController {
 
     private final ITipoTrabajoService service;
@@ -82,7 +85,7 @@ public class TipoTrabajoController {
     @GetMapping("/{id}")
     public ResponseEntity<TipoTrabajoResponse> buscarPorId(
             @Parameter(description = "ID único del tipo de trabajo", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
     }
 
@@ -121,7 +124,7 @@ public class TipoTrabajoController {
     @PutMapping("/{id}")
     public ResponseEntity<TipoTrabajoResponse> actualizar(
             @Parameter(description = "ID del tipo de trabajo a actualizar", example = "1")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos actualizados del tipo de trabajo")
             @Valid @RequestBody TipoTrabajoRequest request) {
         return ResponseEntity.ok(service.actualizar(id, request));
@@ -142,7 +145,7 @@ public class TipoTrabajoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
             @Parameter(description = "ID del tipo de trabajo a dar de baja", example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
     }

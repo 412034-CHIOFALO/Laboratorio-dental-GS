@@ -1,4 +1,6 @@
 package com.gs.ms_auth.controllers;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_auth.dto.RegisterRequest;
 import com.gs.ms_auth.dto.UsuarioResponse;
@@ -48,6 +50,7 @@ import java.util.stream.Collectors;
 @Tag(name = "Autenticación y Usuarios", description = "Login JWT, registro, aprobación y gestión de usuarios del laboratorio")
 @RestController
 @RequestMapping("/api/auth")
+@Validated
 public class AuthController {
 
     private final JwtEncoder jwtEncoder;
@@ -191,7 +194,7 @@ public class AuthController {
     @PutMapping("/usuarios/{id}/aprobar")
     public ResponseEntity<?> aprobar(
             @Parameter(description = "ID numérico del usuario a aprobar", required = true, example = "5")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @AuthenticationPrincipal Jwt jwt) {
         try {
             Usuario aprobado = usuarioService.aprobar(id);
@@ -225,7 +228,7 @@ public class AuthController {
     @PatchMapping("/usuarios/{id}/estado")
     public ResponseEntity<?> cambiarEstado(
             @Parameter(description = "ID numérico del usuario", required = true, example = "5")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @RequestBody Map<String, Boolean> body,
             @AuthenticationPrincipal Jwt jwt) {
         if (body == null || body.get("activo") == null) {
@@ -261,7 +264,7 @@ public class AuthController {
     @PatchMapping("/usuarios/{id}/telefono")
     public ResponseEntity<?> actualizarTelefono(
             @Parameter(description = "ID numérico del usuario", required = true, example = "5")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal Jwt jwt) {
         String telefono = body.get("telefono");

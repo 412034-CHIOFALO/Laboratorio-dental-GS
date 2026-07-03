@@ -1,4 +1,6 @@
 package com.gs.ms_finanzas.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_finanzas.dto.*;
 import com.gs.ms_finanzas.service.IDeudaProveedorService;
@@ -27,6 +29,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/finanzas/proveedores")
 @RequiredArgsConstructor
+@Validated
 public class ProveedorController {
 
     private final IProveedorService provService;
@@ -53,7 +56,7 @@ public class ProveedorController {
     @GetMapping("/{id}")
     public ResponseEntity<ProveedorResponse> buscar(
             @Parameter(description = "ID interno del proveedor", required = true)
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(provService.buscarPorId(id));
     }
 
@@ -81,7 +84,7 @@ public class ProveedorController {
     @PutMapping("/{id}")
     public ResponseEntity<ProveedorResponse> actualizar(
             @Parameter(description = "ID interno del proveedor", required = true)
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @RequestBody ProveedorRequest req) {
         return ResponseEntity.ok(provService.actualizar(id, req));
     }
@@ -96,7 +99,7 @@ public class ProveedorController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivar(
             @Parameter(description = "ID interno del proveedor", required = true)
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         provService.desactivar(id);
         return ResponseEntity.noContent().build();
     }
@@ -111,7 +114,7 @@ public class ProveedorController {
     @GetMapping("/{id}/deudas")
     public ResponseEntity<List<DeudaProveedorResponse>> deudas(
             @Parameter(description = "ID interno del proveedor", required = true)
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(deudaService.listarPorProveedor(id));
     }
 

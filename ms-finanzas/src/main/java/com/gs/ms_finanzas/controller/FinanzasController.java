@@ -1,4 +1,6 @@
 package com.gs.ms_finanzas.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_finanzas.dto.ComprobanteRequest;
 import com.gs.ms_finanzas.dto.ComprobanteResponse;
@@ -37,6 +39,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/finanzas")
 @RequiredArgsConstructor
+@Validated
 public class FinanzasController {
 
     private final IFinanzasService service;
@@ -73,7 +76,7 @@ public class FinanzasController {
     @GetMapping("/comprobantes/odontologo/{odontologoId}")
     public ResponseEntity<List<ComprobanteResponse>> listarPorOdontologo(
             @Parameter(description = "ID del odontólogo en ms-auth", required = true)
-            @PathVariable Long odontologoId) {
+            @PathVariable @Positive Long odontologoId) {
         return ResponseEntity.ok(service.listarPorOdontologo(odontologoId));
     }
 
@@ -87,7 +90,7 @@ public class FinanzasController {
     @GetMapping("/saldo/odontologo/{odontologoId}")
     public ResponseEntity<BigDecimal> saldoPendiente(
             @Parameter(description = "ID del odontólogo en ms-auth", required = true)
-            @PathVariable Long odontologoId) {
+            @PathVariable @Positive Long odontologoId) {
         return ResponseEntity.ok(service.saldoPendienteOdontologo(odontologoId));
     }
 
@@ -101,7 +104,7 @@ public class FinanzasController {
     @GetMapping("/comprobantes/{id}")
     public ResponseEntity<ComprobanteResponse> buscarPorId(
             @Parameter(description = "ID interno del comprobante", required = true)
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
     }
 
@@ -130,7 +133,7 @@ public class FinanzasController {
     @PatchMapping("/comprobantes/{id}/cobrar")
     public ResponseEntity<ComprobanteResponse> registrarCobro(
             @Parameter(description = "ID interno del comprobante a cobrar", required = true)
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(service.registrarCobro(id));
     }
 
@@ -168,7 +171,7 @@ public class FinanzasController {
     @PostMapping("/odontologos/{odontologoId}/pagos")
     public ResponseEntity<PagoCuentaCorrienteResponse> registrarPagoCuentaCorriente(
             @Parameter(description = "ID del odontólogo", required = true)
-            @PathVariable Long odontologoId,
+            @PathVariable @Positive Long odontologoId,
             @Valid @RequestBody PagoCuentaCorrienteRequest request) {
         return ResponseEntity.ok(service.registrarPagoCuentaCorriente(odontologoId, request));
     }
@@ -179,7 +182,7 @@ public class FinanzasController {
     @GetMapping("/odontologos/{odontologoId}/pagos")
     public ResponseEntity<List<PagoCuentaCorrienteResponse>> historialPagos(
             @Parameter(description = "ID del odontólogo", required = true)
-            @PathVariable Long odontologoId) {
+            @PathVariable @Positive Long odontologoId) {
         return ResponseEntity.ok(service.historialPagosOdontologo(odontologoId));
     }
 }

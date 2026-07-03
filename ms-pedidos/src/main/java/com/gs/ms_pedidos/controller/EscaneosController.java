@@ -1,4 +1,6 @@
 package com.gs.ms_pedidos.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_pedidos.dto.EscaneoResponse;
 import com.gs.ms_pedidos.exception.BusinessException;
@@ -39,6 +41,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/pedidos/{pedidoId}/escaneos")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class EscaneosController {
 
     private final EscaneosPedidoRepository escaneoRepo;
@@ -56,7 +59,7 @@ public class EscaneosController {
     @GetMapping
     public ResponseEntity<List<EscaneoResponse>> listar(
             @Parameter(description = "ID del pedido", example = "42")
-            @PathVariable Long pedidoId) {
+            @PathVariable @Positive Long pedidoId) {
         List<EscaneoResponse> resp = escaneoRepo
                 .findByPedidoIdOrderByFechaSubidaDesc(pedidoId)
                 .stream().map(this::toResponse).collect(Collectors.toList());
@@ -76,7 +79,7 @@ public class EscaneosController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<EscaneoResponse> subir(
             @Parameter(description = "ID del pedido al que se adjunta el escaneo", example = "42")
-            @PathVariable Long pedidoId,
+            @PathVariable @Positive Long pedidoId,
             @Parameter(description = "Archivo de escaneo a subir (STL, OBJ, etc.)")
             @RequestParam("file") MultipartFile file,
             @Parameter(description = "Descripción del escaneo. Ej: 'Arcada superior', 'Modelo antagonista'", example = "Arcada superior")
@@ -131,9 +134,9 @@ public class EscaneosController {
     @GetMapping("/{escaneoId}/url")
     public ResponseEntity<Map<String, String>> getUrl(
             @Parameter(description = "ID del pedido", example = "42")
-            @PathVariable Long pedidoId,
+            @PathVariable @Positive Long pedidoId,
             @Parameter(description = "ID del escaneo", example = "3")
-            @PathVariable Long escaneoId) {
+            @PathVariable @Positive Long escaneoId) {
         EscaneosPedido e = escaneoRepo.findById(escaneoId)
                 .filter(x -> x.getPedidoId().equals(pedidoId))
                 .orElseThrow(() -> new ResourceNotFoundException("Escaneo no encontrado"));
@@ -155,9 +158,9 @@ public class EscaneosController {
     @DeleteMapping("/{escaneoId}")
     public ResponseEntity<Void> eliminar(
             @Parameter(description = "ID del pedido", example = "42")
-            @PathVariable Long pedidoId,
+            @PathVariable @Positive Long pedidoId,
             @Parameter(description = "ID del escaneo a eliminar", example = "3")
-            @PathVariable Long escaneoId) {
+            @PathVariable @Positive Long escaneoId) {
         EscaneosPedido e = escaneoRepo.findById(escaneoId)
                 .filter(x -> x.getPedidoId().equals(pedidoId))
                 .orElseThrow(() -> new ResourceNotFoundException("Escaneo no encontrado"));

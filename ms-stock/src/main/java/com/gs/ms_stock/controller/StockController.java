@@ -1,4 +1,6 @@
 package com.gs.ms_stock.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_stock.dto.MaterialRequest;
 import com.gs.ms_stock.dto.MaterialResponse;
@@ -42,6 +44,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/stock")
 @RequiredArgsConstructor
+@Validated
 public class StockController {
 
     private final IStockService service;
@@ -94,7 +97,7 @@ public class StockController {
     @GetMapping("/{id}")
     public ResponseEntity<MaterialResponse> buscarPorId(
             @Parameter(description = "ID único del material", required = true, example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
     }
 
@@ -135,7 +138,7 @@ public class StockController {
     @PutMapping("/{id}")
     public ResponseEntity<MaterialResponse> actualizar(
             @Parameter(description = "ID único del material a actualizar", required = true, example = "1")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Valid @RequestBody MaterialRequest request) {
         return ResponseEntity.ok(service.actualizar(id, request));
     }
@@ -176,7 +179,7 @@ public class StockController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
             @Parameter(description = "ID único del material a dar de baja", required = true, example = "1")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         service.eliminar(id);
         return ResponseEntity.noContent().build();
     }

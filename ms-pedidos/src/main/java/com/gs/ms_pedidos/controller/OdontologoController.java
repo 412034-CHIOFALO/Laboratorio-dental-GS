@@ -1,4 +1,6 @@
 package com.gs.ms_pedidos.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_pedidos.dto.OdontologoRequest;
 import com.gs.ms_pedidos.dto.OdontologoResponse;
@@ -28,6 +30,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/odontologos")
 @RequiredArgsConstructor
+@Validated
 public class OdontologoController {
 
     private final IOdontologoService service;
@@ -60,7 +63,7 @@ public class OdontologoController {
     @GetMapping("/{id}")
     public ResponseEntity<OdontologoResponse> buscarPorId(
             @Parameter(description = "ID interno del odontólogo", example = "5")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(service.buscarPorId(id));
     }
 
@@ -93,7 +96,7 @@ public class OdontologoController {
     @PutMapping("/{id}")
     public ResponseEntity<OdontologoResponse> actualizar(
             @Parameter(description = "ID del odontólogo a actualizar", example = "5")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Parameter(description = "Nuevos datos del odontólogo")
             @Valid @RequestBody OdontologoRequest request) {
         return ResponseEntity.ok(service.actualizar(id, request));
@@ -110,7 +113,7 @@ public class OdontologoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivar(
             @Parameter(description = "ID del odontólogo a desactivar", example = "5")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         service.desactivar(id);
         return ResponseEntity.noContent().build();
     }

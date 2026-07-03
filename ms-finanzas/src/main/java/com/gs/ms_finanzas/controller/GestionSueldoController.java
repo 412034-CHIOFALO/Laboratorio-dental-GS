@@ -1,4 +1,6 @@
 package com.gs.ms_finanzas.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_finanzas.dto.*;
 import com.gs.ms_finanzas.service.IGestionSueldoService;
@@ -31,6 +33,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/finanzas/sueldos")
 @RequiredArgsConstructor
+@Validated
 public class GestionSueldoController {
 
     private final IGestionSueldoService service;
@@ -56,7 +59,7 @@ public class GestionSueldoController {
     @GetMapping("/empleados/{usuarioId}")
     public ResponseEntity<EmpleadoSueldoResponse> buscarEmpleado(
             @Parameter(description = "ID del usuario en ms-auth", required = true)
-            @PathVariable Long usuarioId) {
+            @PathVariable @Positive Long usuarioId) {
         return ResponseEntity.ok(service.buscarEmpleado(usuarioId));
     }
 
@@ -71,7 +74,7 @@ public class GestionSueldoController {
     @PutMapping("/empleados/{usuarioId}/config")
     public ResponseEntity<EmpleadoSueldoResponse> guardarConfig(
             @Parameter(description = "ID del usuario en ms-auth", required = true)
-            @PathVariable Long usuarioId,
+            @PathVariable @Positive Long usuarioId,
             @Valid @RequestBody ConfigSueldoRequest req) {
         return ResponseEntity.ok(service.guardarConfig(usuarioId, req));
     }
@@ -86,7 +89,7 @@ public class GestionSueldoController {
     @PatchMapping("/empleados/{usuarioId}/devengado")
     public ResponseEntity<EmpleadoSueldoResponse> ajustarDevengado(
             @Parameter(description = "ID del usuario en ms-auth", required = true)
-            @PathVariable Long usuarioId,
+            @PathVariable @Positive Long usuarioId,
             @RequestBody Map<String, BigDecimal> body) {
         BigDecimal devengado = body.get("devengado");
         if (devengado == null) {
@@ -133,7 +136,7 @@ public class GestionSueldoController {
     @GetMapping("/empleados/{usuarioId}/pagos")
     public ResponseEntity<List<PagoSueldoResponse>> historialPagos(
             @Parameter(description = "ID del usuario en ms-auth", required = true)
-            @PathVariable Long usuarioId) {
+            @PathVariable @Positive Long usuarioId) {
         return ResponseEntity.ok(service.historialPagos(usuarioId));
     }
 
@@ -158,7 +161,7 @@ public class GestionSueldoController {
     @GetMapping("/pagos/{pagoId}/comprobante")
     public ResponseEntity<Map<String, String>> urlComprobante(
             @Parameter(description = "ID del pago de sueldo", required = true)
-            @PathVariable Long pagoId) {
+            @PathVariable @Positive Long pagoId) {
         return ResponseEntity.ok(Map.of("url", service.urlComprobante(pagoId)));
     }
 
@@ -184,7 +187,7 @@ public class GestionSueldoController {
     @GetMapping("/registros-bot/{registroId}/comprobante")
     public ResponseEntity<Map<String, String>> urlComprobanteRegistro(
             @Parameter(description = "ID del registro del bot", required = true)
-            @PathVariable Long registroId) {
+            @PathVariable @Positive Long registroId) {
         return ResponseEntity.ok(Map.of("url", service.urlComprobanteRegistro(registroId)));
     }
 
@@ -221,7 +224,7 @@ public class GestionSueldoController {
         @ApiResponse(responseCode = "400", description = "El registro no está en estado PENDIENTE")
     })
     @PostMapping("/registros-bot/{id}/confirmar")
-    public ResponseEntity<RegistroPagoBotResponse> confirmarEfectivo(@PathVariable Long id) {
+    public ResponseEntity<RegistroPagoBotResponse> confirmarEfectivo(@PathVariable @Positive Long id) {
         return ResponseEntity.ok(service.confirmarEfectivo(id));
     }
 
@@ -235,7 +238,7 @@ public class GestionSueldoController {
     })
     @PostMapping("/registros-bot/{id}/rechazar")
     public ResponseEntity<RegistroPagoBotResponse> rechazarEfectivo(
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @RequestBody(required = false) Map<String, String> body) {
         String motivo = body != null ? body.get("motivo") : null;
         return ResponseEntity.ok(service.rechazarEfectivo(id, motivo));

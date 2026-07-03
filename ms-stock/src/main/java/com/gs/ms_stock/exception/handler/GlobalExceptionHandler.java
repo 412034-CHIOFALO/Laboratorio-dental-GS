@@ -5,6 +5,7 @@ import com.gs.ms_stock.exception.BusinessException;
 import com.gs.ms_stock.exception.ConflictException;
 import com.gs.ms_stock.exception.ResourceNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -66,6 +67,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest req) {
         List<ErrorResponse.CampoError> campos = ex.getBindingResult().getFieldErrors().stream()
             .map(f -> new ErrorResponse.CampoError(f.getField(), f.getDefaultMessage()))
+            .toList();
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(ErrorResponse.of(400, "Bad Request", "Errores de validación en la petición", req.getRequestURI(), campos));
+    }
+
+    // Violaciones de @PathVariable / @RequestParam (requiere @Validated en el controller)
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolation(ConstraintViolationException ex, HttpServletRequest req) {
+        List<ErrorResponse.CampoError> campos = ex.getConstraintViolations().stream()
+            .map(v -> {
+                String path = v.getPropertyPath().toString();
+                String campo = path.contains(".") ? path.substring(path.lastIndexOf('.') + 1) : path;
+                return new ErrorResponse.CampoError(campo, v.getMessage());
+            })
             .toList();
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
             .body(ErrorResponse.of(400, "Bad Request", "Errores de validación en la petición", req.getRequestURI(), campos));

@@ -1,4 +1,6 @@
 package com.gs.ms_pedidos.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_pedidos.dto.EntregaRequest;
 import com.gs.ms_pedidos.dto.PedidoRequest;
@@ -38,6 +40,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/pedidos")
 @RequiredArgsConstructor
+@Validated
 public class PedidoController {
 
     private final IPedidoService pedidoService;
@@ -104,7 +107,7 @@ public class PedidoController {
     @GetMapping("/{id}")
     public ResponseEntity<PedidoResponse> buscarPorId(
             @Parameter(description = "ID interno del pedido", example = "42")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         return ResponseEntity.ok(pedidoService.buscarPorId(id));
     }
 
@@ -136,7 +139,7 @@ public class PedidoController {
     @PutMapping("/{id}")
     public ResponseEntity<PedidoResponse> actualizar(
             @Parameter(description = "ID del pedido a actualizar", example = "42")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Parameter(description = "Nuevos datos del pedido")
             @Valid @RequestBody PedidoRequest request) {
         return ResponseEntity.ok(pedidoService.actualizar(id, request));
@@ -154,7 +157,7 @@ public class PedidoController {
     @PatchMapping("/{id}/estado")
     public ResponseEntity<PedidoResponse> actualizarEstado(
             @Parameter(description = "ID del pedido", example = "42")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Parameter(description = "Nuevo estado destino", example = "EN_PROCESO")
             @RequestParam EstadoPedido nuevoEstado) {
         return ResponseEntity.ok(pedidoService.actualizarEstado(id, nuevoEstado));
@@ -172,7 +175,7 @@ public class PedidoController {
     @PatchMapping("/{id}/entregar")
     public ResponseEntity<PedidoResponse> entregar(
             @Parameter(description = "ID del pedido a entregar", example = "42")
-            @PathVariable Long id,
+            @PathVariable @Positive Long id,
             @Parameter(description = "Datos de la entrega: quién retiró y observaciones")
             @Valid @RequestBody EntregaRequest request) {
         return ResponseEntity.ok(pedidoService.marcarEntregado(id, request));
@@ -189,7 +192,7 @@ public class PedidoController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
             @Parameter(description = "ID del pedido a eliminar", example = "42")
-            @PathVariable Long id) {
+            @PathVariable @Positive Long id) {
         pedidoService.eliminar(id);
         return ResponseEntity.noContent().build();
     }

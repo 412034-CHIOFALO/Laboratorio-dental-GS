@@ -1,4 +1,6 @@
 package com.gs.ms_pedidos.controller;
+import jakarta.validation.constraints.Positive;
+import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_pedidos.dto.DocumentoPedidoResponse;
 import com.gs.ms_pedidos.exception.BusinessException;
@@ -39,6 +41,7 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/pedidos/{pedidoId}/docs")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class DocumentoController {
 
     private final DocumentoPedidoRepository docRepo;
@@ -56,7 +59,7 @@ public class DocumentoController {
     @GetMapping
     public ResponseEntity<List<DocumentoPedidoResponse>> listar(
             @Parameter(description = "ID del pedido", example = "42")
-            @PathVariable Long pedidoId) {
+            @PathVariable @Positive Long pedidoId) {
         List<DocumentoPedido> docs = docRepo.findByPedidoIdOrderByFechaSubidaDesc(pedidoId);
         List<DocumentoPedidoResponse> resp = docs.stream().map(d -> toResponse(d)).collect(Collectors.toList());
         return ResponseEntity.ok(resp);
@@ -75,7 +78,7 @@ public class DocumentoController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentoPedidoResponse> subir(
             @Parameter(description = "ID del pedido al que se adjunta el documento", example = "42")
-            @PathVariable Long pedidoId,
+            @PathVariable @Positive Long pedidoId,
             @Parameter(description = "Archivo a subir (PDF, imagen, etc.)")
             @RequestParam("file") MultipartFile file,
             Authentication auth) {
@@ -127,9 +130,9 @@ public class DocumentoController {
     @GetMapping("/{docId}/url")
     public ResponseEntity<Map<String, String>> getUrl(
             @Parameter(description = "ID del pedido", example = "42")
-            @PathVariable Long pedidoId,
+            @PathVariable @Positive Long pedidoId,
             @Parameter(description = "ID del documento", example = "7")
-            @PathVariable Long docId) {
+            @PathVariable @Positive Long docId) {
         DocumentoPedido doc = docRepo.findById(docId)
                 .filter(d -> d.getPedidoId().equals(pedidoId))
                 .orElseThrow(() -> new ResourceNotFoundException("Documento no encontrado"));
@@ -151,9 +154,9 @@ public class DocumentoController {
     @DeleteMapping("/{docId}")
     public ResponseEntity<Void> eliminar(
             @Parameter(description = "ID del pedido", example = "42")
-            @PathVariable Long pedidoId,
+            @PathVariable @Positive Long pedidoId,
             @Parameter(description = "ID del documento a eliminar", example = "7")
-            @PathVariable Long docId) {
+            @PathVariable @Positive Long docId) {
         DocumentoPedido doc = docRepo.findById(docId)
                 .filter(d -> d.getPedidoId().equals(pedidoId))
                 .orElseThrow(() -> new ResourceNotFoundException("Documento no encontrado"));
