@@ -13,9 +13,10 @@
 #
 #   Acceso desde el host:
 #     http://localhost          → Frontend (nginx)
+#     http://localhost/adminer  → Adminer (UI web de MySQL; server=mysql, user/pass del .env)
 #     http://localhost:8761     → Eureka dashboard
 #     http://localhost:8080     → API Gateway (acceso directo, sin nginx)
-#     http://localhost:9001     → MinIO console
+#     http://localhost:9001     → MinIO console (user/pass = MINIO_ROOT_USER/PASSWORD del .env)
 #
 #   Orden de arranque automático vía depends_on con healthchecks:
 #     mysql + minio  (infra)
@@ -59,8 +60,13 @@ services:
     image: minio/minio
     container_name: gs-minio
     ports:
+      # 9000 (API S3): solo loopback. Los MS lo consumen via red interna
+      # 'minio:9000'; el browser nunca le pega directo (todo pasa por streaming
+      # a traves del gateway).
       - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
+      # 9001 (consola web): abierta para poder inspeccionar buckets/archivos
+      # desde fuera del servidor. Protegida por MINIO_ROOT_USER/PASSWORD.
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -74,6 +80,19 @@ services:
       retries: 5
     restart: unless-stopped
     networks: [gs-net]
+
+  # Adminer: UI web para MySQL, para inspeccionar tablas/filas sin instalar
+  # un cliente de DB. Solo alcanzable a traves del nginx (ruta /adminer/,
+  # ver frontend-app/nginx.conf), no expone un puerto propio al host.
+  adminer:
+    image: adminer:latest
+    container_name: gs-adminer
+    environment:
+      ADMINER_DEFAULT_SERVER: mysql
+    restart: unless-stopped
+    networks: [gs-net]
+    depends_on:
+      mysql: { condition: service_healthy }
 
   # ═════════════════════════ DISCOVERY ════════════════════════════════════
 
