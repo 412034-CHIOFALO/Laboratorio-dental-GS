@@ -203,6 +203,21 @@ export class FinanzasService {
     return this.http.get<CajaMovimientoResponse[]>(`${this.base}/cajas/movimientos`, { params });
   }
 
+  // ── Reportes en PDF (cierre diario / resumen mensual) ─────────────
+
+  /** PDF del cierre diario de caja. Si no se pasa fecha, el backend usa hoy. */
+  descargarCierreDiarioPdf(fecha?: string): Observable<Blob> {
+    let params = new HttpParams();
+    if (fecha) params = params.set('fecha', fecha);
+    return this.http.get(`${this.base}/cajas/reporte/cierre-diario`, { params, responseType: 'blob' });
+  }
+
+  /** PDF del resumen mensual de caja para el año/mes indicados. */
+  descargarResumenMensualPdf(anio: number, mes: number): Observable<Blob> {
+    const params = new HttpParams().set('anio', anio).set('mes', mes);
+    return this.http.get(`${this.base}/cajas/reporte/mensual`, { params, responseType: 'blob' });
+  }
+
   // ── Cuenta corriente del odontólogo ───────────────────────────────
 
   /** Store mutable de comprobantes por odontólogo (solo mocks). */

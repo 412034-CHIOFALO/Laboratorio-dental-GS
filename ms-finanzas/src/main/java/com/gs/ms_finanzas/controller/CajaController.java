@@ -5,6 +5,7 @@ import com.gs.ms_finanzas.dto.CajaMovimientoResponse;
 import com.gs.ms_finanzas.dto.ResumenCajasResponse;
 import com.gs.ms_finanzas.model.TipoCaja;
 import com.gs.ms_finanzas.service.ICajaService;
+import com.gs.ms_finanzas.service.ReporteCajaPdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,7 +14,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -34,6 +37,7 @@ import java.util.List;
 public class CajaController {
 
     private final ICajaService service;
+    private final ReporteCajaPdfService pdfService;
 
     @Operation(summary = "Resumen consolidado de las tres cajas",
                description = "Devuelve saldos actuales de las tres cajas, total de deuda a proveedores, sueldos pendientes y alertas relevantes.")
@@ -89,5 +93,45 @@ public class CajaController {
             @Parameter(hidden = true) @AuthenticationPrincipal Jwt jwt) {
         String usuario = (jwt != null) ? jwt.getClaimAsString("sub") : "sistema";
         return ResponseEntity.status(HttpStatus.CREATED).body(service.registrarMovimiento(req, usuario));
+    }
+
+    @Operation(summary = "PDF del cierre diario de caja",
+               description = "Genera un PDF con los movimientos del día indicado por caja, subtotales y saldos actuales. Si no se pasa fecha, usa el día de hoy.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "PDF generado (application/pdf)"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/reporte/cierre-diario")
+    public ResponseEntity<byte[]> cierreDiarioPdf(
+            @Parameter(description = "Día a reportar (YYYY-MM-DD). Por defecto, hoy.")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        LocalDate dia = (fecha != null) ? fecha : LocalDate.now();
+        return pdfResponse(pdfService.cierreDiario(dia), "cierre-diario-" + dia + ".pdf");
+    }
+
+    @Operation(summary = "PDF del resumen mensual de caja",
+               description = "Genera un PDF con los totales de ingresos/egresos por caja y el detalle de movimientos del mes indicado.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "PDF generado (application/pdf)"),
+        @ApiResponse(responseCode = "400", description = "Año/mes inválidos"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/reporte/mensual")
+    public ResponseEntity<byte[]> resumenMensualPdf(
+            @Parameter(description = "Año (ej: 2026)", required = true) @RequestParam int anio,
+            @Parameter(description = "Mes (1-12)", required = true) @RequestParam int mes) {
+        if (mes < 1 || mes > 12) {
+            throw new com.gs.ms_finanzas.exception.BusinessException("El mes debe estar entre 1 y 12.");
+        }
+        return pdfResponse(pdfService.resumenMensual(anio, mes),
+            "resumen-" + anio + "-" + String.format("%02d", mes) + ".pdf");
+    }
+
+    private ResponseEntity<byte[]> pdfResponse(byte[] pdf, String filename) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.add(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"");
+        headers.setContentLength(pdf.length);
+        return new ResponseEntity<>(pdf, headers, HttpStatus.OK);
     }
 }
