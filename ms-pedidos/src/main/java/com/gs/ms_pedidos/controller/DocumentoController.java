@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +26,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -119,16 +121,16 @@ public class DocumentoController {
     }
 
     @Operation(
-        summary = "Obtener URL temporal de descarga",
-        description = "Genera una URL preformada (presigned URL) de MinIO con 30 minutos de validez para descargar el documento indicado."
+        summary = "Descargar/ver el archivo de un documento",
+        description = "Sirve el archivo almacenado en MinIO en streaming a través del propio backend (proxy), sin exponer MinIO directamente al navegador."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "URL generada correctamente"),
+        @ApiResponse(responseCode = "200", description = "Archivo servido correctamente"),
         @ApiResponse(responseCode = "404", description = "Documento no encontrado o no pertenece al pedido"),
-        @ApiResponse(responseCode = "503", description = "MinIO no disponible — no se pudo generar la URL")
+        @ApiResponse(responseCode = "503", description = "MinIO no disponible — no se pudo obtener el archivo")
     })
-    @GetMapping("/{docId}/url")
-    public ResponseEntity<Map<String, String>> getUrl(
+    @GetMapping("/{docId}/archivo")
+    public ResponseEntity<InputStreamResource> archivo(
             @Parameter(description = "ID del pedido", example = "42")
             @PathVariable @Positive Long pedidoId,
             @Parameter(description = "ID del documento", example = "7")
@@ -136,11 +138,24 @@ public class DocumentoController {
         DocumentoPedido doc = docRepo.findById(docId)
                 .filter(d -> d.getPedidoId().equals(pedidoId))
                 .orElseThrow(() -> new ResourceNotFoundException("Documento no encontrado"));
-        String url = minioStorageService.urlTemporal(doc.getObjectKey(), 30);
-        if (url == null) {
-            return ResponseEntity.status(503).body(Map.of("error", "MinIO no disponible"));
+        InputStream in = minioStorageService.descargar(doc.getObjectKey());
+        if (in == null) {
+            return ResponseEntity.status(503).build();
         }
-        return ResponseEntity.ok(Map.of("url", url, "fileName", doc.getFileName()));
+        return ResponseEntity.ok()
+                .contentType(mediaTypeSeguro(doc.getContentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + doc.getFileName() + "\"")
+                .body(new InputStreamResource(in));
+    }
+
+    /** Parsea el content-type guardado; ante uno no estándar o vacío, cae a octet-stream. */
+    private MediaType mediaTypeSeguro(String contentType) {
+        if (contentType == null || contentType.isBlank()) return MediaType.APPLICATION_OCTET_STREAM;
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (Exception e) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 
     @Operation(
@@ -167,9 +182,8 @@ public class DocumentoController {
     }
 
     private DocumentoPedidoResponse toResponse(DocumentoPedido d) {
-        String url = minioStorageService.urlTemporal(d.getObjectKey(), 30);
         return new DocumentoPedidoResponse(
                 d.getId(), d.getPedidoId(), d.getFileName(), d.getContentType(),
-                d.getTamanioBytes(), d.getSubidoPor(), d.getFechaSubida(), url);
+                d.getTamanioBytes(), d.getSubidoPor(), d.getFechaSubida());
     }
 }

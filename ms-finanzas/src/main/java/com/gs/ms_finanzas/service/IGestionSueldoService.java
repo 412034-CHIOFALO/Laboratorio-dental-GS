@@ -128,24 +128,26 @@ public interface IGestionSueldoService {
     BigDecimal totalDevengado();
 
     /**
-     * Genera una URL pre-firmada temporal (MinIO) para ver o descargar el comprobante
-     * de un pago de sueldo.
+     * Devuelve la clave del objeto (MinIO) del comprobante de un pago de sueldo,
+     * para que el controller lo sirva en streaming a través del propio backend.
      *
      * @param pagoId ID del pago de sueldo.
-     * @return URL temporal válida por tiempo limitado, o {@code null} si el pago no tiene comprobante.
+     * @return clave del objeto en MinIO.
      * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si el pago no existe.
+     * @throws com.gs.ms_finanzas.exception.BusinessException si el pago no tiene comprobante guardado.
      */
-    String urlComprobante(Long pagoId);
+    String objectKeyComprobante(Long pagoId);
 
     /**
-     * Genera una URL pre-firmada temporal (MinIO) para ver el comprobante
-     * asociado a un registro del bot de WhatsApp.
+     * Devuelve la clave del objeto (MinIO) del comprobante asociado a un registro
+     * del bot de WhatsApp, para que el controller lo sirva en streaming.
      *
      * @param registroId ID del registro del bot.
-     * @return URL temporal válida por tiempo limitado, o {@code null} si no tiene comprobante adjunto.
+     * @return clave del objeto en MinIO.
      * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si el registro no existe.
+     * @throws com.gs.ms_finanzas.exception.BusinessException si el registro no tiene comprobante adjunto.
      */
-    String urlComprobanteRegistro(Long registroId);
+    String objectKeyComprobanteRegistro(Long registroId);
 
     /**
      * Registra un pago en efectivo declarado en el grupo de WhatsApp.

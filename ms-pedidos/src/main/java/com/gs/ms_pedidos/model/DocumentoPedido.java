@@ -10,8 +10,8 @@ import java.time.LocalDateTime;
  *
  * <p>El contenido binario del archivo <strong>no</strong> se almacena en la base de datos:
  * solo se guarda el {@link #objectKey} que identifica el objeto en MinIO.
- * Para acceder al archivo se genera una URL preformada temporal mediante
- * {@code MinioStorageService#urlTemporal(String, int)}.</p>
+ * Para acceder al archivo, el backend lo sirve en streaming (proxy) mediante
+ * {@code MinioStorageService#descargar(String)}.</p>
  *
  * <p>La relación con {@link Pedido} es por {@link #pedidoId} (sin FK JPA)
  * para simplificar las consultas y evitar joins innecesarios.</p>

@@ -10,6 +10,5 @@ public record EscaneoResponse(
         Long tamanioBytes,
         String descripcion,
         String subidoPor,
-        LocalDateTime fechaSubida,
-        String urlTemporal
+        LocalDateTime fechaSubida
 ) {}

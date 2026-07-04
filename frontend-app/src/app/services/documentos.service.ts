@@ -12,7 +12,6 @@ export interface DocumentoResponse {
   tamanioBytes: number | null;
   subidoPor: string | null;
   fechaSubida: string;
-  urlTemporal: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,7 +38,6 @@ export class DocumentosService {
         tamanioBytes: file.size,
         subidoPor: 'demo',
         fechaSubida: new Date().toISOString(),
-        urlTemporal: null,
       };
       return of(mock).pipe(delay(600));
     }
@@ -53,8 +51,8 @@ export class DocumentosService {
     return this.http.delete<void>(`${this.base(pedidoId)}/${docId}`);
   }
 
-  refreshUrl(pedidoId: number, docId: number): Observable<{ url: string; fileName: string }> {
-    if (environment.useMocks) return of({ url: '', fileName: '' });
-    return this.http.get<{ url: string; fileName: string }>(`${this.base(pedidoId)}/${docId}/url`);
+  /** Descarga el archivo en streaming a través del gateway (sin exponer MinIO). */
+  descargar(pedidoId: number, docId: number): Observable<Blob> {
+    return this.http.get(`${this.base(pedidoId)}/${docId}/archivo`, { responseType: 'blob' });
   }
 }

@@ -2,6 +2,7 @@ package com.gs.ms_finanzas.service;
 
 import com.gs.ms_finanzas.dto.DeudaProveedorRequest;
 import com.gs.ms_finanzas.dto.DeudaProveedorResponse;
+import com.gs.ms_finanzas.exception.BusinessException;
 import com.gs.ms_finanzas.exception.ResourceNotFoundException;
 import com.gs.ms_finanzas.model.DeudaProveedor;
 import com.gs.ms_finanzas.model.EstadoDeuda;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -52,6 +54,18 @@ public class DeudaProveedorService implements IDeudaProveedorService {
             .nroFacturaProveedor(request.getNroFacturaProveedor())
             .observaciones(request.getObservaciones())
             .build();
+        return DeudaProveedorResponse.from(deudaRepo.save(d));
+    }
+
+    @Transactional
+    public DeudaProveedorResponse pagar(Long id) {
+        DeudaProveedor d = deudaRepo.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("DeudaProveedor", id));
+        if (d.getEstado() == EstadoDeuda.PAGADO) {
+            throw new BusinessException("La deuda ya está marcada como pagada.");
+        }
+        d.setEstado(EstadoDeuda.PAGADO);
+        d.setFechaPago(LocalDate.now());
         return DeudaProveedorResponse.from(deudaRepo.save(d));
     }
 }

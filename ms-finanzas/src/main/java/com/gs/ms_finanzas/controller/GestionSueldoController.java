@@ -3,7 +3,9 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_finanzas.dto.*;
+import com.gs.ms_finanzas.exception.BusinessException;
 import com.gs.ms_finanzas.service.IGestionSueldoService;
+import com.gs.ms_finanzas.service.MinioStorageService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -11,10 +13,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +43,7 @@ import java.util.Map;
 public class GestionSueldoController {
 
     private final IGestionSueldoService service;
+    private final MinioStorageService minioStorage;
 
     @Operation(summary = "Lista todos los empleados con su estado de sueldo",
                description = "Devuelve todos los integrantes del laboratorio con su configuración de sueldo actual (frecuencia, monto base) y el saldo devengado pendiente de pago.")
@@ -151,18 +158,18 @@ public class GestionSueldoController {
         return ResponseEntity.ok(service.historialPagosGlobal());
     }
 
-    @Operation(summary = "URL temporal del comprobante de un pago",
-               description = "Genera una URL pre-firmada (válida por tiempo limitado) para ver o descargar el comprobante almacenado en MinIO de un pago específico.")
+    @Operation(summary = "Archivo del comprobante de un pago",
+               description = "Sirve el comprobante almacenado en MinIO de un pago específico, en streaming a través del propio backend (sin exponer MinIO al navegador).")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "URL generada correctamente"),
+        @ApiResponse(responseCode = "200", description = "Archivo servido correctamente"),
         @ApiResponse(responseCode = "404", description = "Pago no encontrado o sin comprobante"),
         @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
     })
-    @GetMapping("/pagos/{pagoId}/comprobante")
-    public ResponseEntity<Map<String, String>> urlComprobante(
+    @GetMapping("/pagos/{pagoId}/comprobante/archivo")
+    public ResponseEntity<InputStreamResource> archivoComprobante(
             @Parameter(description = "ID del pago de sueldo", required = true)
             @PathVariable @Positive Long pagoId) {
-        return ResponseEntity.ok(Map.of("url", service.urlComprobante(pagoId)));
+        return streamComprobante(service.objectKeyComprobante(pagoId));
     }
 
     @Operation(summary = "Historial de todos los registros procesados por el bot",
@@ -177,18 +184,38 @@ public class GestionSueldoController {
         return ResponseEntity.ok(service.listarRegistrosBot());
     }
 
-    @Operation(summary = "URL temporal del comprobante de un registro del bot",
-               description = "Genera una URL pre-firmada para ver el comprobante asociado a un registro del bot (imagen enviada al grupo de WhatsApp).")
+    @Operation(summary = "Archivo del comprobante de un registro del bot",
+               description = "Sirve el comprobante asociado a un registro del bot (imagen enviada al grupo de WhatsApp), en streaming a través del propio backend.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "URL generada correctamente"),
+        @ApiResponse(responseCode = "200", description = "Archivo servido correctamente"),
         @ApiResponse(responseCode = "404", description = "Registro no encontrado o sin comprobante"),
         @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
     })
-    @GetMapping("/registros-bot/{registroId}/comprobante")
-    public ResponseEntity<Map<String, String>> urlComprobanteRegistro(
+    @GetMapping("/registros-bot/{registroId}/comprobante/archivo")
+    public ResponseEntity<InputStreamResource> archivoComprobanteRegistro(
             @Parameter(description = "ID del registro del bot", required = true)
             @PathVariable @Positive Long registroId) {
-        return ResponseEntity.ok(Map.of("url", service.urlComprobanteRegistro(registroId)));
+        return streamComprobante(service.objectKeyComprobanteRegistro(registroId));
+    }
+
+    private ResponseEntity<InputStreamResource> streamComprobante(String objectKey) {
+        InputStream in = minioStorage.descargar(objectKey);
+        if (in == null) {
+            throw new BusinessException("No se pudo obtener el comprobante (MinIO no disponible)");
+        }
+        return ResponseEntity.ok()
+                .contentType(mediaTypeDe(objectKey))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(new InputStreamResource(in));
+    }
+
+    private MediaType mediaTypeDe(String objectKey) {
+        String key = objectKey.toLowerCase();
+        if (key.endsWith(".pdf"))                        return MediaType.APPLICATION_PDF;
+        if (key.endsWith(".png"))                         return MediaType.IMAGE_PNG;
+        if (key.endsWith(".jpg") || key.endsWith(".jpeg")) return MediaType.IMAGE_JPEG;
+        if (key.endsWith(".gif"))                          return MediaType.IMAGE_GIF;
+        return MediaType.APPLICATION_OCTET_STREAM;
     }
 
     // ── Efectivo: borrador + confirmación ──────────────────────────────

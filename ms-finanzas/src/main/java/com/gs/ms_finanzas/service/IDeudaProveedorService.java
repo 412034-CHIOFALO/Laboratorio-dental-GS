@@ -55,4 +55,14 @@ public interface IDeudaProveedorService {
      * @throws com.gs.ms_finanzas.exception.BusinessException si el proveedor está inactivo.
      */
     DeudaProveedorResponse registrar(DeudaProveedorRequest request);
+
+    /**
+     * Marca una deuda como pagada, registrando la fecha de pago (hoy).
+     *
+     * @param id ID de la deuda a marcar como pagada.
+     * @return la deuda actualizada.
+     * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si la deuda no existe.
+     * @throws com.gs.ms_finanzas.exception.BusinessException si la deuda ya estaba pagada.
+     */
+    DeudaProveedorResponse pagar(Long id);
 }

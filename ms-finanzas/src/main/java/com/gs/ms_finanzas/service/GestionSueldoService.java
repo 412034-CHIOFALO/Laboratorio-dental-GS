@@ -238,30 +238,26 @@ public class GestionSueldoService implements IGestionSueldoService {
     }
 
     @Override
-    public String urlComprobante(Long pagoId) {
+    public String objectKeyComprobante(Long pagoId) {
         PagoSueldo pago = pagoRepo.findById(pagoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago", pagoId));
-        return urlDeComprobante(pago.getComprobanteUrl());
+        return validarObjectKey(pago.getComprobanteUrl());
     }
 
     @Override
-    public String urlComprobanteRegistro(Long registroId) {
+    public String objectKeyComprobanteRegistro(Long registroId) {
         RegistroPagoBot r = registroRepo.findById(registroId)
                 .orElseThrow(() -> new ResourceNotFoundException("Registro", registroId));
-        return urlDeComprobante(r.getComprobanteUrl());
+        return validarObjectKey(r.getComprobanteUrl());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────
 
-    private String urlDeComprobante(String objectName) {
+    private String validarObjectKey(String objectName) {
         if (objectName == null || objectName.isBlank()) {
             throw new BusinessException("No tiene comprobante guardado");
         }
-        String url = minioStorage.urlTemporal(objectName, 30);  // 30 min
-        if (url == null) {
-            throw new BusinessException("No se pudo generar el enlace al comprobante");
-        }
-        return url;
+        return objectName;
     }
 
     /** Guarda el comprobante en MinIO (best-effort). Devuelve la ref o la que vino. */

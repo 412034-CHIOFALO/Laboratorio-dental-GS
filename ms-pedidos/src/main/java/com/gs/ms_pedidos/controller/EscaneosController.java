@@ -16,6 +16,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +26,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -123,16 +125,16 @@ public class EscaneosController {
     }
 
     @Operation(
-        summary = "Obtener URL temporal de descarga de un escaneo",
-        description = "Genera una URL preformada (presigned URL) de MinIO con 30 minutos de validez para descargar el escaneo indicado."
+        summary = "Descargar/ver el archivo de un escaneo",
+        description = "Sirve el archivo almacenado en MinIO en streaming a través del propio backend (proxy), sin exponer MinIO directamente al navegador."
     )
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "URL generada correctamente"),
+        @ApiResponse(responseCode = "200", description = "Archivo servido correctamente"),
         @ApiResponse(responseCode = "404", description = "Escaneo no encontrado o no pertenece al pedido"),
-        @ApiResponse(responseCode = "503", description = "MinIO no disponible — no se pudo generar la URL")
+        @ApiResponse(responseCode = "503", description = "MinIO no disponible — no se pudo obtener el archivo")
     })
-    @GetMapping("/{escaneoId}/url")
-    public ResponseEntity<Map<String, String>> getUrl(
+    @GetMapping("/{escaneoId}/archivo")
+    public ResponseEntity<InputStreamResource> archivo(
             @Parameter(description = "ID del pedido", example = "42")
             @PathVariable @Positive Long pedidoId,
             @Parameter(description = "ID del escaneo", example = "3")
@@ -140,11 +142,24 @@ public class EscaneosController {
         EscaneosPedido e = escaneoRepo.findById(escaneoId)
                 .filter(x -> x.getPedidoId().equals(pedidoId))
                 .orElseThrow(() -> new ResourceNotFoundException("Escaneo no encontrado"));
-        String url = minioStorageService.urlTemporal(e.getObjectKey(), 30);
-        if (url == null) {
-            return ResponseEntity.status(503).body(Map.of("error", "MinIO no disponible"));
+        InputStream in = minioStorageService.descargar(e.getObjectKey());
+        if (in == null) {
+            return ResponseEntity.status(503).build();
         }
-        return ResponseEntity.ok(Map.of("url", url, "fileName", e.getFileName()));
+        return ResponseEntity.ok()
+                .contentType(mediaTypeSeguro(e.getContentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + e.getFileName() + "\"")
+                .body(new InputStreamResource(in));
+    }
+
+    /** Parsea el content-type guardado; ante uno no estándar o vacío, cae a octet-stream. */
+    private MediaType mediaTypeSeguro(String contentType) {
+        if (contentType == null || contentType.isBlank()) return MediaType.APPLICATION_OCTET_STREAM;
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (Exception e) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 
     @Operation(
@@ -171,9 +186,8 @@ public class EscaneosController {
     }
 
     private EscaneoResponse toResponse(EscaneosPedido e) {
-        String url = minioStorageService.urlTemporal(e.getObjectKey(), 30);
         return new EscaneoResponse(e.getId(), e.getPedidoId(), e.getFileName(),
                 e.getContentType(), e.getTamanioBytes(), e.getDescripcion(),
-                e.getSubidoPor(), e.getFechaSubida(), url);
+                e.getSubidoPor(), e.getFechaSubida());
     }
 }

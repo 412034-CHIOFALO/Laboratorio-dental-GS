@@ -176,9 +176,9 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
-      # MinIO para documentos y escaneos de pedidos
+      # MinIO para documentos y escaneos de pedidos (host interno; los archivos
+      # se sirven en streaming a traves del propio backend, sin exponer MinIO)
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET_DOCS: documentos-pedidos
@@ -215,9 +215,9 @@ services:
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
       # API key del bot de WhatsApp (debe coincidir con la del bot)
       GS_BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
-      # MinIO para guardar comprobantes
-      MINIO_ENDPOINT: http://minio:9000              # host interno (container↔container)
-      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-http://localhost:9000}  # host que ve el browser
+      # MinIO para guardar comprobantes (host interno; los archivos se sirven
+      # en streaming a traves del propio backend, sin exponer MinIO)
+      MINIO_ENDPOINT: http://minio:9000
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: comprobantes

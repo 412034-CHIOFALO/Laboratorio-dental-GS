@@ -141,4 +141,19 @@ public class ProveedorController {
     public ResponseEntity<DeudaProveedorResponse> registrarDeuda(@Valid @RequestBody DeudaProveedorRequest req) {
         return ResponseEntity.status(201).body(deudaService.registrar(req));
     }
+
+    @Operation(summary = "Marca una deuda como pagada",
+               description = "Cambia el estado de la deuda a PAGADO y registra la fecha de pago (hoy).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Deuda marcada como pagada"),
+        @ApiResponse(responseCode = "404", description = "Deuda no encontrada"),
+        @ApiResponse(responseCode = "422", description = "La deuda ya estaba pagada"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    @PatchMapping("/deudas/{id}/pagar")
+    public ResponseEntity<DeudaProveedorResponse> pagarDeuda(
+            @Parameter(description = "ID interno de la deuda", required = true)
+            @PathVariable @Positive Long id) {
+        return ResponseEntity.ok(deudaService.pagar(id));
+    }
 }

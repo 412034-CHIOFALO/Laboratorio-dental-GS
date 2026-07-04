@@ -142,12 +142,12 @@ export class SueldosService {
     return this.http.get<PagoSueldoResponse[]>(`${this.base}/pagos`);
   }
 
-  /** URL temporal para ver el comprobante guardado de un pago. */
-  urlComprobante(pagoId: number): Observable<{ url: string }> {
+  /** Descarga el comprobante guardado de un pago, en streaming a través del gateway. */
+  descargarComprobante(pagoId: number): Observable<Blob> {
     if (environment.useMocks) {
-      return of({ url: 'https://ejemplo.com/comprobante-demo.pdf' }).pipe(delay(150));
+      return of(new Blob([], { type: 'application/pdf' })).pipe(delay(150));
     }
-    return this.http.get<{ url: string }>(`${this.base}/pagos/${pagoId}/comprobante`);
+    return this.http.get(`${this.base}/pagos/${pagoId}/comprobante/archivo`, { responseType: 'blob' });
   }
 
   /** Historial de TODO lo que procesó el bot (sueldos, proveedores y rechazos). */
@@ -158,12 +158,12 @@ export class SueldosService {
     return this.http.get<RegistroBot[]>(`${this.base}/registros-bot`);
   }
 
-  /** URL temporal para ver el comprobante de un registro del bot. */
-  urlComprobanteRegistro(id: number): Observable<{ url: string }> {
+  /** Descarga el comprobante de un registro del bot, en streaming a través del gateway. */
+  descargarComprobanteRegistro(id: number): Observable<Blob> {
     if (environment.useMocks) {
-      return of({ url: 'https://ejemplo.com/comprobante-demo.pdf' }).pipe(delay(150));
+      return of(new Blob([], { type: 'application/pdf' })).pipe(delay(150));
     }
-    return this.http.get<{ url: string }>(`${this.base}/registros-bot/${id}/comprobante`);
+    return this.http.get(`${this.base}/registros-bot/${id}/comprobante/archivo`, { responseType: 'blob' });
   }
 
   /** Registros del bot en estado PENDIENTE (efectivo sin confirmar). */

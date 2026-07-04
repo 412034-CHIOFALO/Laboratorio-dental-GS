@@ -73,8 +73,12 @@ export class BotRegistrosComponent implements OnInit, OnDestroy {
 
   verComprobante(r: RegistroBot): void {
     if (!r.tieneComprobante) return;
-    this.sueldos.urlComprobanteRegistro(r.id).subscribe({
-      next: ({ url }) => window.open(url, '_blank'),
+    this.sueldos.descargarComprobanteRegistro(r.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+      },
       error: (e) => this.notif.errorHttp(e, 'No se pudo abrir el comprobante'),
     });
   }

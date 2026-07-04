@@ -1,7 +1,6 @@
 package com.gs.ms_pedidos.service;
 
 import io.minio.*;
-import io.minio.http.Method;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,9 +8,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.time.LocalDate;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class MinioStorageService {
@@ -19,7 +18,6 @@ public class MinioStorageService {
     private static final Logger log = LoggerFactory.getLogger(MinioStorageService.class);
 
     @Value("${gs.minio.endpoint}")        private String endpoint;
-    @Value("${gs.minio.public-endpoint}") private String publicEndpoint;
     @Value("${gs.minio.access-key}")      private String accessKey;
     @Value("${gs.minio.secret-key}")      private String secretKey;
     @Value("${gs.minio.bucket}")          private String bucket;
@@ -77,21 +75,17 @@ public class MinioStorageService {
         }
     }
 
-    public String urlTemporal(String objectName, int minutos) {
+    /**
+     * Abre un stream de lectura del objeto para servirlo a través del propio backend
+     * (proxy), evitando exponer el endpoint de MinIO directamente al navegador.
+     * Quien llama es responsable de cerrar el stream devuelto.
+     */
+    public InputStream descargar(String objectName) {
         if (client == null || objectName == null || objectName.isBlank()) return null;
         try {
-            String url = client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
-                    .method(Method.GET)
-                    .bucket(bucket)
-                    .object(objectName)
-                    .expiry(minutos, TimeUnit.MINUTES)
-                    .build());
-            if (!endpoint.equals(publicEndpoint) && url.startsWith(endpoint)) {
-                url = publicEndpoint + url.substring(endpoint.length());
-            }
-            return url;
+            return client.getObject(GetObjectArgs.builder().bucket(bucket).object(objectName).build());
         } catch (Exception e) {
-            log.warn("[MINIO-DOCS] Error generando URL temporal: {}", e.getMessage());
+            log.warn("[MINIO-DOCS] Error descargando archivo: {}", e.getMessage());
             return null;
         }
     }

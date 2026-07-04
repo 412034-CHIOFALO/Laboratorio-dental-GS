@@ -242,9 +242,9 @@ export class FinanzasService {
     return this.http.post<ReporteMensualResponse>(`${this.base}/reportes/generar`, null, { params });
   }
 
-  /** URL temporal para descargar el PDF de un reporte archivado. */
-  urlDescargaReporte(id: number): Observable<{ url: string }> {
-    return this.http.get<{ url: string }>(`${this.base}/reportes/${id}/descarga`);
+  /** Descarga el PDF de un reporte archivado en streaming a través del gateway. */
+  descargarReporteMensual(id: number): Observable<Blob> {
+    return this.http.get(`${this.base}/reportes/${id}/archivo`, { responseType: 'blob' });
   }
 
   // ── Cuenta corriente del odontólogo ───────────────────────────────

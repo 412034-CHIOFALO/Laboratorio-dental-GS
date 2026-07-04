@@ -1,6 +1,8 @@
 package com.gs.ms_finanzas.controller;
 
 import com.gs.ms_finanzas.dto.ReporteMensualResponse;
+import com.gs.ms_finanzas.exception.BusinessException;
+import com.gs.ms_finanzas.service.MinioStorageService;
 import com.gs.ms_finanzas.service.ReporteMensualService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -8,12 +10,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.InputStream;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Reportes financieros mensuales archivados. Se generan automáticamente el día 1 de cada mes
@@ -27,6 +32,7 @@ import java.util.Map;
 public class ReporteMensualController {
 
     private final ReporteMensualService service;
+    private final MinioStorageService minioStorage;
 
     @Operation(summary = "Lista los reportes mensuales archivados",
                description = "Devuelve los reportes ordenados del más reciente al más antiguo.")
@@ -53,16 +59,25 @@ public class ReporteMensualController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.generar(anio, mes, false));
     }
 
-    @Operation(summary = "Enlace de descarga del PDF de un reporte",
-               description = "Devuelve una URL temporal (presigned, 15 min) para descargar el PDF archivado.")
+    @Operation(summary = "Descarga el PDF de un reporte archivado",
+               description = "Sirve el PDF en streaming a través del propio backend (proxy), sin exponer MinIO directamente al navegador.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "URL de descarga generada"),
-        @ApiResponse(responseCode = "422", description = "Reporte inexistente o almacenamiento no disponible"),
+        @ApiResponse(responseCode = "200", description = "PDF servido correctamente"),
+        @ApiResponse(responseCode = "422", description = "Reporte inexistente"),
+        @ApiResponse(responseCode = "503", description = "MinIO no disponible — no se pudo obtener el archivo"),
         @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
     })
-    @GetMapping("/{id}/descarga")
-    public ResponseEntity<Map<String, String>> descarga(
+    @GetMapping("/{id}/archivo")
+    public ResponseEntity<InputStreamResource> archivo(
             @Parameter(description = "ID del reporte archivado", required = true) @PathVariable Long id) {
-        return ResponseEntity.ok(Map.of("url", service.urlDescarga(id)));
+        String objectKey = service.objectKey(id);
+        InputStream in = minioStorage.descargar(objectKey);
+        if (in == null) {
+            throw new BusinessException("No se pudo obtener el reporte (MinIO no disponible)");
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline")
+                .body(new InputStreamResource(in));
     }
 }

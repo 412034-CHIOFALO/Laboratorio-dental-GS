@@ -307,8 +307,12 @@ export class FinanzasComponent implements OnInit {
   /** Abre el comprobante guardado (PDF/imagen) en una pestaña nueva. */
   verComprobante(c: PagoSueldoResponse): void {
     if (!c.comprobanteUrl) { this.notif.alerta('Este pago no tiene comprobante guardado'); return; }
-    this.sueldosService.urlComprobante(c.id).subscribe({
-      next: res => window.open(res.url, '_blank'),
+    this.sueldosService.descargarComprobante(c.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+      },
       error: err => this.notif.errorHttp(err, 'No se pudo abrir el comprobante'),
     });
   }

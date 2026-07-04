@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
@@ -13,7 +13,7 @@ import { AuthService } from '../../../services/auth';
   templateUrl: './documentos.html',
   styleUrls: ['./documentos.css'],
 })
-export class DocumentosComponent implements OnInit {
+export class DocumentosComponent implements OnInit, OnDestroy {
   private pedidosService = inject(PedidosService);
   private docService      = inject(DocumentosService);
   private finanzasService = inject(FinanzasService);
@@ -41,6 +41,10 @@ export class DocumentosComponent implements OnInit {
   cargandoDocs       = signal(false);
   subiendo           = signal(false);
   eliminandoId       = signal<number | null>(null);
+  abriendoId         = signal<number | null>(null);
+
+  /** Object URLs de las imágenes ya descargadas, para mostrarlas como thumbnail. */
+  imagenUrls = signal<Map<number, string>>(new Map());
 
   // ── Upload drag & drop ──────────────────────────────────────────────────
   arrastrando = signal(false);
@@ -107,8 +111,12 @@ export class DocumentosComponent implements OnInit {
   }
 
   descargarReporte(r: ReporteMensualResponse): void {
-    this.finanzasService.urlDescargaReporte(r.id).subscribe({
-      next: res => { if (res?.url) window.open(res.url, '_blank'); },
+    this.finanzasService.descargarReporteMensual(r.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+      },
       error: () => { this.errorReportes.set('No se pudo abrir el reporte.'); },
     });
   }
@@ -120,10 +128,54 @@ export class DocumentosComponent implements OnInit {
   seleccionar(p: PedidoResponse): void {
     this.pedidoSeleccionado.set(p);
     this.docs.set([]);
+    this.revocarImagenUrls();
     this.cargandoDocs.set(true);
     this.docService.listar(p.id).subscribe({
-      next: ds => { this.docs.set(ds); this.cargandoDocs.set(false); },
+      next: ds => {
+        this.docs.set(ds);
+        this.cargandoDocs.set(false);
+        ds.filter(d => this.esImagen(d)).forEach(d => this.cargarThumbnail(p.id, d));
+      },
       error: ()  => { this.cargandoDocs.set(false); },
+    });
+  }
+
+  /** Descarga la imagen y la guarda como object URL para mostrarla de thumbnail. */
+  private cargarThumbnail(pedidoId: number, doc: DocumentoResponse): void {
+    this.docService.descargar(pedidoId, doc.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        this.imagenUrls.update(m => new Map(m).set(doc.id, url));
+      },
+      error: () => { /* sin thumbnail si falla; se puede seguir viendo con el botón */ },
+    });
+  }
+
+  private revocarImagenUrls(): void {
+    this.imagenUrls().forEach(url => URL.revokeObjectURL(url));
+    this.imagenUrls.set(new Map());
+  }
+
+  ngOnDestroy(): void {
+    this.revocarImagenUrls();
+  }
+
+  /** Abre el documento en una pestaña nueva (reusa el thumbnail si ya se descargó). */
+  verDoc(doc: DocumentoResponse): void {
+    const yaDescargado = this.imagenUrls().get(doc.id);
+    if (yaDescargado) { window.open(yaDescargado, '_blank'); return; }
+
+    const p = this.pedidoSeleccionado();
+    if (!p) return;
+    this.abriendoId.set(doc.id);
+    this.docService.descargar(p.id, doc.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        this.abriendoId.set(null);
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+      },
+      error: () => { this.abriendoId.set(null); },
     });
   }
 
@@ -159,6 +211,7 @@ export class DocumentosComponent implements OnInit {
       next: doc => {
         this.docs.update(ds => [doc, ...ds]);
         this.subiendo.set(false);
+        if (this.esImagen(doc)) this.cargarThumbnail(p.id, doc);
       },
       error: () => { this.subiendo.set(false); },
     });
@@ -174,6 +227,11 @@ export class DocumentosComponent implements OnInit {
       next: () => {
         this.docs.update(ds => ds.filter(d => d.id !== doc.id));
         this.eliminandoId.set(null);
+        const url = this.imagenUrls().get(doc.id);
+        if (url) {
+          URL.revokeObjectURL(url);
+          this.imagenUrls.update(m => { const n = new Map(m); n.delete(doc.id); return n; });
+        }
       },
       error: () => { this.eliminandoId.set(null); },
     });

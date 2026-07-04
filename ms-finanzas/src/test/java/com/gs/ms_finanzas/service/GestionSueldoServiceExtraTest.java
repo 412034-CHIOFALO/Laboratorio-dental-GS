@@ -220,32 +220,30 @@ class GestionSueldoServiceExtraTest {
         assertThat(service.listarPendientesEfectivo()).isEmpty();
     }
 
-    // ── URLs de comprobante ─────────────────────────────────────
+    // ── Clave de objeto (MinIO) del comprobante ──────────────────
     @Test
-    void urlComprobante_404() {
+    void objectKeyComprobante_404() {
         when(pagoRepo.findById(9L)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.urlComprobante(9L)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.objectKeyComprobante(9L)).isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
-    void urlComprobante_sinComprobante_business() {
+    void objectKeyComprobante_sinComprobante_business() {
         when(pagoRepo.findById(1L)).thenReturn(Optional.of(PagoSueldo.builder().id(1L).comprobanteUrl(null).build()));
-        assertThatThrownBy(() -> service.urlComprobante(1L)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.objectKeyComprobante(1L)).isInstanceOf(BusinessException.class);
     }
 
     @Test
-    void urlComprobante_ok() {
+    void objectKeyComprobante_ok() {
         when(pagoRepo.findById(1L)).thenReturn(Optional.of(PagoSueldo.builder().id(1L).comprobanteUrl("obj-1").build()));
-        when(minioStorage.urlTemporal("obj-1", 30)).thenReturn("http://minio/obj-1");
-        assertThat(service.urlComprobante(1L)).isEqualTo("http://minio/obj-1");
+        assertThat(service.objectKeyComprobante(1L)).isEqualTo("obj-1");
     }
 
     @Test
-    void urlComprobanteRegistro_ok() {
+    void objectKeyComprobanteRegistro_ok() {
         when(registroRepo.findById(1L)).thenReturn(Optional.of(
                 RegistroPagoBot.builder().id(1L).comprobanteUrl("obj-2").build()));
-        when(minioStorage.urlTemporal("obj-2", 30)).thenReturn("http://minio/obj-2");
-        assertThat(service.urlComprobanteRegistro(1L)).isEqualTo("http://minio/obj-2");
+        assertThat(service.objectKeyComprobanteRegistro(1L)).isEqualTo("obj-2");
     }
 
     // ── Efectivo ────────────────────────────────────────────────

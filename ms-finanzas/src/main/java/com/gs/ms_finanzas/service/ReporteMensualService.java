@@ -79,15 +79,11 @@ public class ReporteMensualService {
             .toList();
     }
 
-    /** Devuelve una URL temporal (presigned) para descargar el PDF del reporte. */
+    /** Devuelve la clave del objeto (MinIO) del reporte, para servirlo en streaming. */
     @Transactional(readOnly = true)
-    public String urlDescarga(Long id) {
+    public String objectKey(Long id) {
         ReporteMensual r = repo.findById(id)
             .orElseThrow(() -> new BusinessException("El reporte solicitado no existe."));
-        String url = storage.urlTemporal(r.getObjectName(), 15);
-        if (url == null) {
-            throw new BusinessException("No se pudo generar el enlace de descarga del reporte.");
-        }
-        return url;
+        return r.getObjectName();
     }
 }

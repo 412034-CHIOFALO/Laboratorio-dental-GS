@@ -13,7 +13,6 @@ export interface EscaneoResponse {
   descripcion: string | null;
   subidoPor: string | null;
   fechaSubida: string;
-  urlTemporal: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -37,19 +36,18 @@ export class EscaneosService {
         descripcion: 'Modelo de demostración',
         subidoPor: 'demo',
         fechaSubida: new Date().toISOString(),
-        urlTemporal: '/sample-escaneo.stl',
       };
       return of([muestra]).pipe(delay(200));
     }
     return this.http.get<EscaneoResponse[]>(this.base(pedidoId));
   }
 
-  /** Devuelve una URL temporal (prefirmada) para ver/descargar el escaneo. */
-  url(pedidoId: number, escaneoId: number): Observable<{ url: string; fileName?: string }> {
+  /** Descarga el archivo en streaming a través del gateway (sin exponer MinIO). */
+  descargar(pedidoId: number, escaneoId: number): Observable<Blob> {
     if (environment.useMocks) {
-      return of({ url: '/sample-escaneo.stl', fileName: 'modelo-muestra.stl' }).pipe(delay(150));
+      return this.http.get('/sample-escaneo.stl', { responseType: 'blob' });
     }
-    return this.http.get<{ url: string; fileName?: string }>(`${this.base(pedidoId)}/${escaneoId}/url`);
+    return this.http.get(`${this.base(pedidoId)}/${escaneoId}/archivo`, { responseType: 'blob' });
   }
 
   subir(pedidoId: number, file: File, descripcion?: string): Observable<EscaneoResponse> {
@@ -62,7 +60,6 @@ export class EscaneosService {
         descripcion: descripcion ?? null,
         subidoPor: 'demo',
         fechaSubida: new Date().toISOString(),
-        urlTemporal: null,
       };
       return of(mock).pipe(delay(700));
     }

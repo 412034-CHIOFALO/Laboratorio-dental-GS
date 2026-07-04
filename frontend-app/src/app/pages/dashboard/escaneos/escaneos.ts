@@ -40,6 +40,8 @@ export class EscaneosComponent implements OnInit {
   visorUrl        = signal('');
   visorFileName   = signal('');
   cargandoVisorId = signal<number | null>(null);
+  descargandoId   = signal<number | null>(null);
+  private visorObjectUrl: string | null = null;
 
   pedidosFiltrados = computed(() => {
     const q = this.busqueda().toLowerCase().trim();
@@ -125,14 +127,15 @@ export class EscaneosComponent implements OnInit {
     return VISUALIZABLES_3D.includes(this.extension(fileName));
   }
 
-  /** Pide la URL del escaneo y abre el visor 3D. */
+  /** Descarga el escaneo (blob autenticado) y abre el visor 3D con una object URL local. */
   verEscaneo(escaneo: EscaneoResponse): void {
     const p = this.pedidoSeleccionado();
     if (!p) return;
     this.cargandoVisorId.set(escaneo.id);
-    this.escaneosService.url(p.id, escaneo.id).subscribe({
-      next: ({ url }) => {
-        this.visorUrl.set(url);
+    this.escaneosService.descargar(p.id, escaneo.id).subscribe({
+      next: blob => {
+        this.visorObjectUrl = URL.createObjectURL(blob);
+        this.visorUrl.set(this.visorObjectUrl);
         this.visorFileName.set(escaneo.fileName);
         this.visorAbierto.set(true);
         this.cargandoVisorId.set(null);
@@ -144,6 +147,29 @@ export class EscaneosComponent implements OnInit {
   cerrarVisor(): void {
     this.visorAbierto.set(false);
     this.visorUrl.set('');
+    if (this.visorObjectUrl) {
+      URL.revokeObjectURL(this.visorObjectUrl);
+      this.visorObjectUrl = null;
+    }
+  }
+
+  /** Descarga el archivo del escaneo al disco del usuario. */
+  descargarEscaneo(escaneo: EscaneoResponse): void {
+    const p = this.pedidoSeleccionado();
+    if (!p) return;
+    this.descargandoId.set(escaneo.id);
+    this.escaneosService.descargar(p.id, escaneo.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = escaneo.fileName;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+        this.descargandoId.set(null);
+      },
+      error: () => { this.descargandoId.set(null); },
+    });
   }
 
   extension(fileName: string): string {

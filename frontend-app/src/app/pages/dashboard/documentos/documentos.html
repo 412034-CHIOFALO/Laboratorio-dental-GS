@@ -124,8 +124,8 @@
                 <div class="doc-card">
                   <!-- Thumbnail / ícono -->
                   <div class="doc-thumb">
-                    @if (esImagen(doc) && doc.urlTemporal) {
-                      <img [src]="doc.urlTemporal" [alt]="doc.fileName" class="thumb-img" loading="lazy" />
+                    @if (esImagen(doc) && imagenUrls().get(doc.id); as thumbUrl) {
+                      <img [src]="thumbUrl" [alt]="doc.fileName" class="thumb-img" loading="lazy" />
                     } @else if (esPdf(doc)) {
                       <div class="thumb-icon pdf">
                         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -138,11 +138,15 @@
 
                     <!-- Acciones superpuestas -->
                     <div class="doc-actions">
-                      @if (doc.urlTemporal) {
-                        <a class="act-btn" [href]="doc.urlTemporal" target="_blank" rel="noopener" title="Ver / Descargar">
+                      <button class="act-btn"
+                              [disabled]="abriendoId() === doc.id"
+                              (click)="verDoc(doc)" title="Ver / Descargar">
+                        @if (abriendoId() === doc.id) {
+                          <span class="btn-spinner sm"></span>
+                        } @else {
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                        </a>
-                      }
+                        }
+                      </button>
                       <button class="act-btn del"
                               [disabled]="eliminandoId() === doc.id"
                               (click)="eliminar(doc)" title="Eliminar">

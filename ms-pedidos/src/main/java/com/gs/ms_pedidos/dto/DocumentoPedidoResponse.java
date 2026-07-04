@@ -9,6 +9,5 @@ public record DocumentoPedidoResponse(
         String contentType,
         Long tamanioBytes,
         String subidoPor,
-        LocalDateTime fechaSubida,
-        String urlTemporal
+        LocalDateTime fechaSubida
 ) {}

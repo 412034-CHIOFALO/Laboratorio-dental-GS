@@ -1,6 +1,7 @@
 package com.gs.ms_finanzas.service;
 
 import com.gs.ms_finanzas.dto.DeudaProveedorRequest;
+import com.gs.ms_finanzas.exception.BusinessException;
 import com.gs.ms_finanzas.exception.ResourceNotFoundException;
 import com.gs.ms_finanzas.model.DeudaProveedor;
 import com.gs.ms_finanzas.model.EstadoDeuda;
@@ -75,5 +76,26 @@ class DeudaProveedorServiceTest {
         when(proveedorRepo.findById(1L)).thenReturn(Optional.of(proveedor()));
         when(deudaRepo.save(any())).thenAnswer(i -> i.getArgument(0));
         assertThat(service.registrar(r)).isNotNull();
+    }
+
+    @Test
+    void pagar_inexistente_404() {
+        when(deudaRepo.findById(9L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.pagar(9L)).isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void pagar_yaPagada_business() {
+        DeudaProveedor pagada = deuda();
+        pagada.setEstado(EstadoDeuda.PAGADO);
+        when(deudaRepo.findById(1L)).thenReturn(Optional.of(pagada));
+        assertThatThrownBy(() -> service.pagar(1L)).isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    void pagar_ok() {
+        when(deudaRepo.findById(1L)).thenReturn(Optional.of(deuda()));
+        when(deudaRepo.save(any())).thenAnswer(i -> i.getArgument(0));
+        assertThat(service.pagar(1L).estado()).isEqualTo(EstadoDeuda.PAGADO);
     }
 }
