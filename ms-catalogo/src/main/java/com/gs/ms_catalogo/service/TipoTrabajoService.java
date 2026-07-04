@@ -1,6 +1,5 @@
 package com.gs.ms_catalogo.service;
 
-import com.gs.ms_catalogo.dto.IngredienteRecetaRequest;
 import com.gs.ms_catalogo.dto.TipoTrabajoRequest;
 import com.gs.ms_catalogo.dto.TipoTrabajoResponse;
 import com.gs.ms_catalogo.exception.ResourceNotFoundException;

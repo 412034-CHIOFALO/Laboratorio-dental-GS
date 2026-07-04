@@ -1,6 +1,5 @@
 package com.gs.ms_auth.controllers;
 
-import com.gs.ms_auth.model.AuditoriaEvento;
 import com.gs.ms_auth.service.AuditoriaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;

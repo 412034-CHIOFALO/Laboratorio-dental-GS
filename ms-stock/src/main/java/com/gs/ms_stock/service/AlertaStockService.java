@@ -1,6 +1,5 @@
 package com.gs.ms_stock.service;
 
-import com.gs.ms_stock.model.ConfiguracionAlerta;
 import com.gs.ms_stock.model.Material;
 import com.gs.ms_stock.repository.ConfiguracionAlertaRepository;
 import lombok.RequiredArgsConstructor;

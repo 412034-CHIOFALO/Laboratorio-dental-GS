@@ -153,7 +153,7 @@
               <span class="k">Grupos</span>
               <span class="v">
                 @for (g of e.grupos; track g) { <span class="chip">{{ g }}</span> }
-                @if (!e.grupos?.length) { <span class="dim">Todos</span> }
+                @if (!e.grupos.length) { <span class="dim">Todos</span> }
               </span>
             </div>
             <div class="detalle">

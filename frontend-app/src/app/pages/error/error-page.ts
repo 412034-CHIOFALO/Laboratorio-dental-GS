@@ -1,5 +1,5 @@
 import { Component, inject } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth';
 
 interface ErrorInfo {
@@ -16,7 +16,6 @@ interface ErrorInfo {
 @Component({
   selector: 'app-error-page',
   standalone: true,
-  imports: [RouterLink],
   templateUrl: './error-page.html',
   styleUrls: ['./error-page.css'],
 })
