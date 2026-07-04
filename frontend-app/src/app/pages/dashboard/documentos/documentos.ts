@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
 import { DocumentosService, DocumentoResponse } from '../../../services/documentos.service';
+import { FinanzasService, ReporteMensualResponse } from '../../../services/finanzas.service';
+import { AuthService } from '../../../services/auth';
 
 @Component({
   selector: 'app-documentos',
@@ -14,6 +16,19 @@ import { DocumentosService, DocumentoResponse } from '../../../services/document
 export class DocumentosComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private docService      = inject(DocumentosService);
+  private finanzasService = inject(FinanzasService);
+  private auth            = inject(AuthService);
+
+  readonly esAdmin = this.auth.isAdmin();
+
+  // ── Vista activa: documentos por pedido | reportes mensuales ─────────────
+  vista = signal<'pedidos' | 'reportes'>('pedidos');
+
+  // ── Reportes mensuales archivados (solo ADMIN) ───────────────────────────
+  reportes         = signal<ReporteMensualResponse[]>([]);
+  cargandoReportes = signal(false);
+  errorReportes    = signal('');
+  generandoReporte = signal(false);
 
   // ── Estado general ──────────────────────────────────────────────────────
   cargandoPedidos = signal(true);
@@ -55,6 +70,51 @@ export class DocumentosComponent implements OnInit {
         this.cargandoPedidos.set(false);
       },
     });
+  }
+
+  // ── Reportes mensuales ────────────────────────────────────────────────────
+
+  cambiarVista(v: 'pedidos' | 'reportes'): void {
+    this.vista.set(v);
+    if (v === 'reportes' && this.reportes().length === 0 && !this.cargandoReportes()) {
+      this.cargarReportes();
+    }
+  }
+
+  cargarReportes(): void {
+    this.cargandoReportes.set(true);
+    this.errorReportes.set('');
+    this.finanzasService.listarReportesMensuales().subscribe({
+      next: rs => { this.reportes.set(rs); this.cargandoReportes.set(false); },
+      error: () => {
+        this.errorReportes.set('No se pudieron cargar los reportes.');
+        this.cargandoReportes.set(false);
+      },
+    });
+  }
+
+  generarReporteActual(): void {
+    const now = new Date();
+    this.generandoReporte.set(true);
+    this.errorReportes.set('');
+    this.finanzasService.generarReporteMensual(now.getFullYear(), now.getMonth() + 1).subscribe({
+      next: () => { this.generandoReporte.set(false); this.cargarReportes(); },
+      error: () => {
+        this.errorReportes.set('No se pudo generar el reporte de este mes.');
+        this.generandoReporte.set(false);
+      },
+    });
+  }
+
+  descargarReporte(r: ReporteMensualResponse): void {
+    this.finanzasService.urlDescargaReporte(r.id).subscribe({
+      next: res => { if (res?.url) window.open(res.url, '_blank'); },
+      error: () => { this.errorReportes.set('No se pudo abrir el reporte.'); },
+    });
+  }
+
+  formatFecha(iso: string): string {
+    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   seleccionar(p: PedidoResponse): void {

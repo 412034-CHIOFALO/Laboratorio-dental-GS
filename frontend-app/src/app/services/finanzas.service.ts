@@ -59,6 +59,16 @@ export interface CuentaCorrienteOdontologoResponse {
 export type EstadoPago = 'PENDIENTE' | 'PARCIAL' | 'COBRADO' | 'VENCIDO';
 export type MedioPago = 'EFECTIVO' | 'TRANSFERENCIA';
 
+export interface ReporteMensualResponse {
+  id: number;
+  anio: number;
+  mes: number;
+  periodo: string;
+  nombreArchivo: string;
+  generadoEn: string;
+  automatico: boolean;
+}
+
 export interface ComprobanteResponse {
   id: number;
   nroComprobante: string;
@@ -216,6 +226,25 @@ export class FinanzasService {
   descargarResumenMensualPdf(anio: number, mes: number): Observable<Blob> {
     const params = new HttpParams().set('anio', anio).set('mes', mes);
     return this.http.get(`${this.base}/cajas/reporte/mensual`, { params, responseType: 'blob' });
+  }
+
+  // ── Reportes mensuales archivados (sección Documentos) ────────────
+
+  /** Lista los reportes mensuales archivados en el sistema (más recientes primero). */
+  listarReportesMensuales(): Observable<ReporteMensualResponse[]> {
+    if (environment.useMocks) return of([]);
+    return this.http.get<ReporteMensualResponse[]>(`${this.base}/reportes`);
+  }
+
+  /** Genera (o regenera) y archiva el reporte del mes indicado. */
+  generarReporteMensual(anio: number, mes: number): Observable<ReporteMensualResponse> {
+    const params = new HttpParams().set('anio', anio).set('mes', mes);
+    return this.http.post<ReporteMensualResponse>(`${this.base}/reportes/generar`, null, { params });
+  }
+
+  /** URL temporal para descargar el PDF de un reporte archivado. */
+  urlDescargaReporte(id: number): Observable<{ url: string }> {
+    return this.http.get<{ url: string }>(`${this.base}/reportes/${id}/descarga`);
   }
 
   // ── Cuenta corriente del odontólogo ───────────────────────────────

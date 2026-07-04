@@ -48,6 +48,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/finanzas/sueldos/pago-automatico").hasRole("ADMIN")
                 // Cajas — solo ADMIN
                 .requestMatchers("/api/finanzas/cajas/**").hasRole("ADMIN")
+                // Reportes financieros mensuales — solo ADMIN
+                .requestMatchers("/api/finanzas/reportes/**").hasRole("ADMIN")
                 // Sueldos — solo ADMIN
                 .requestMatchers("/api/finanzas/sueldos/**").hasRole("ADMIN")
                 // Proveedores — ADMIN y ADMINISTRATIVO

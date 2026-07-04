@@ -86,6 +86,29 @@ public class MinioStorageService {
     }
 
     /**
+     * Sube (o sobrescribe) el PDF de un reporte mensual y devuelve su {@code objectName},
+     * o {@code null} si MinIO no está disponible. El path es determinístico por año/mes,
+     * de modo que regenerar el reporte reemplaza el objeto anterior.
+     */
+    public String subirReporte(byte[] datos, int anio, int mes) {
+        if (client == null || datos == null || datos.length == 0) return null;
+        try {
+            String objectName = String.format("reportes/%d/resumen-mensual-%d-%02d.pdf", anio, anio, mes);
+            client.putObject(PutObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectName)
+                    .stream(new ByteArrayInputStream(datos), datos.length, -1)
+                    .contentType("application/pdf")
+                    .build());
+            log.info("[MINIO] Reporte mensual guardado: {}", objectName);
+            return objectName;
+        } catch (Exception e) {
+            log.warn("[MINIO] Error subiendo reporte mensual: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * URL temporal (presigned) para ver el comprobante desde el navegador.
      * MinIO genera la URL con el host del endpoint interno; si {@code publicEndpoint}
      * difiere (caso Docker), reemplazamos ese host por el accesible desde el browser.

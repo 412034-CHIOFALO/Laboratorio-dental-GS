@@ -189,6 +189,8 @@
 						<exclude>**/MinioStorageService.*</exclude>
 						<exclude>**/NotificacionBotService.*</exclude>
 						<exclude>**/ReporteCajaPdfService.*</exclude>
+						<exclude>**/ReporteMensualService.*</exclude>
+						<exclude>**/ReporteMensualScheduler.*</exclude>
 						<exclude>**/client/**</exclude>
 						<exclude>**/dto/**</exclude>
 						<exclude>**/model/**</exclude>
