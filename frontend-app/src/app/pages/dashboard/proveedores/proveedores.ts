@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  ProveedoresService, Proveedor, DeudaProveedor, ProveedorRequest,
+  ProveedoresService, Proveedor, DeudaProveedor, ProveedorRequest, DeudaProveedorRequest,
 } from '../../../services/proveedores.service';
 import { NotificationService } from '../../../services/notification.service';
 
@@ -32,6 +32,13 @@ export class ProveedoresComponent implements OnInit {
   modalAbierto = signal(false);
   guardando = signal(false);
   form: ProveedorRequest = this.formVacio();
+
+  // ── Modal de nueva deuda ────────────────────────────────────────────
+  modalDeudaAbierto = signal(false);
+  guardandoDeuda    = signal(false);
+  pagandoId         = signal<number | null>(null);
+  proveedorDeuda: Proveedor | null = null;
+  deudaForm: DeudaProveedorRequest = this.deudaFormVacio();
 
   ngOnInit(): void { this.cargar(); }
 
@@ -96,5 +103,59 @@ export class ProveedoresComponent implements OnInit {
 
   private formVacio(): ProveedorRequest {
     return { nombre: '', cuit: '', email: '', telefono: '', direccion: '' };
+  }
+
+  // ── Nueva deuda ──────────────────────────────────────────────────────
+
+  abrirModalDeuda(p: Proveedor): void {
+    this.proveedorDeuda = p;
+    this.deudaForm = this.deudaFormVacio();
+    this.deudaForm.proveedorId = p.id;
+    this.modalDeudaAbierto.set(true);
+  }
+
+  cerrarModalDeuda(): void { this.modalDeudaAbierto.set(false); }
+
+  guardarDeuda(): void {
+    if (!this.deudaForm.descripcion?.trim()) {
+      this.notif.alerta('La descripción es obligatoria.', 'Falta la descripción');
+      return;
+    }
+    if (!this.deudaForm.monto || this.deudaForm.monto <= 0) {
+      this.notif.alerta('El monto debe ser mayor a cero.', 'Monto inválido');
+      return;
+    }
+    this.guardandoDeuda.set(true);
+    this.prov.registrarDeuda(this.deudaForm).subscribe({
+      next: () => {
+        this.notif.exito('Deuda registrada correctamente.', 'Listo');
+        this.guardandoDeuda.set(false);
+        this.modalDeudaAbierto.set(false);
+        this.cargar();
+        if (this.proveedorDeuda) this.refrescarDeudas(this.proveedorDeuda.id);
+      },
+      error: (e) => { this.notif.errorHttp(e, 'No se pudo registrar la deuda'); this.guardandoDeuda.set(false); },
+    });
+  }
+
+  marcarPagada(d: DeudaProveedor): void {
+    this.pagandoId.set(d.id);
+    this.prov.pagarDeuda(d.id).subscribe({
+      next: () => {
+        this.notif.exito('Deuda marcada como pagada.', 'Listo');
+        this.pagandoId.set(null);
+        this.cargar();
+        this.refrescarDeudas(d.proveedorId);
+      },
+      error: (e) => { this.notif.errorHttp(e, 'No se pudo marcar la deuda como pagada'); this.pagandoId.set(null); },
+    });
+  }
+
+  private refrescarDeudas(proveedorId: number): void {
+    this.prov.deudas(proveedorId).subscribe({ next: (d) => this.deudas.set(d) });
+  }
+
+  private deudaFormVacio(): DeudaProveedorRequest {
+    return { proveedorId: 0, descripcion: '', monto: 0, fechaVencimiento: null, nroFacturaProveedor: '', observaciones: '' };
   }
 }

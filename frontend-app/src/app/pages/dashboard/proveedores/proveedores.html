@@ -52,6 +52,10 @@
             @if (expandido() === p.id) {
               <tr class="detalle">
                 <td colspan="5">
+                  <div class="detalle-head">
+                    <span class="detalle-title">Deudas</span>
+                    <button class="btn-ghost btn-sm" (click)="abrirModalDeuda(p); $event.stopPropagation()">+ Nueva deuda</button>
+                  </div>
                   @if (cargandoDeudas()) {
                     <p class="estado-msg">Cargando deudas…</p>
                   } @else if (deudas().length === 0) {
@@ -59,7 +63,7 @@
                   } @else {
                     <table class="sub-tabla">
                       <thead>
-                        <tr><th>Descripción</th><th class="r">Monto</th><th>Estado</th><th>Vence</th><th>Pagada</th><th>Factura</th></tr>
+                        <tr><th>Descripción</th><th class="r">Monto</th><th>Estado</th><th>Vence</th><th>Pagada</th><th>Factura</th><th></th></tr>
                       </thead>
                       <tbody>
                         @for (d of deudas(); track d.id) {
@@ -73,6 +77,14 @@
                             <td class="nowrap">{{ d.fechaVencimiento ? (d.fechaVencimiento | date:'dd/MM/yy') : '—' }}</td>
                             <td class="nowrap">{{ d.fechaPago ? (d.fechaPago | date:'dd/MM/yy') : '—' }}</td>
                             <td class="nowrap">{{ d.nroFacturaProveedor || '—' }}</td>
+                            <td class="nowrap">
+                              @if (d.estado === 'PENDIENTE') {
+                                <button class="btn-ghost btn-sm" [disabled]="pagandoId() === d.id"
+                                        (click)="marcarPagada(d); $event.stopPropagation()">
+                                  {{ pagandoId() === d.id ? 'Marcando…' : 'Marcar pagada' }}
+                                </button>
+                              }
+                            </td>
                           </tr>
                         }
                       </tbody>
@@ -101,6 +113,23 @@
         <div class="modal-acciones">
           <button class="btn-ghost" (click)="cerrarModal()">Cancelar</button>
           <button class="btn-primary" (click)="guardar()" [disabled]="guardando()">{{ guardando() ? 'Guardando…' : 'Crear' }}</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (modalDeudaAbierto()) {
+    <div class="modal-overlay" (click)="cerrarModalDeuda()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>Nueva deuda — {{ proveedorDeuda?.nombre }}</h2>
+        <label>Descripción *<input [(ngModel)]="deudaForm.descripcion" placeholder="Ej: Cerámica Vita PM9 x2 kg"></label>
+        <label>Monto *<input [(ngModel)]="deudaForm.monto" type="number" min="0" step="0.01" placeholder="0"></label>
+        <label>Vencimiento<input [(ngModel)]="deudaForm.fechaVencimiento" type="date"></label>
+        <label>Nº de factura<input [(ngModel)]="deudaForm.nroFacturaProveedor" placeholder="A-0001-00012345"></label>
+        <label>Observaciones<input [(ngModel)]="deudaForm.observaciones" placeholder="Notas adicionales (opcional)"></label>
+        <div class="modal-acciones">
+          <button class="btn-ghost" (click)="cerrarModalDeuda()">Cancelar</button>
+          <button class="btn-primary" (click)="guardarDeuda()" [disabled]="guardandoDeuda()">{{ guardandoDeuda() ? 'Guardando…' : 'Registrar deuda' }}</button>
         </div>
       </div>
     </div>

@@ -452,6 +452,27 @@ tr.urgente.atrasado td:first-child {
 textarea.form-input { resize: vertical; min-height: 60px; }
 select.form-input { cursor: pointer; }
 
+.hidden-input { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.escaneo-upload-btn {
+  position: relative; display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.55rem 0.9rem; border: 1.5px dashed var(--gs-border-md); border-radius: 8px;
+  color: var(--gs-text-muted); font-size: 0.82rem; font-weight: 600; cursor: pointer;
+  width: fit-content; transition: border-color .15s, color .15s;
+}
+.escaneo-upload-btn:hover { border-color: var(--gs-green); color: var(--gs-green); }
+.escaneo-chip-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.escaneo-chip {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.35rem 0.6rem; background: var(--gs-card); border: 1px solid var(--gs-border-md);
+  border-radius: 6px; font-size: 0.78rem; color: var(--gs-text);
+}
+.escaneo-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.escaneo-chip button {
+  background: none; border: none; color: var(--gs-text-dim); cursor: pointer; font-size: 0.85rem;
+  flex-shrink: 0; line-height: 1; padding: 0 0.2rem;
+}
+.escaneo-chip button:hover { color: #ef4444; }
+
 .form-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

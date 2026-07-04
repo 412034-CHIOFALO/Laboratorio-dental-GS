@@ -6,6 +6,7 @@ import {
 import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
 import { CatalogoService, TipoTrabajoResponse } from '../../../services/catalogo.service';
 import { NotificationService } from '../../../services/notification.service';
+import { EscaneosService } from '../../../services/escaneos.service';
 
 type FiltroEstado = EstadoPedido | 'TODOS';
 
@@ -89,12 +90,18 @@ export class PedidosComponent implements OnInit {
   // ── Confirmar cancelar ───────────────────────────────────────
   cancelConfirmId: number | null = null;
 
+  // ── Escaneos 3D a subir junto con el pedido nuevo ─────────────
+  readonly acceptEscaneos = '.stl,.obj,.ply,.3ds,.step,.stp,.iges,.igs';
+  archivosEscaneo: File[] = [];
+  subiendoEscaneos = false;
+
   private notif = inject(NotificationService);
 
   constructor(
     private pedidosService: PedidosService,
     private odontologosService: OdontologosService,
     private catalogoService: CatalogoService,
+    private escaneosService: EscaneosService,
   ) {}
 
   ngOnInit(): void {
@@ -155,6 +162,7 @@ export class PedidosComponent implements OnInit {
     this.editMode = false;
     this.pedidoEditandoId = null;
     this.form = this.formVacio();
+    this.archivosEscaneo = [];
     this.showModal = true;
   }
 
@@ -187,6 +195,19 @@ export class PedidosComponent implements OnInit {
     this.trabajosSugeridos = [];
     this.mostrandoSugerenciasTrabajo = false;
     this.errorPrecio = '';
+    this.archivosEscaneo = [];
+  }
+
+  // ── Escaneos 3D a subir junto con el pedido nuevo ─────────────
+
+  onArchivosEscaneoInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files?.length) this.archivosEscaneo.push(...Array.from(input.files));
+    input.value = '';
+  }
+
+  quitarArchivoEscaneo(idx: number): void {
+    this.archivosEscaneo.splice(idx, 1);
   }
 
   private formVacio(): typeof this.form {
@@ -409,13 +430,41 @@ export class PedidosComponent implements OnInit {
         }
         this.filtrar();
         this.saving = false;
+        const archivosPendientes = this.archivosEscaneo;
         this.cerrarModal();
+        if (!this.editMode && archivosPendientes.length > 0) {
+          this.subirEscaneosPedidoNuevo(res.id, res.nroPedido, archivosPendientes);
+        }
       },
       error: err => {
         this.saving = false;
         this.notif.errorHttp(err, 'No se pudo guardar el pedido');
       },
     });
+  }
+
+  /** Sube en segundo plano los escaneos que se adjuntaron al crear el pedido. */
+  private subirEscaneosPedidoNuevo(pedidoId: number, nroPedido: string, archivos: File[]): void {
+    this.subiendoEscaneos = true;
+    let subidos = 0;
+    let fallidos = 0;
+
+    const subirSiguiente = (i: number): void => {
+      if (i >= archivos.length) {
+        this.subiendoEscaneos = false;
+        if (fallidos === 0) {
+          this.notif.exito(`${subidos} escaneo(s) subido(s) al pedido ${nroPedido}`);
+        } else {
+          this.notif.alerta(`${subidos} escaneo(s) subido(s), ${fallidos} fallaron`, `Pedido ${nroPedido}`);
+        }
+        return;
+      }
+      this.escaneosService.subir(pedidoId, archivos[i]).subscribe({
+        next: () => { subidos++; subirSiguiente(i + 1); },
+        error: () => { fallidos++; subirSiguiente(i + 1); },
+      });
+    };
+    subirSiguiente(0);
   }
 
   // ─────────────────────────────────────────────────────────────

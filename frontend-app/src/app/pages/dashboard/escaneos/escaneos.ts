@@ -29,6 +29,8 @@ export class EscaneosComponent implements OnInit {
   escaneos           = signal<EscaneoResponse[]>([]);
   cargandoEscaneos   = signal(false);
   subiendo           = signal(false);
+  subidosCount       = signal(0);
+  subiendoTotal      = signal(0);
   eliminandoId       = signal<number | null>(null);
   arrastrando        = signal(false);
 
@@ -80,33 +82,48 @@ export class EscaneosComponent implements OnInit {
 
   onFileInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (input.files?.length) this.subirArchivo(input.files[0]);
+    if (input.files?.length) this.subirArchivos(Array.from(input.files));
     input.value = '';
   }
 
   onDrop(event: DragEvent): void {
     event.preventDefault();
     this.arrastrando.set(false);
-    const file = event.dataTransfer?.files?.[0];
-    if (file) this.subirArchivo(file);
+    const files = event.dataTransfer?.files;
+    if (files?.length) this.subirArchivos(Array.from(files));
   }
 
   onDragOver(event: DragEvent): void { event.preventDefault(); this.arrastrando.set(true); }
   onDragLeave(): void { this.arrastrando.set(false); }
 
-  private subirArchivo(file: File): void {
+  /** Sube uno o varios archivos en secuencia. La descripción (si hay) se aplica a todos. */
+  private subirArchivos(files: File[]): void {
     const p = this.pedidoSeleccionado();
-    if (!p) return;
+    if (!p || files.length === 0) return;
     this.subiendo.set(true);
+    this.subidosCount.set(0);
+    this.subiendoTotal.set(files.length);
     const desc = this.descripcionInput.trim() || undefined;
-    this.escaneosService.subir(p.id, file, desc).subscribe({
-      next: escaneo => {
-        this.escaneos.update(es => [escaneo, ...es]);
+
+    const subirSiguiente = (i: number): void => {
+      if (i >= files.length) {
         this.descripcionInput = '';
         this.subiendo.set(false);
-      },
-      error: () => { this.subiendo.set(false); },
-    });
+        return;
+      }
+      this.escaneosService.subir(p.id, files[i], desc).subscribe({
+        next: escaneo => {
+          this.escaneos.update(es => [escaneo, ...es]);
+          this.subidosCount.set(i + 1);
+          subirSiguiente(i + 1);
+        },
+        error: () => {
+          this.subidosCount.set(i + 1);
+          subirSiguiente(i + 1);
+        },
+      });
+    };
+    subirSiguiente(0);
   }
 
   eliminar(escaneo: EscaneoResponse): void {

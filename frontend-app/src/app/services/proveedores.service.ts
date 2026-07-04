@@ -38,6 +38,15 @@ export interface ProveedorRequest {
   direccion?: string | null;
 }
 
+export interface DeudaProveedorRequest {
+  proveedorId: number;
+  descripcion: string;
+  monto: number;
+  fechaVencimiento?: string | null;
+  nroFacturaProveedor?: string | null;
+  observaciones?: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ProveedoresService {
   private http = inject(HttpClient);
@@ -66,6 +75,35 @@ export class ProveedoresService {
       return of(nuevo).pipe(delay(200));
     }
     return this.http.post<Proveedor>(this.base, req);
+  }
+
+  /** Registra una nueva deuda (compra de materiales) con un proveedor. */
+  registrarDeuda(req: DeudaProveedorRequest): Observable<DeudaProveedor> {
+    if (environment.useMocks) {
+      const nueva: DeudaProveedor = {
+        id: Math.floor(Math.random() * 9000) + 1000,
+        proveedorId: req.proveedorId,
+        proveedorNombre: this.mockProveedores().find(p => p.id === req.proveedorId)?.nombre ?? '',
+        descripcion: req.descripcion,
+        monto: req.monto,
+        estado: 'PENDIENTE',
+        fechaVencimiento: req.fechaVencimiento ?? null,
+        fechaPago: null,
+        nroFacturaProveedor: req.nroFacturaProveedor ?? null,
+        observaciones: req.observaciones ?? null,
+      };
+      return of(nueva).pipe(delay(200));
+    }
+    return this.http.post<DeudaProveedor>(`${this.base}/deudas`, req);
+  }
+
+  /** Marca una deuda como pagada (fecha de pago = hoy). */
+  pagarDeuda(id: number): Observable<DeudaProveedor> {
+    if (environment.useMocks) {
+      const d = this.mockDeudas().find(x => x.id === id)!;
+      return of({ ...d, estado: 'PAGADO' as EstadoDeuda, fechaPago: new Date().toISOString().slice(0, 10) }).pipe(delay(200));
+    }
+    return this.http.patch<DeudaProveedor>(`${this.base}/deudas/${id}/pagar`, null);
   }
 
   // ── Mocks ──

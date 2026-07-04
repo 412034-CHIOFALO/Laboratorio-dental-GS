@@ -337,6 +337,27 @@
           <textarea class="form-input" rows="2" [(ngModel)]="form.observaciones"
                     placeholder="Notas adicionales (opcional)"></textarea>
         </div>
+
+        @if (!editMode) {
+          <div class="form-row">
+            <label>Escaneos 3D (opcional)</label>
+            <label class="escaneo-upload-btn">
+              + Adjuntar escaneo(s) STL/OBJ/PLY
+              <input type="file" class="hidden-input" [accept]="acceptEscaneos" multiple
+                     (change)="onArchivosEscaneoInput($event)" />
+            </label>
+            @if (archivosEscaneo.length > 0) {
+              <ul class="escaneo-chip-list">
+                @for (f of archivosEscaneo; track f.name + f.size; let i = $index) {
+                  <li class="escaneo-chip">
+                    <span>{{ f.name }}</span>
+                    <button type="button" (click)="quitarArchivoEscaneo(i)" title="Quitar">✕</button>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        }
       </div>
 
       <div class="modal-footer">

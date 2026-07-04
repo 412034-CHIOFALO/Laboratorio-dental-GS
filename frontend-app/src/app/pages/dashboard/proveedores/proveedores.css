@@ -34,6 +34,9 @@
 .badge.ok { background: rgba(22,163,74,.15); color: #16a34a; }
 
 .detalle td { background: var(--bg, var(--neutral-tint)); padding: 0 12px 12px 40px; }
+.detalle-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 0 6px; }
+.detalle-title { font-weight: 700; font-size: 0.85rem; color: var(--text); }
+.btn-sm { padding: 4px 10px; font-size: 0.76rem; }
 .sub-tabla { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-top: 4px; }
 .sub-tabla thead th { text-align: left; padding: 7px 10px; color: var(--dim); font-weight: 600; border-bottom: 1px solid var(--border); }
 .sub-tabla tbody td { padding: 7px 10px; border-bottom: 1px solid var(--border); }

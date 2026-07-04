@@ -74,13 +74,13 @@
                    [(ngModel)]="descripcionInput" [disabled]="subiendo()" />
             <label class="btn-upload" [class.loading]="subiendo()">
               @if (subiendo()) {
-                <span class="btn-spinner"></span> Subiendo…
+                <span class="btn-spinner"></span> Subiendo {{ subidosCount() }}/{{ subiendoTotal() }}…
               } @else {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Subir escaneo
+                Subir escaneo(s)
               }
               <input type="file" class="hidden-input" (change)="onFileInput($event)"
-                     [disabled]="subiendo()" [accept]="accept" />
+                     [disabled]="subiendo()" [accept]="accept" multiple />
             </label>
           </div>
         </div>
@@ -102,7 +102,7 @@
                 <path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>
               </svg>
               <p>Sin escaneos adjuntos.</p>
-              <span>Arrastrá un archivo STL/OBJ/PLY o usá el botón "Subir escaneo".</span>
+              <span>Arrastrá uno o varios archivos STL/OBJ/PLY o usá el botón "Subir escaneo(s)".</span>
             </div>
 
           } @else {
