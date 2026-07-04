@@ -205,6 +205,15 @@ export class ReportesComponent implements OnInit {
     }).format(n);
   }
 
+  /**
+   * Igual que formatMoney pero seguro para jsPDF: la fuente Helvetica (WinAnsi) no
+   * puede codificar el signo menos Unicode (−, U+2212) ni los espacios especiales
+   * (nbsp / narrow-nbsp) que agrega Intl, y rompía el renderizado de toda la línea.
+   */
+  private pdfMoney(n: number): string {
+    return this.formatMoney(n).replace(/−/g, '-').replace(/[  ]/g, ' ');
+  }
+
   formatMoneyShort(n: number): string {
     if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
     if (n >= 1_000)     return '$' + Math.round(n / 1_000) + 'K';
@@ -288,7 +297,7 @@ export class ReportesComponent implements OnInit {
           doc.text(String(m.comprobantesPendientes), MARGIN + 105, y + 4);
           doc.text(m.diasSinPagar + 'd', MARGIN + 130, y + 4);
           doc.setTextColor(220, 38, 38);
-          doc.text(this.formatMoney(m.totalDeuda), W - MARGIN, y + 4, { align: 'right' as any });
+          doc.text(this.pdfMoney(m.totalDeuda), W - MARGIN, y + 4, { align: 'right' as any });
           doc.setDrawColor(235, 237, 242);
           doc.line(MARGIN, y + 7, W - MARGIN, y + 7);
           y += 9;
@@ -331,7 +340,7 @@ export class ReportesComponent implements OnInit {
         doc.setFontSize(isSeparator ? 9.5 : 9);
         doc.setTextColor(...fila.color);
         doc.text(fila.label, MARGIN + 3, y + 3);
-        const montoStr = (fila.valor < 0 ? '−' : '') + this.formatMoney(Math.abs(fila.valor));
+        const montoStr = (fila.valor < 0 ? '-' : '') + this.pdfMoney(Math.abs(fila.valor));
         doc.text(montoStr, W - MARGIN, y + 3, { align: 'right' as any });
         doc.setDrawColor(235, 237, 242);
         if (!isSeparator) doc.line(MARGIN, y + 6, W - MARGIN, y + 6);
