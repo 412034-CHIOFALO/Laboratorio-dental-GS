@@ -4,13 +4,14 @@ import { PedidosService, PedidoResponse, EntregaRequest } from '../../../service
 import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
 import { NotificationService } from '../../../services/notification.service';
 import { fechaLocal, hoyComoLocalDate } from '../../../services/date-utils';
+import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
 
 type Tab = 'PENDIENTES' | 'HISTORIAL';
 
 @Component({
   selector: 'app-entregas',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, PedidoDetalleModalComponent],
   templateUrl: './entregas.html',
   styleUrls: ['./entregas.css'],
 })
@@ -21,6 +22,9 @@ export class EntregasComponent implements OnInit {
   historial: PedidoResponse[] = [];
   loading = false;
   error = '';
+
+  // Modal de detalle del pedido (reusable, autocontenido)
+  detalleAbiertoId: number | null = null;
 
   // Modal "Marcar entregado"
   showModalEntregar = false;
@@ -50,6 +54,14 @@ export class EntregasComponent implements OnInit {
   ngOnInit(): void {
     this.cargar();
     this.cargarOdontologos();
+  }
+
+  abrirDetalle(pedidoId: number): void {
+    this.detalleAbiertoId = pedidoId;
+  }
+
+  cerrarDetalle(): void {
+    this.detalleAbiertoId = null;
   }
 
   /** Pre-carga los odontólogos activos en cache para usar en el mensaje WhatsApp. */

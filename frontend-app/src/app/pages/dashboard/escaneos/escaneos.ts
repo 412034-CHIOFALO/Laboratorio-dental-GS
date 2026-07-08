@@ -5,6 +5,7 @@ import { HttpEventType } from '@angular/common/http';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
 import { EscaneosService, EscaneoResponse } from '../../../services/escaneos.service';
 import { Visor3dComponent } from './visor3d.component';
+import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
 
 const EXTENSIONES_3D = ['.stl', '.obj', '.ply', '.3ds', '.step', '.stp', '.iges', '.igs'];
 // Formatos que el visor 3D embebido sabe renderizar.
@@ -13,7 +14,7 @@ const VISUALIZABLES_3D = ['.stl', '.obj'];
 @Component({
   selector: 'app-escaneos',
   standalone: true,
-  imports: [CommonModule, FormsModule, Visor3dComponent],
+  imports: [CommonModule, FormsModule, Visor3dComponent, PedidoDetalleModalComponent],
   templateUrl: './escaneos.html',
   styleUrls: ['./escaneos.css'],
 })
@@ -29,6 +30,7 @@ export class EscaneosComponent implements OnInit {
   pedidoSeleccionado = signal<PedidoResponse | null>(null);
   escaneos           = signal<EscaneoResponse[]>([]);
   cargandoEscaneos   = signal(false);
+  detalleAbiertoId   = signal<number | null>(null);
   subiendo           = signal(false);
   subidosCount       = signal(0);
   subiendoTotal      = signal(0);
@@ -76,6 +78,15 @@ export class EscaneosComponent implements OnInit {
         this.cargandoPedidos.set(false);
       },
     });
+  }
+
+  abrirDetallePedido(): void {
+    const p = this.pedidoSeleccionado();
+    if (p) this.detalleAbiertoId.set(p.id);
+  }
+
+  cerrarDetallePedido(): void {
+    this.detalleAbiertoId.set(null);
   }
 
   seleccionar(p: PedidoResponse): void {

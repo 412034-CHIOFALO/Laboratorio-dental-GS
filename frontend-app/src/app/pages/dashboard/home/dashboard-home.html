@@ -90,7 +90,7 @@
           <tbody>
             @for (p of pedidosRecientes; track p.id) {
               @let entrega = diasParaEntrega(p.fechaEntrega);
-              <tr (click)="goTo('/dashboard/pedidos')">
+              <tr (click)="abrirDetalle(p.id)">
                 <td class="td-id">{{ p.nroPedido }}</td>
                 <td>
                   <strong>{{ p.paciente }}</strong>
@@ -141,3 +141,7 @@
   </section>
   }
 </div>
+
+@if (detalleAbiertoId !== null) {
+  <app-pedido-detalle-modal [pedidoId]="detalleAbiertoId" (cerrar)="cerrarDetalle()" />
+}

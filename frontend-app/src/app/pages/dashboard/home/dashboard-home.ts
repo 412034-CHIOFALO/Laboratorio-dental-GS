@@ -6,6 +6,7 @@ import { PedidosService, PedidoResponse, EstadoPedido } from '../../../services/
 import { StockService, MaterialResponse } from '../../../services/stock.service';
 import { FinanzasService, ResumenCajasResponse } from '../../../services/finanzas.service';
 import { fechaLocal } from '../../../services/date-utils';
+import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
 
 type Periodo = 'HOY' | 'SEMANA' | 'MES';
 
@@ -31,7 +32,7 @@ interface AlertaItem {
 @Component({
   selector: 'app-dashboard-home',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, PedidoDetalleModalComponent],
   templateUrl: './dashboard-home.html',
   styleUrls: ['./dashboard-home.css'],
 })
@@ -41,6 +42,8 @@ export class DashboardHomeComponent implements OnInit {
   private stockService = inject(StockService);
   private finanzasService = inject(FinanzasService);
   private router = inject(Router);
+
+  detalleAbiertoId: number | null = null;
 
   loading = true;
   periodoActivo: Periodo = 'HOY';
@@ -351,5 +354,13 @@ export class DashboardHomeComponent implements OnInit {
 
   goTo(route?: string): void {
     if (route) this.router.navigate([route]);
+  }
+
+  abrirDetalle(pedidoId: number): void {
+    this.detalleAbiertoId = pedidoId;
+  }
+
+  cerrarDetalle(): void {
+    this.detalleAbiertoId = null;
   }
 }

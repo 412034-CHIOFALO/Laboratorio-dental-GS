@@ -9,13 +9,14 @@ import { CatalogoService, TipoTrabajoResponse } from '../../../services/catalogo
 import { NotificationService } from '../../../services/notification.service';
 import { EscaneosService } from '../../../services/escaneos.service';
 import { fechaLocal, comoLocalDate } from '../../../services/date-utils';
+import { PedidoDetalleModalComponent } from './pedido-detalle-modal/pedido-detalle-modal.component';
 
 type FiltroEstado = EstadoPedido | 'TODOS';
 
 @Component({
   selector: 'app-pedidos',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, PedidoDetalleModalComponent],
   templateUrl: './pedidos.html',
   styleUrls: ['./pedidos.css'],
 })
@@ -86,8 +87,8 @@ export class PedidosComponent implements OnInit {
   // Validación inline
   errorPrecio = '';
 
-  // ── Detalle ──────────────────────────────────────────────────
-  detalleAbierto: PedidoResponse | null = null;
+  // ── Detalle (modal compartido, autocontenido — solo necesita el id) ──
+  detalleAbiertoId: number | null = null;
 
   // ── Confirmar cancelar ───────────────────────────────────────
   cancelConfirmId: number | null = null;
@@ -192,7 +193,7 @@ export class PedidosComponent implements OnInit {
         matricula: '', clinica: '', direccion: '',
       },
     };
-    this.detalleAbierto = null;
+    this.detalleAbiertoId = null;
     this.showModal = true;
   }
 
@@ -482,11 +483,11 @@ export class PedidosComponent implements OnInit {
   // ─────────────────────────────────────────────────────────────
 
   abrirDetalle(p: PedidoResponse): void {
-    this.detalleAbierto = p;
+    this.detalleAbiertoId = p.id;
   }
 
   cerrarDetalle(): void {
-    this.detalleAbierto = null;
+    this.detalleAbiertoId = null;
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -507,7 +508,6 @@ export class PedidosComponent implements OnInit {
         if (idx !== -1) this.pedidos[idx] = res;
         this.cancelConfirmId = null;
         this.filtrar();
-        if (this.detalleAbierto?.id === id) this.detalleAbierto = res;
         this.notif.alerta(`Pedido ${res.nroPedido} cancelado`);
       },
       error: err => {

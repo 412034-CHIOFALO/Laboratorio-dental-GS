@@ -373,56 +373,8 @@
 <!-- ─────────────────────────────────────────────────────────────
      MODAL DETALLE
      ───────────────────────────────────────────────────────────── -->
-@if (detalleAbierto) {
-  <div class="modal-overlay" (click)="cerrarDetalle()">
-    <div class="modal-panel detalle" (click)="$event.stopPropagation()">
-
-      <div class="modal-header">
-        <div>
-          <h2>{{ detalleAbierto.nroPedido }}</h2>
-          <span class="estado-chip" [attr.data-color]="colorEstado(detalleAbierto.estado)">
-            {{ labelEstado(detalleAbierto.estado) }}
-          </span>
-          @if (detalleAbierto.prioridad === 'URGENTE') {
-            <span class="badge-urgente">URGENTE</span>
-          }
-        </div>
-        <button class="btn-close" (click)="cerrarDetalle()">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-
-      <div class="modal-body detalle-body">
-        <div class="detalle-grid">
-          <div><span class="detalle-label">Paciente</span><strong>{{ detalleAbierto.paciente }}</strong></div>
-          <div><span class="detalle-label">Odontólogo</span><strong>{{ detalleAbierto.odontologoNombre }}</strong></div>
-          <div><span class="detalle-label">Trabajo</span><strong>{{ detalleAbierto.trabajo }}</strong></div>
-          <div><span class="detalle-label">Técnico</span><strong>{{ detalleAbierto.tecnicoNombre ?? '— Sin asignar' }}</strong></div>
-          <div><span class="detalle-label">Fecha entrega</span><strong>{{ formatFecha(detalleAbierto.fechaEntrega) }}</strong></div>
-          <div><span class="detalle-label">Precio</span><strong>{{ formatPrecio(detalleAbierto.precioAcordado) }}</strong></div>
-          <div><span class="detalle-label">Creado</span><strong>{{ formatFecha(detalleAbierto.fechaCreacion) }}</strong></div>
-          <div><span class="detalle-label">Última modif.</span><strong>{{ formatFecha(detalleAbierto.fechaUltimaModificacion) }}</strong></div>
-        </div>
-
-        @if (detalleAbierto.observaciones) {
-          <div class="detalle-obs">
-            <span class="detalle-label">Observaciones</span>
-            <p>{{ detalleAbierto.observaciones }}</p>
-          </div>
-        }
-      </div>
-
-      <div class="modal-footer">
-        @if (detalleAbierto.estado !== 'ENTREGADO' && detalleAbierto.estado !== 'CANCELADO') {
-          <button class="btn-secondary danger" (click)="pedirConfirmCancelar(detalleAbierto.id)">
-            Cancelar pedido
-          </button>
-          <button class="btn-primary" (click)="abrirEditar(detalleAbierto)">Editar</button>
-        }
-        <button class="btn-secondary" (click)="cerrarDetalle()">Cerrar</button>
-      </div>
-    </div>
-  </div>
+@if (detalleAbiertoId !== null) {
+  <app-pedido-detalle-modal [pedidoId]="detalleAbiertoId" (cerrar)="cerrarDetalle()" />
 }
 
 <!-- ─────────────────────────────────────────────────────────────

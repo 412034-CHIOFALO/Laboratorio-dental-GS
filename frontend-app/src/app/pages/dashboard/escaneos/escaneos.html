@@ -65,7 +65,9 @@
         <!-- Sub-header -->
         <div class="escaneos-subheader">
           <div>
-            <span class="sel-nro">{{ pedidoSeleccionado()!.nroPedido }}</span>
+            <button class="sel-nro sel-nro-link" (click)="abrirDetallePedido()" title="Ver detalle completo del pedido">
+              {{ pedidoSeleccionado()!.nroPedido }}
+            </button>
             <span class="sel-paciente">— {{ pedidoSeleccionado()!.paciente }}</span>
             <span class="sel-trabajo">{{ pedidoSeleccionado()!.trabajo }}</span>
           </div>
@@ -182,6 +184,10 @@
 
   @if (visorAbierto()) {
     <app-visor3d [url]="visorUrl()" [fileName]="visorFileName()" (cerrar)="cerrarVisor()" />
+  }
+
+  @if (detalleAbiertoId() !== null) {
+    <app-pedido-detalle-modal [pedidoId]="detalleAbiertoId()!" (cerrar)="cerrarDetallePedido()" />
   }
 
 </div>

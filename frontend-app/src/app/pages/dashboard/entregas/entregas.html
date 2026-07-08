@@ -63,7 +63,7 @@
         @for (p of pendientes; track p.id) {
           <div class="ent-card" [class.urgente]="p.prioridad === 'URGENTE'">
             <div class="ent-card-head">
-              <span class="nro-pedido">{{ p.nroPedido }}</span>
+              <button class="nro-pedido nro-pedido-link" (click)="abrirDetalle(p.id)">{{ p.nroPedido }}</button>
               @if (p.prioridad === 'URGENTE') {
                 <span class="badge-urgente">URGENTE</span>
               }
@@ -127,7 +127,7 @@
           <tbody>
             @for (p of historial; track p.id) {
               <tr>
-                <td><span class="nro-pedido">{{ p.nroPedido }}</span></td>
+                <td><button class="nro-pedido nro-pedido-link" (click)="abrirDetalle(p.id)">{{ p.nroPedido }}</button></td>
                 <td>{{ p.trabajo }}</td>
                 <td>{{ p.paciente }}</td>
                 <td>{{ p.odontologoNombre }}</td>
@@ -200,4 +200,8 @@
       </div>
     </div>
   </div>
+}
+
+@if (detalleAbiertoId !== null) {
+  <app-pedido-detalle-modal [pedidoId]="detalleAbiertoId" (cerrar)="cerrarDetalle()" />
 }

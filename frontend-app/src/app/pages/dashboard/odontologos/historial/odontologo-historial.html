@@ -86,7 +86,7 @@
             } @else {
               <ul class="list-resumen">
                 @for (p of pedidos.slice(0, 5); track p.id) {
-                  <li>
+                  <li class="row-clickable" (click)="abrirDetallePedido(p.id)">
                     <span class="mini-nro">{{ p.nroPedido }}</span>
                     <span class="mini-trabajo">{{ p.trabajo }}</span>
                     <span class="mini-estado" [attr.data-color]="colorEstado(p.estado)">{{ labelEstado(p.estado) }}</span>
@@ -131,7 +131,7 @@
               </thead>
               <tbody>
                 @for (p of pedidos; track p.id) {
-                  <tr>
+                  <tr class="row-clickable" (click)="abrirDetallePedido(p.id)">
                     <td><strong>{{ p.nroPedido }}</strong></td>
                     <td>{{ p.paciente }}</td>
                     <td>{{ p.trabajo }}</td>
@@ -175,7 +175,7 @@
                 </thead>
                 <tbody>
                   @for (p of pedidosActivos; track p.id) {
-                    <tr>
+                    <tr class="row-clickable" (click)="abrirDetallePedido(p.id)">
                       <td><strong>{{ p.nroPedido }}</strong></td>
                       <td>{{ p.trabajo }}</td>
                       <td><span class="mini-estado" [attr.data-color]="colorEstado(p.estado)">{{ labelEstado(p.estado) }}</span></td>
@@ -209,7 +209,7 @@
                 </thead>
                 <tbody>
                   @for (p of pedidosEntregados; track p.id) {
-                    <tr>
+                    <tr class="row-clickable" (click)="abrirDetallePedido(p.id)">
                       <td><strong>{{ p.nroPedido }}</strong></td>
                       <td>{{ p.trabajo }}</td>
                       <td class="muted">{{ formatFecha(p.fechaEntrega) }}</td>
@@ -260,4 +260,8 @@
     [saldoActual]="saldoDeuda"
     (cerrar)="cerrarModalPago()"
     (pagado)="onPagoRegistrado()" />
+}
+
+@if (detalleAbiertoId !== null) {
+  <app-pedido-detalle-modal [pedidoId]="detalleAbiertoId" (cerrar)="cerrarDetallePedido()" />
 }

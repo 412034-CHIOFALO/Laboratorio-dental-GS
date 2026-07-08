@@ -151,6 +151,12 @@
   font-weight: 700;
   color: var(--gs-text);
 }
+.nro-pedido-link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  text-decoration: underline; text-decoration-color: transparent;
+  transition: color .15s, text-decoration-color .15s;
+}
+.nro-pedido-link:hover { color: var(--gs-green); text-decoration-color: var(--gs-green); }
 .badge-urgente {
   background: rgba(244, 63, 94, 0.15);
   color: #dc2626;

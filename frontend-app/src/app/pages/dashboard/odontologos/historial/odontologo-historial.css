@@ -221,6 +221,7 @@
   align-items: center;
 }
 .list-resumen li:last-child { border-bottom: 0; }
+.list-resumen li.row-clickable, .pedidos-tabla tbody tr.row-clickable { cursor: pointer; }
 .mini-nro {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-weight: 700;
