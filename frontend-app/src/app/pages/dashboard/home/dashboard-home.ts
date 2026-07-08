@@ -1,10 +1,12 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { PedidosService, PedidoResponse, EstadoPedido } from '../../../services/pedidos.service';
 import { StockService, MaterialResponse } from '../../../services/stock.service';
 import { FinanzasService, ResumenCajasResponse } from '../../../services/finanzas.service';
+import { AuthService } from '../../../services/auth';
 import { fechaLocal } from '../../../services/date-utils';
 import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
 
@@ -41,6 +43,7 @@ export class DashboardHomeComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private stockService = inject(StockService);
   private finanzasService = inject(FinanzasService);
+  private auth = inject(AuthService);
   private router = inject(Router);
 
   detalleAbiertoId: number | null = null;
@@ -66,10 +69,17 @@ export class DashboardHomeComponent implements OnInit {
 
   private cargar(): void {
     this.loading = true;
+    // El resumen de cajas es solo-ADMIN en el backend (403 para el resto de roles).
+    // Si no es admin ni pedimos el endpoint: un 403 acá tira abajo TODO el forkJoin
+    // y el interceptor global redirige a /sin-permisos, bloqueando el dashboard entero
+    // (técnicos, administrativos, etc. quedaban sin poder ni entrar al sistema).
+    const cajas$ = this.auth.isAdmin()
+      ? this.finanzasService.obtenerResumen().pipe(catchError(() => of(null)))
+      : of(null);
     forkJoin({
       pedidos: this.pedidosService.listarTodos(),
       materiales: this.stockService.listarActivos(),
-      cajas: this.finanzasService.obtenerResumen(),
+      cajas: cajas$,
     }).subscribe({
       next: ({ pedidos, materiales, cajas }) => {
         this.pedidos = pedidos;

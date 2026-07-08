@@ -4,6 +4,7 @@ import { catchError } from 'rxjs/operators';
 import { PedidosService } from './pedidos.service';
 import { StockService } from './stock.service';
 import { SueldosService } from './sueldos.service';
+import { AuthService } from './auth';
 
 export type TipoNoti = 'danger' | 'warning' | 'success' | 'info' | 'neutral';
 export type IconoNoti = 'alerta' | 'caja' | 'efectivo' | 'entrega' | 'usuario' | 'bot';
@@ -40,6 +41,7 @@ export class NotificacionesService {
   private readonly pedidos  = inject(PedidosService);
   private readonly stock    = inject(StockService);
   private readonly sueldos  = inject(SueldosService);
+  private readonly auth     = inject(AuthService);
 
   private readonly _items     = signal<Notificacion[]>([]);
   private readonly _ocultas   = signal<Set<string>>(new Set());
@@ -57,11 +59,19 @@ export class NotificacionesService {
   /** Recalcula las notificaciones contra el estado actual de cada modulo. */
   refrescar(): void {
     this._cargando.set(true);
+    // "efectivo pendiente" es un endpoint solo-ADMIN en el backend. Si lo pedimos
+    // igual para otros roles, el 403 dispara el interceptor global (redirige a
+    // /sin-permisos) ANTES de que este catchError llegue a correr — y como este
+    // servicio se instancia apenas se entra al dashboard, bloqueaba la app entera
+    // para cualquier rol que no fuera admin.
+    const efectivo$ = this.auth.isAdmin()
+      ? this.sueldos.pendientesEfectivo().pipe(catchError(() => of([])))
+      : of([]);
     forkJoin({
       atrasados: this.pedidos.listarAtrasados().pipe(catchError(() => of([]))),
       listos:    this.pedidos.listarPorEstado('LISTO').pipe(catchError(() => of([]))),
       stockBajo: this.stock.listarBajoStock().pipe(catchError(() => of([]))),
-      efectivo:  this.sueldos.pendientesEfectivo().pipe(catchError(() => of([]))),
+      efectivo:  efectivo$,
     }).subscribe(({ atrasados, listos, stockBajo, efectivo }) => {
       const notis: Notificacion[] = [];
 
