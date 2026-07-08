@@ -1,9 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════════════
 #   ERP G&S — Stack completo (Producción)
 #
-#   Levanta: infra (MySQL, MinIO) + ms-auth + 4 ms de negocio + discovery
+#   Levanta: infra (MySQL, MinIO, Adminer) + ms-auth + 4 ms de negocio + discovery
 #            + gateway + frontend (nginx) + bot de WhatsApp
-#   Total: 11 containers + 1 red interna
+#   Total: 12 containers + 1 red interna
 #
 #   Uso:
 #     docker compose up -d            # primer arranque, compila todo
@@ -120,10 +120,6 @@ services:
     build:
       context: ./ms-auth
       dockerfile: Dockerfile
-      args:
-        # El keystore se genera en el build: debe usar el MISMO password que
-        # ms-auth leerá en runtime (GS_KEYSTORE_PASSWORD), si no, no abre la clave RSA.
-        KEYSTORE_PASSWORD: ${GS_KEYSTORE_PASSWORD:-gs_keystore_2025}
     container_name: gs-auth
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -142,6 +138,12 @@ services:
       GS_BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
     ports:
       - "127.0.0.1:8081:8081"
+    volumes:
+      # Keystore RSA persistente: se genera una sola vez (primer arranque) y se
+      # reusa en cada rebuild/restart. Sin esto, cada `docker compose up --build`
+      # regeneraba la clave y invalidaba TODOS los JWT ya emitidos (deslogueaba
+      # a todo el mundo en cada deploy).
+      - ms_auth_keys:/app/keys
     depends_on:
       mysql: { condition: service_healthy }
       discovery-server: { condition: service_healthy }
@@ -389,3 +391,5 @@ volumes:
     name: gs_minio_data
   wpp_auth:
     name: gs_wpp_auth
+  ms_auth_keys:
+    name: gs_auth_keys

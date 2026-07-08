@@ -27,8 +27,16 @@ La contraseña por defecto (`gs_keystore_2025`) está en
 
 ### Producción
 
-En producción se usa un keystore distinto, montado fuera del JAR y referenciado
-por las variables de entorno:
+En producción (Docker) se usa un keystore distinto al de desarrollo, generado
+automáticamente y persistido en un volumen — **no** el que va dentro del JAR.
+
+`docker-entrypoint.sh` genera el `.p12` en `/app/keys/gs-auth.p12` la primera
+vez que arranca el container (si el volumen `ms_auth_keys` está vacío) y lo
+reutiliza en cada rebuild/restart siguiente. Esto es importante: si el
+keystore cambiara en cada deploy, los JWT ya emitidos quedarían inválidos y
+todos los usuarios logueados tendrían que volver a iniciar sesión.
+
+Variables involucradas:
 
 - `GS_KEYSTORE_PASSWORD` — contraseña real del keystore productivo
-- `gs.auth.keystore.path` — ruta absoluta al `.p12` montado
+- `GS_KEYSTORE_PATH` — ruta al `.p12` (default en el Dockerfile: `file:/app/keys/gs-auth.p12`)
