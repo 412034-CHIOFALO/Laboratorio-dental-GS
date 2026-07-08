@@ -1,5 +1,6 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpEventType } from '@angular/common/http';
 import {
   PedidosService, PedidoResponse, PedidoRequest, EstadoPedido, Prioridad
 } from '../../../services/pedidos.service';
@@ -111,6 +112,12 @@ export class PedidosComponent implements OnInit {
       next: cat => this.catalogo = cat.filter(t => t.activo),
       error: err => console.error('No se pudo cargar el catálogo:', err),
     });
+  }
+
+  /** Avisa antes de cerrar/refrescar si hay escaneos subiéndose: si se navega, se pierden. */
+  @HostListener('window:beforeunload', ['$event'])
+  avisarSiHaySubidaEnCurso(event: BeforeUnloadEvent): void {
+    if (this.subiendoEscaneos) event.preventDefault();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -461,7 +468,9 @@ export class PedidosComponent implements OnInit {
         return;
       }
       this.escaneosService.subir(pedidoId, archivos[i]).subscribe({
-        next: () => { subidos++; subirSiguiente(i + 1); },
+        next: event => {
+          if (event.type === HttpEventType.Response) { subidos++; subirSiguiente(i + 1); }
+        },
         error: () => { fallidos++; subirSiguiente(i + 1); },
       });
     };

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEvent, HttpRequest, HttpResponse } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
@@ -50,7 +50,8 @@ export class EscaneosService {
     return this.http.get(`${this.base(pedidoId)}/${escaneoId}/archivo`, { responseType: 'blob' });
   }
 
-  subir(pedidoId: number, file: File, descripcion?: string): Observable<EscaneoResponse> {
+  /** Sube el archivo reportando progreso (útil para STL grandes: sin esto la barra queda "colgada"). */
+  subir(pedidoId: number, file: File, descripcion?: string): Observable<HttpEvent<EscaneoResponse>> {
     if (environment.useMocks) {
       const mock: EscaneoResponse = {
         id: Date.now(), pedidoId,
@@ -61,12 +62,13 @@ export class EscaneosService {
         subidoPor: 'demo',
         fechaSubida: new Date().toISOString(),
       };
-      return of(mock).pipe(delay(700));
+      return of(new HttpResponse({ body: mock, status: 200 })).pipe(delay(700));
     }
     const fd = new FormData();
     fd.append('file', file);
     if (descripcion) fd.append('descripcion', descripcion);
-    return this.http.post<EscaneoResponse>(this.base(pedidoId), fd);
+    const req = new HttpRequest<FormData>('POST', this.base(pedidoId), fd, { reportProgress: true });
+    return this.http.request<EscaneoResponse>(req);
   }
 
   eliminar(pedidoId: number, escaneoId: number): Observable<void> {

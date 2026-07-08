@@ -1,6 +1,7 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, HostListener, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { HttpEventType } from '@angular/common/http';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
 import { EscaneosService, EscaneoResponse } from '../../../services/escaneos.service';
 import { Visor3dComponent } from './visor3d.component';
@@ -31,6 +32,7 @@ export class EscaneosComponent implements OnInit {
   subiendo           = signal(false);
   subidosCount       = signal(0);
   subiendoTotal      = signal(0);
+  progresoActual     = signal(0);
   eliminandoId       = signal<number | null>(null);
   arrastrando        = signal(false);
 
@@ -54,6 +56,12 @@ export class EscaneosComponent implements OnInit {
       p.odontologoNombre.toLowerCase().includes(q)
     );
   });
+
+  /** Avisa antes de cerrar/refrescar si hay una subida en curso: si se navega, se pierde. */
+  @HostListener('window:beforeunload', ['$event'])
+  avisarSiHaySubidaEnCurso(event: BeforeUnloadEvent): void {
+    if (this.subiendo()) event.preventDefault();
+  }
 
   ngOnInit(): void {
     this.pedidosService.listarTodos().subscribe({
@@ -109,13 +117,19 @@ export class EscaneosComponent implements OnInit {
       if (i >= files.length) {
         this.descripcionInput = '';
         this.subiendo.set(false);
+        this.progresoActual.set(0);
         return;
       }
+      this.progresoActual.set(0);
       this.escaneosService.subir(p.id, files[i], desc).subscribe({
-        next: escaneo => {
-          this.escaneos.update(es => [escaneo, ...es]);
-          this.subidosCount.set(i + 1);
-          subirSiguiente(i + 1);
+        next: event => {
+          if (event.type === HttpEventType.UploadProgress && event.total) {
+            this.progresoActual.set(Math.round((100 * event.loaded) / event.total));
+          } else if (event.type === HttpEventType.Response && event.body) {
+            this.escaneos.update(es => [event.body!, ...es]);
+            this.subidosCount.set(i + 1);
+            subirSiguiente(i + 1);
+          }
         },
         error: () => {
           this.subidosCount.set(i + 1);
