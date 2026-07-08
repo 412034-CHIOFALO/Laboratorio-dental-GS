@@ -51,6 +51,11 @@ if (GEMINI_ENABLED) {
 
 // Comprobantes esperando su "Emisor (Receptor)". Clave = grupo|usuario.
 const pendientes = new Map();
+// Caso inverso: llegó el "Emisor (Receptor)" pero todavía no el comprobante
+// (por ejemplo, cuando WhatsApp separa una foto+texto mandados "juntos" en dos
+// mensajes distintos, o la persona directamente escribe el pie primero). Sin
+// esto, un pie que llega antes que la imagen se perdía en silencio.
+const pendientesPie = new Map();
 const TIMEOUT_PENDIENTE = 5 * 60 * 1000;   // 5 minutos
 
 // ─── Reconciliación (recuperar comprobantes mandados con el bot caído) ───────
@@ -269,17 +274,32 @@ async function manejarMensaje(msg, opciones = {}) {
         // Comprobante + pie en el mismo mensaje → procesar directo
         await procesarPago(msg, chat, contacto, pie, lectura, undefined, { reconciliacion });
         if (reconciliacion) marcarProcesado(msg.id._serialized);
-      } else {
-        // Sin pie → guardar y esperar el siguiente mensaje
-        pendientes.set(clave, { msg, chat, contacto, lectura, ts: Date.now() });
-        if (!reconciliacion) {
-          console.log(`\n📎 [${chat.name}] Comprobante de ${contacto.pushname || contacto.number} — esperando "Emisor (Receptor)"...`);
-          await msg.reply('📎 Recibí el comprobante. Ahora mandá quién a quién: *Emisor (Receptor)*\nEj: Dr. García (Carlos López)');
-        }
-        // En reconciliación no lo marcamos procesado todavía: si el pie viene
-        // en un mensaje posterior DENTRO del mismo lote revisado, se empareja
-        // más abajo igual que en vivo.
+        return;
       }
+
+      // Sin pie en la propia foto: ¿ya nos habían mandado el "Emisor (Receptor)"
+      // antes (WhatsApp separó una foto+texto mandados juntos, o lo escribieron
+      // primero)? Si sí, se empareja directo sin pedirlo de nuevo.
+      const pendPie = pendientesPie.get(clave);
+      if (pendPie && (Date.now() - pendPie.ts) < TIMEOUT_PENDIENTE) {
+        pendientesPie.delete(clave);
+        await procesarPago(msg, chat, contacto, pendPie.pie, lectura, pendPie.msgPie, { reconciliacion });
+        if (reconciliacion) {
+          marcarProcesado(msg.id._serialized);
+          marcarProcesado(pendPie.msgPie.id._serialized);
+        }
+        return;
+      }
+
+      // Ninguno de los dos casos → guardar y esperar el siguiente mensaje
+      pendientes.set(clave, { msg, chat, contacto, lectura, ts: Date.now() });
+      if (!reconciliacion) {
+        console.log(`\n📎 [${chat.name}] Comprobante de ${contacto.pushname || contacto.number} — esperando "Emisor (Receptor)"...`);
+        await msg.reply('📎 Recibí el comprobante. Ahora mandá quién a quién: *Emisor (Receptor)*\nEj: Dr. García (Carlos López)');
+      }
+      // En reconciliación no lo marcamos procesado todavía: si el pie viene
+      // en un mensaje posterior DENTRO del mismo lote revisado, se empareja
+      // más abajo igual que en vivo.
 
     } else if (msg.body) {
       // ── ¿Es declaración de efectivo? ──────────────────────────────────────
@@ -299,14 +319,22 @@ async function manejarMensaje(msg, opciones = {}) {
 
       const pend = pendientes.get(clave);
       if (pend && (Date.now() - pend.ts) < TIMEOUT_PENDIENTE) {
+        // Ya teníamos el comprobante esperando este pie → emparejar
         pendientes.delete(clave);
         await procesarPago(pend.msg, pend.chat, pend.contacto, pie, pend.lectura, msg, { reconciliacion });
         if (reconciliacion) {
           marcarProcesado(pend.msg.id._serialized);
           marcarProcesado(msg.id._serialized);
         }
-      } else if (reconciliacion) {
-        marcarProcesado(msg.id._serialized);
+      } else {
+        // El pie llegó primero (sin comprobante todavía) → lo guardamos para
+        // cuando llegue la foto, en vez de perderlo en silencio.
+        pendientesPie.set(clave, { pie, msgPie: msg, ts: Date.now() });
+        if (!reconciliacion) {
+          console.log(`\n📝 [${chat.name}] "Emisor (Receptor)" de ${contacto.pushname || contacto.number} — esperando el comprobante...`);
+          await msg.reply('📝 Anotado. Mandame ahora la foto o el PDF del comprobante.');
+        }
+        if (reconciliacion) marcarProcesado(msg.id._serialized);
       }
     }
   } catch (err) {
@@ -831,6 +859,9 @@ setInterval(() => {
   const ahora = Date.now();
   for (const [k, v] of pendientes) {
     if (ahora - v.ts > TIMEOUT_PENDIENTE) pendientes.delete(k);
+  }
+  for (const [k, v] of pendientesPie) {
+    if (ahora - v.ts > TIMEOUT_PENDIENTE) pendientesPie.delete(k);
   }
 }, 60 * 1000);
 
