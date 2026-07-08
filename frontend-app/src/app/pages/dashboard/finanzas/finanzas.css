@@ -124,6 +124,26 @@
 }
 .alertas-box li { margin: 3px 0; }
 
+/* ── DESCUADRE DE CAJA COMPENSACIÓN (triangulados incompletos) ── */
+.descuadre-box {
+  background: rgba(220, 38, 38, 0.06);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.descuadre-box .alertas-head { color: #dc2626; }
+.descuadre-list { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.descuadre-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  padding: 0.5rem 0.75rem; background: var(--gs-card, rgba(255,255,255,0.03));
+  border-radius: 8px; cursor: pointer; font-size: 0.85rem; transition: background .15s;
+}
+.descuadre-list li:hover { background: rgba(220, 38, 38, 0.1); }
+.descuadre-concepto { color: var(--gs-text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.descuadre-monto { color: #dc2626; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+.descuadre-ver { color: #dc2626; font-size: 0.78rem; font-weight: 600; white-space: nowrap; }
+
 /* ── KPI ROW ── */
 .kpi-row {
   display: grid;
@@ -1319,6 +1339,47 @@
   font-size: 0.8rem;
   color: var(--text);
   cursor: pointer;
+}
+
+/* ── Cascada (distribuir un cobro) ── */
+.btn-cascada {
+  padding: 0.5rem 1rem;
+  background: var(--accent, #22c55e);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s;
+}
+.btn-cascada:hover { opacity: 0.9; }
+
+.cascada-ayuda { font-size: 0.82rem; color: var(--muted, #6b7280); margin: 0 0 0.75rem; }
+
+.cascada-lineas { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
+.cascada-linea {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cascada-linea .mov-monto-wrap { max-width: 140px; }
+.cascada-nombre { font-size: 0.85rem; font-weight: 600; color: var(--text); }
+
+.cascada-totales {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
 /* Botón histórico en card de empleado */

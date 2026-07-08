@@ -15,6 +15,15 @@ export interface ResumenCajasResponse {
   totalDeudaProveedores: number;
   totalSueldosPendientes: number;
   alertas: string[];
+  descuadresCompensacion: DescuadreCompensacion[];
+}
+
+/** Triangulado incompleto en Caja Compensación (le falta la mitad del par ingreso/egreso). */
+export interface DescuadreCompensacion {
+  referencia: string | null;
+  monto: number;
+  concepto: string;
+  fecha: string;
 }
 
 export interface CajaMovimientoResponse {

@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -516,6 +517,25 @@ public class GestionSueldoService implements IGestionSueldoService {
         return registroRepo.findByEstadoOrderByFechaHoraDesc(EstadoRegistroBot.PENDIENTE).stream()
                 .map(RegistroPagoBotResponse::from)
                 .toList();
+    }
+
+    @Override
+    public DistribucionCascadaResponse sugerirCascada(BigDecimal monto, TipoCaja cajaRemanente) {
+        List<ConfiguracionSueldo> empleados = configRepo.findByActivoTrueOrderByEmpleadoNombreAsc();
+
+        BigDecimal restante = monto;
+        List<LineaDistribucionResponse> lineas = new ArrayList<>();
+        for (ConfiguracionSueldo emp : empleados) {
+            if (restante.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal pendiente = emp.getSaldoDevengado();
+            if (pendiente == null || pendiente.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            BigDecimal asignado = pendiente.min(restante);
+            lineas.add(new LineaDistribucionResponse(emp.getEmpleadoId(), emp.getEmpleadoNombre(), asignado));
+            restante = restante.subtract(asignado);
+        }
+
+        return new DistribucionCascadaResponse(lineas, restante, cajaRemanente);
     }
 
     /** Match por nombre para la confirmación de efectivo (igual que el rama-nombre de resolverEmpleadoOpt). */

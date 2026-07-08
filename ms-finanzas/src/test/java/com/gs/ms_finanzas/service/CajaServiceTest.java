@@ -36,11 +36,21 @@ class CajaServiceTest {
                 .fechaMovimiento(LocalDate.now()).creadoPor("admin").build();
     }
 
+    private CajaMovimiento movCompensacion(TipoMovimientoCaja tipo, String monto, String referencia) {
+        return CajaMovimiento.builder()
+                .tipo(tipo).tipoCaja(TipoCaja.COMPENSACION)
+                .concepto("Triangulado").monto(new BigDecimal(monto)).referencia(referencia)
+                .fechaMovimiento(LocalDate.now()).creadoPor("bot").build();
+    }
+
     @Test
     void resumen_conTodasLasAlertas() {
         when(cajaRepo.calcularSaldo(TipoCaja.FISICA)).thenReturn(new BigDecimal("-50"));
         when(cajaRepo.calcularSaldo(TipoCaja.BANCARIA)).thenReturn(new BigDecimal("-10"));
         when(cajaRepo.calcularSaldo(TipoCaja.COMPENSACION)).thenReturn(new BigDecimal("5"));
+        // Triangulado incompleto: solo llegó el ingreso, falta el egreso a proveedor.
+        when(cajaRepo.findByTipoCajaOrderByFechaMovimientoDesc(TipoCaja.COMPENSACION))
+                .thenReturn(List.of(movCompensacion(TipoMovimientoCaja.INGRESO, "5", "op-1")));
         when(deudaRepo.sumTotalDeudaPendiente()).thenReturn(new BigDecimal("200"));
         when(configSueldoRepo.totalDevengado()).thenReturn(new BigDecimal("300"));
 
@@ -48,6 +58,8 @@ class CajaServiceTest {
 
         // física<0, bancaria<0, compensación≠0, sueldos devengados>0, deuda proveedores>0
         assertThat(r.alertas()).hasSize(5);
+        assertThat(r.descuadresCompensacion()).hasSize(1);
+        assertThat(r.descuadresCompensacion().get(0).referencia()).isEqualTo("op-1");
     }
 
     @Test
@@ -57,6 +69,36 @@ class CajaServiceTest {
         when(configSueldoRepo.totalDevengado()).thenReturn(BigDecimal.ZERO);
 
         assertThat(service.obtenerResumen().alertas()).isEmpty();
+    }
+
+    @Test
+    void resumen_triangulado_completo_noEsDescuadre() {
+        when(cajaRepo.calcularSaldo(any())).thenReturn(BigDecimal.ZERO);
+        // Par completo: ingreso y egreso del mismo triangulado, misma referencia.
+        when(cajaRepo.findByTipoCajaOrderByFechaMovimientoDesc(TipoCaja.COMPENSACION)).thenReturn(List.of(
+                movCompensacion(TipoMovimientoCaja.INGRESO, "40", "op-2"),
+                movCompensacion(TipoMovimientoCaja.EGRESO, "40", "op-2")));
+        when(deudaRepo.sumTotalDeudaPendiente()).thenReturn(BigDecimal.ZERO);
+        when(configSueldoRepo.totalDevengado()).thenReturn(BigDecimal.ZERO);
+
+        ResumenCajasResponse r = service.obtenerResumen();
+
+        assertThat(r.descuadresCompensacion()).isEmpty();
+        assertThat(r.alertas()).isEmpty();
+    }
+
+    @Test
+    void resumen_movimientoSinReferencia_seReportaComoDescuadre() {
+        when(cajaRepo.calcularSaldo(any())).thenReturn(BigDecimal.ZERO);
+        when(cajaRepo.findByTipoCajaOrderByFechaMovimientoDesc(TipoCaja.COMPENSACION))
+                .thenReturn(List.of(movCompensacion(TipoMovimientoCaja.INGRESO, "15", null)));
+        when(deudaRepo.sumTotalDeudaPendiente()).thenReturn(BigDecimal.ZERO);
+        when(configSueldoRepo.totalDevengado()).thenReturn(BigDecimal.ZERO);
+
+        ResumenCajasResponse r = service.obtenerResumen();
+
+        assertThat(r.descuadresCompensacion()).hasSize(1);
+        assertThat(r.descuadresCompensacion().get(0).referencia()).isNull();
     }
 
     @Test

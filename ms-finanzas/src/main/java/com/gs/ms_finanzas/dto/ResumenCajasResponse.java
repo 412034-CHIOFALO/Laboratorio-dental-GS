@@ -9,5 +9,7 @@ public record ResumenCajasResponse(
     BigDecimal saldoCompensacion,
     BigDecimal totalDeudaProveedores,
     BigDecimal totalSueldosPendientes,
-    List<String> alertas
+    List<String> alertas,
+    /** Triangulados incompletos que explican por qué saldoCompensacion no da $0. */
+    List<DescuadreCompensacionResponse> descuadresCompensacion
 ) {}

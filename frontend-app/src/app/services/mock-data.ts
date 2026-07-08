@@ -386,6 +386,7 @@ export const MOCK_RESUMEN_CAJAS: ResumenCajasResponse = {
     'Sueldos pendientes del mes: $480.000',
     'Deuda total proveedores: $175.000',
   ],
+  descuadresCompensacion: [],
 };
 
 export const MOCK_MOVIMIENTOS_CAJA: CajaMovimientoResponse[] = [

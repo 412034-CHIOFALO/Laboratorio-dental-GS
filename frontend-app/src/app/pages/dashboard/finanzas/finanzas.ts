@@ -8,7 +8,7 @@ import {
 } from '../../../services/finanzas.service';
 import {
   SueldosService, EmpleadoSueldo, FrecuenciaPago, ConfigSueldoRequest, PagoSueldoRequest,
-  PagoSueldoResponse, RegistroBot
+  PagoSueldoResponse, RegistroBot, DistribucionCascada
 } from '../../../services/sueldos.service';
 import { NotificationService } from '../../../services/notification.service';
 
@@ -56,6 +56,13 @@ export class FinanzasComponent implements OnInit {
     this.seccionActiva = seccion;
     // Scroll al tope al cambiar de apartado
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /** Va a Cajas → Compensación, filtrado por la referencia del triangulado incompleto. */
+  verDescuadre(referencia: string | null): void {
+    this.irA('cajas');
+    this.busquedaMovimiento = referencia ?? '';
+    this.cambiarCaja('COMPENSACION');
   }
 
   resumen: ResumenCajasResponse | null = null;
@@ -136,6 +143,15 @@ export class FinanzasComponent implements OnInit {
   empleadoPagando: EmpleadoSueldo | null = null;
   pagoForm: PagoSueldoRequest = { usuarioId: 0, monto: 0, manejoSobrante: 'DESCONTAR_PROXIMO' };
   savingPago = false;
+
+  // Modal cascada: sugiere como distribuir un cobro entre sueldos pendientes + caja
+  showCascadaModal = false;
+  cascadaMonto: number | null = null;
+  cascadaCaja: TipoCaja = 'FISICA';
+  cascadaLineas: { empleadoId: number; empleadoNombre: string; monto: number }[] = [];
+  cascadaSugerida = false;
+  sugiriendoCascada = false;
+  confirmandoCascada = false;
 
   // Modal histórico de pagos
   showHistorialModal = false;
@@ -402,6 +418,96 @@ export class FinanzasComponent implements OnInit {
       },
       error: err => { this.savingPago = false; this.notif.errorHttp(err, 'No se pudo registrar el pago'); },
     });
+  }
+
+  // ── Modal cascada (distribuir un cobro) ──
+  abrirCascadaModal(): void {
+    this.cascadaMonto = null;
+    this.cascadaCaja = 'FISICA';
+    this.cascadaLineas = [];
+    this.cascadaSugerida = false;
+    this.showCascadaModal = true;
+  }
+  cerrarCascadaModal(): void { this.showCascadaModal = false; }
+
+  sugerirCascada(): void {
+    if (!this.cascadaMonto || this.cascadaMonto <= 0) {
+      this.notif.alerta('Ingresá el monto del cobro'); return;
+    }
+    this.sugiriendoCascada = true;
+    this.sueldosService.sugerirCascada(this.cascadaMonto, this.cascadaCaja).subscribe({
+      next: (d: DistribucionCascada) => {
+        this.cascadaLineas = d.empleados.map(l => ({ ...l }));
+        this.cascadaSugerida = true;
+        this.sugiriendoCascada = false;
+      },
+      error: err => { this.sugiriendoCascada = false; this.notif.errorHttp(err, 'No se pudo calcular la distribución'); },
+    });
+  }
+
+  get cascadaTotalAsignado(): number {
+    return this.cascadaLineas.reduce((s, l) => s + (l.monto || 0), 0);
+  }
+  get cascadaRemanente(): number {
+    return Math.max(0, (this.cascadaMonto ?? 0) - this.cascadaTotalAsignado);
+  }
+  get cascadaExcede(): boolean {
+    return this.cascadaTotalAsignado > (this.cascadaMonto ?? 0);
+  }
+
+  confirmarCascada(): void {
+    if (this.cascadaExcede) {
+      this.notif.alerta('La suma asignada no puede superar el monto del cobro'); return;
+    }
+    this.confirmandoCascada = true;
+    const lineas = this.cascadaLineas.filter(l => l.monto > 0);
+    const remanente = this.cascadaRemanente;
+
+    const aplicarSiguiente = (i: number): void => {
+      if (i >= lineas.length) {
+        if (remanente > 0) { aplicarRemanente(); return; }
+        finalizar();
+        return;
+      }
+      const l = lineas[i];
+      this.sueldosService.registrarPago({
+        usuarioId: l.empleadoId, monto: l.monto, manejoSobrante: 'DESCONTAR_PROXIMO',
+        fecha: new Date().toISOString().slice(0, 10),
+        nota: 'Distribución de cobro (cascada)',
+      }).subscribe({
+        next: actualizado => {
+          const idx = this.empleados.findIndex(x => x.usuarioId === actualizado.usuarioId);
+          if (idx !== -1) this.empleados[idx] = actualizado;
+          aplicarSiguiente(i + 1);
+        },
+        error: err => {
+          this.confirmandoCascada = false;
+          this.notif.errorHttp(err, `No se pudo registrar el pago a ${l.empleadoNombre}`);
+        },
+      });
+    };
+
+    const aplicarRemanente = (): void => {
+      this.finanzasService.registrarMovimientoCaja({
+        tipo: 'INGRESO', tipoCaja: this.cascadaCaja, categoria: 'COBRO_ODONTOLOGO',
+        concepto: 'Remanente de cobro distribuido (cascada)', monto: remanente,
+      }).subscribe({
+        next: () => finalizar(),
+        error: err => {
+          this.confirmandoCascada = false;
+          this.notif.errorHttp(err, 'Los pagos se registraron, pero no se pudo cargar el remanente a la caja');
+        },
+      });
+    };
+
+    const finalizar = (): void => {
+      this.confirmandoCascada = false;
+      this.showCascadaModal = false;
+      this.cargarResumen();
+      this.notif.exito('Distribución del cobro registrada correctamente');
+    };
+
+    aplicarSiguiente(0);
   }
 
   // ── Histórico de pagos ──

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
@@ -47,6 +47,20 @@ export interface PagoSueldoRequest {
   manejoSobrante: 'DESCONTAR_PROXIMO' | 'CUBRE_LAB' | 'DEVUELVE_EMPLEADO';
   fecha?: string | null;
   nota?: string | null;
+}
+
+/** Una línea de la distribución sugerida por el algoritmo de cascada. */
+export interface LineaDistribucion {
+  empleadoId: number;
+  empleadoNombre: string;
+  monto: number;
+}
+
+/** Propuesta del algoritmo de cascada para distribuir un cobro. */
+export interface DistribucionCascada {
+  empleados: LineaDistribucion[];
+  remanente: number;
+  cajaRemanente: 'FISICA' | 'BANCARIA' | 'COMPENSACION';
 }
 
 export type OrigenPago = 'MANUAL' | 'BOT_WHATSAPP';
@@ -240,6 +254,28 @@ export class SueldosService {
       return of({ ...e }).pipe(delay(220));
     }
     return this.http.post<EmpleadoSueldo>(`${this.base}/pago`, req);
+  }
+
+  /**
+   * Algoritmo de cascada: sugiere cómo distribuir un cobro (primero a los
+   * empleados con devengado pendiente, el resto a la caja indicada). Es solo
+   * un cálculo — no registra nada por sí solo.
+   */
+  sugerirCascada(monto: number, cajaRemanente: 'FISICA' | 'BANCARIA' | 'COMPENSACION'): Observable<DistribucionCascada> {
+    if (environment.useMocks) {
+      let restante = monto;
+      const empleados: LineaDistribucion[] = [];
+      for (const e of [...this.store].sort((a, b) => a.nombre.localeCompare(b.nombre))) {
+        if (restante <= 0) break;
+        if (e.saldoDevengado <= 0) continue;
+        const asignado = Math.min(e.saldoDevengado, restante);
+        empleados.push({ empleadoId: e.usuarioId, empleadoNombre: e.nombre, monto: asignado });
+        restante -= asignado;
+      }
+      return of({ empleados, remanente: restante, cajaRemanente }).pipe(delay(180));
+    }
+    const params = new HttpParams().set('monto', monto).set('cajaRemanente', cajaRemanente);
+    return this.http.get<DistribucionCascada>(`${this.base}/cascada/sugerir`, { params });
   }
 
   /** Ajuste manual del saldo devengado (por si el cálculo automático no cuadra). */

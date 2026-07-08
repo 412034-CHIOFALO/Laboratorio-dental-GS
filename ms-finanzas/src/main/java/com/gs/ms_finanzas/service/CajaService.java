@@ -2,9 +2,11 @@ package com.gs.ms_finanzas.service;
 
 import com.gs.ms_finanzas.dto.CajaMovimientoRequest;
 import com.gs.ms_finanzas.dto.CajaMovimientoResponse;
+import com.gs.ms_finanzas.dto.DescuadreCompensacionResponse;
 import com.gs.ms_finanzas.dto.ResumenCajasResponse;
 import com.gs.ms_finanzas.model.CajaMovimiento;
 import com.gs.ms_finanzas.model.TipoCaja;
+import com.gs.ms_finanzas.model.TipoMovimientoCaja;
 import com.gs.ms_finanzas.repository.CajaMovimientoRepository;
 import com.gs.ms_finanzas.repository.ConfiguracionSueldoRepository;
 import com.gs.ms_finanzas.repository.DeudaProveedorRepository;
@@ -15,7 +17,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -38,19 +43,69 @@ public class CajaService implements ICajaService {
         BigDecimal sueldosPendientes = configSueldoRepo.totalDevengado();
         if (sueldosPendientes == null) sueldosPendientes = BigDecimal.ZERO;
 
+        List<DescuadreCompensacionResponse> descuadres = detectarDescuadresCompensacion();
+
         List<String> alertas = new ArrayList<>();
         if (saldoFisica.compareTo(BigDecimal.ZERO) < 0)
             alertas.add("Caja fisica en negativo: $" + saldoFisica);
         if (saldoBancaria.compareTo(BigDecimal.ZERO) < 0)
             alertas.add("Caja bancaria en negativo: $" + saldoBancaria);
-        if (saldoComp.compareTo(BigDecimal.ZERO) != 0)
-            alertas.add("Caja compensacion desbalanceada: $" + saldoComp);
+        if (!descuadres.isEmpty())
+            alertas.add("Caja compensacion desbalanceada: $" + saldoComp + " (" + descuadres.size()
+                + " triangulado(s) incompleto(s))");
         if (sueldosPendientes.compareTo(BigDecimal.ZERO) > 0)
             alertas.add("Sueldos devengados a pagar: $" + sueldosPendientes);
         if (deudaProveedores.compareTo(BigDecimal.ZERO) > 0)
             alertas.add("Deuda total proveedores: $" + deudaProveedores);
 
-        return new ResumenCajasResponse(saldoFisica, saldoBancaria, saldoComp, deudaProveedores, sueldosPendientes, alertas);
+        return new ResumenCajasResponse(saldoFisica, saldoBancaria, saldoComp, deudaProveedores, sueldosPendientes,
+            alertas, descuadres);
+    }
+
+    /**
+     * Cada triangulado registra un ingreso y un egreso equivalentes en Caja
+     * Compensación, con la misma {@code referencia} (idOperacion). Un
+     * triangulado completo siempre neta $0; si una referencia no lo hace, le
+     * falta la otra mitad del par — eso es lo que se reporta acá, agrupado
+     * por referencia para poder señalar exactamente cuál está incompleto.
+     *
+     * <p>Los movimientos sin referencia (cargados a mano, fuera del mecanismo
+     * de triangulado) se agrupan aparte: en Compensación no debería haber
+     * movimientos sueltos, así que si los hay también se reportan.</p>
+     */
+    private List<DescuadreCompensacionResponse> detectarDescuadresCompensacion() {
+        List<CajaMovimiento> movs = cajaRepo.findByTipoCajaOrderByFechaMovimientoDesc(TipoCaja.COMPENSACION);
+
+        Map<String, List<CajaMovimiento>> porReferencia = movs.stream()
+            .filter(m -> m.getReferencia() != null && !m.getReferencia().isBlank())
+            .collect(Collectors.groupingBy(CajaMovimiento::getReferencia));
+
+        List<DescuadreCompensacionResponse> descuadres = new ArrayList<>();
+        for (Map.Entry<String, List<CajaMovimiento>> entry : porReferencia.entrySet()) {
+            agregarSiDescuadra(descuadres, entry.getKey(), entry.getValue());
+        }
+
+        List<CajaMovimiento> sinReferencia = movs.stream()
+            .filter(m -> m.getReferencia() == null || m.getReferencia().isBlank())
+            .toList();
+        agregarSiDescuadra(descuadres, null, sinReferencia);
+
+        return descuadres;
+    }
+
+    private void agregarSiDescuadra(List<DescuadreCompensacionResponse> descuadres, String referencia,
+                                     List<CajaMovimiento> movs) {
+        if (movs.isEmpty()) return;
+        BigDecimal neto = movs.stream()
+            .map(m -> m.getTipo() == TipoMovimientoCaja.INGRESO ? m.getMonto() : m.getMonto().negate())
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (neto.compareTo(BigDecimal.ZERO) == 0) return;
+
+        CajaMovimiento ultimo = movs.stream()
+            .max(Comparator.comparing(CajaMovimiento::getFechaCreacion))
+            .orElseThrow();
+        descuadres.add(new DescuadreCompensacionResponse(
+            referencia, neto, ultimo.getConcepto(), ultimo.getFechaMovimiento()));
     }
 
     public List<CajaMovimientoResponse> listarMovimientosByCaja(TipoCaja tipoCaja) {

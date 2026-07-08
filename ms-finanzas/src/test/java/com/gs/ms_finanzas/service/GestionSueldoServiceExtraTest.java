@@ -317,4 +317,52 @@ class GestionSueldoServiceExtraTest {
         when(registroRepo.findById(1L)).thenReturn(Optional.of(reg));
         assertThatThrownBy(() -> service.rechazarEfectivo(1L, "x")).isInstanceOf(BusinessException.class);
     }
+
+    // ── Cascada ─────────────────────────────────────────────────
+    private ConfiguracionSueldo empleado(Long id, String nombre, String devengado) {
+        return ConfiguracionSueldo.builder()
+                .empleadoId(id).empleadoNombre(nombre).activo(true)
+                .saldoDevengado(new BigDecimal(devengado)).saldoSobrante(BigDecimal.ZERO)
+                .frecuencia(FrecuenciaPago.MENSUAL).build();
+    }
+
+    @Test
+    void sugerirCascada_cubrePrimeroAlPrimerEmpleado_yElRestoAlSegundo() {
+        when(configRepo.findByActivoTrueOrderByEmpleadoNombreAsc()).thenReturn(List.of(
+                empleado(1L, "Ana", "30000"),
+                empleado(2L, "Bruno", "50000")));
+
+        DistribucionCascadaResponse r = service.sugerirCascada(new BigDecimal("50000"), TipoCaja.FISICA);
+
+        assertThat(r.empleados()).hasSize(2);
+        assertThat(r.empleados().get(0).empleadoNombre()).isEqualTo("Ana");
+        assertThat(r.empleados().get(0).monto()).isEqualByComparingTo("30000");
+        assertThat(r.empleados().get(1).empleadoNombre()).isEqualTo("Bruno");
+        assertThat(r.empleados().get(1).monto()).isEqualByComparingTo("20000");
+        assertThat(r.remanente()).isEqualByComparingTo("0");
+        assertThat(r.cajaRemanente()).isEqualTo(TipoCaja.FISICA);
+    }
+
+    @Test
+    void sugerirCascada_sinDevengadoPendiente_todoVaAlRemanente() {
+        when(configRepo.findByActivoTrueOrderByEmpleadoNombreAsc())
+                .thenReturn(List.of(empleado(1L, "Ana", "0")));
+
+        DistribucionCascadaResponse r = service.sugerirCascada(new BigDecimal("15000"), TipoCaja.BANCARIA);
+
+        assertThat(r.empleados()).isEmpty();
+        assertThat(r.remanente()).isEqualByComparingTo("15000");
+    }
+
+    @Test
+    void sugerirCascada_montoInsuficiente_soloCubreParcial() {
+        when(configRepo.findByActivoTrueOrderByEmpleadoNombreAsc())
+                .thenReturn(List.of(empleado(1L, "Ana", "30000")));
+
+        DistribucionCascadaResponse r = service.sugerirCascada(new BigDecimal("10000"), TipoCaja.FISICA);
+
+        assertThat(r.empleados()).hasSize(1);
+        assertThat(r.empleados().get(0).monto()).isEqualByComparingTo("10000");
+        assertThat(r.remanente()).isEqualByComparingTo("0");
+    }
 }

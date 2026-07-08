@@ -1,6 +1,7 @@
 package com.gs.ms_finanzas.service;
 
 import com.gs.ms_finanzas.dto.*;
+import com.gs.ms_finanzas.model.TipoCaja;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -170,4 +171,19 @@ public interface IGestionSueldoService {
      * Lista todos los registros del bot en estado PENDIENTE (efectivo sin confirmar).
      */
     List<RegistroPagoBotResponse> listarPendientesEfectivo();
+
+    /**
+     * Algoritmo de cascada: sugiere cómo distribuir un cobro entre los empleados
+     * activos con saldo devengado pendiente (en orden alfabético) y, con lo que
+     * sobra, propone asignarlo a {@code cajaRemanente}.
+     *
+     * <p>Es puramente un cálculo — no registra nada. El administrativo revisa la
+     * propuesta (puede ajustarla) y confirma cada línea con los endpoints
+     * habituales de pago de sueldo / movimiento de caja.</p>
+     *
+     * @param monto          importe del cobro a distribuir.
+     * @param cajaRemanente  caja a la que se propone asignar lo que sobre.
+     * @return la distribución sugerida.
+     */
+    DistribucionCascadaResponse sugerirCascada(BigDecimal monto, TipoCaja cajaRemanente);
 }

@@ -4,6 +4,7 @@ import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_finanzas.dto.*;
 import com.gs.ms_finanzas.exception.BusinessException;
+import com.gs.ms_finanzas.model.TipoCaja;
 import com.gs.ms_finanzas.service.IGestionSueldoService;
 import com.gs.ms_finanzas.service.MinioStorageService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -156,6 +157,23 @@ public class GestionSueldoController {
     @GetMapping("/pagos")
     public ResponseEntity<List<PagoSueldoResponse>> historialGlobal() {
         return ResponseEntity.ok(service.historialPagosGlobal());
+    }
+
+    @Operation(summary = "Sugiere cómo distribuir un cobro (algoritmo de cascada)",
+               description = "Cubre primero el saldo devengado pendiente de los empleados activos (orden alfabético) "
+                   + "y propone asignar lo que sobra a la caja indicada. Es solo un cálculo: no registra nada — "
+                   + "el administrativo confirma cada línea con los endpoints habituales de pago/movimiento.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Distribución sugerida calculada"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @GetMapping("/cascada/sugerir")
+    public ResponseEntity<DistribucionCascadaResponse> sugerirCascada(
+            @Parameter(description = "Monto del cobro a distribuir", required = true)
+            @RequestParam @Positive BigDecimal monto,
+            @Parameter(description = "Caja a la que se propone asignar el remanente", required = true)
+            @RequestParam TipoCaja cajaRemanente) {
+        return ResponseEntity.ok(service.sugerirCascada(monto, cajaRemanente));
     }
 
     @Operation(summary = "Archivo del comprobante de un pago",
