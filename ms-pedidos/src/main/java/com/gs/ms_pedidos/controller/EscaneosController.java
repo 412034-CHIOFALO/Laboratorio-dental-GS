@@ -95,15 +95,13 @@ public class EscaneosController {
             throw new BusinessException("El archivo está vacío");
         }
 
-        byte[] bytes;
-        try {
-            bytes = file.getBytes();
+        String objectKey;
+        try (InputStream in = file.getInputStream()) {
+            objectKey = minioStorageService.subirStream(in, file.getSize(), file.getContentType(),
+                    file.getOriginalFilename(), pedidoId, "escaneos");
         } catch (IOException e) {
             throw new BusinessException("Error al leer el archivo");
         }
-
-        String objectKey = minioStorageService.subir(bytes, file.getContentType(),
-                file.getOriginalFilename(), pedidoId, "escaneos");
         if (objectKey == null) {
             throw new BusinessException("No se pudo guardar el archivo (MinIO no disponible)");
         }

@@ -54,6 +54,16 @@ public class MinioStorageService {
 
     public String subir(byte[] datos, String mime, String nombreOriginal, Long pedidoId, String prefijo) {
         if (client == null || datos == null || datos.length == 0) return null;
+        return subirStream(new ByteArrayInputStream(datos), datos.length, mime, nombreOriginal, pedidoId, prefijo);
+    }
+
+    /**
+     * Sube directo desde el InputStream del multipart request, sin volcarlo antes a un
+     * byte[] intermedio. Para archivos grandes (STL/OBJ de varios MB) evita duplicar el
+     * archivo entero en memoria y el trabajo extra de copiarlo antes de mandarlo a MinIO.
+     */
+    public String subirStream(InputStream datos, long tamanio, String mime, String nombreOriginal, Long pedidoId, String prefijo) {
+        if (client == null || datos == null || tamanio <= 0) return null;
         try {
             LocalDate hoy = LocalDate.now();
             String objectName = String.format("%s/%d/%d/%02d/%s%s",
@@ -63,7 +73,7 @@ public class MinioStorageService {
             client.putObject(PutObjectArgs.builder()
                     .bucket(bucket)
                     .object(objectName)
-                    .stream(new ByteArrayInputStream(datos), datos.length, -1)
+                    .stream(datos, tamanio, -1)
                     .contentType(mime != null && !mime.isBlank() ? mime : "application/octet-stream")
                     .build());
 
