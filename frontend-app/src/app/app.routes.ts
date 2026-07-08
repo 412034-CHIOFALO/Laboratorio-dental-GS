@@ -14,6 +14,13 @@ import { ReportesComponent } from './pages/dashboard/reportes/reportes';
 import { DocumentosComponent } from './pages/dashboard/documentos/documentos';
 import { EscaneosComponent } from './pages/dashboard/escaneos/escaneos';
 import { AuditoriaComponent } from './pages/dashboard/auditoria/auditoria';
+import { OdontologosComponent } from './pages/dashboard/odontologos/odontologos';
+import { OdontologoHistorialComponent } from './pages/dashboard/odontologos/historial/odontologo-historial';
+import { BotRegistrosComponent } from './pages/dashboard/bot-registros/bot-registros';
+import { ProveedoresComponent } from './pages/dashboard/proveedores/proveedores';
+import { ManualComponent } from './pages/dashboard/manual/manual';
+import { MiPerfilComponent } from './pages/dashboard/mi-perfil/mi-perfil';
+import { ErrorPageComponent } from './pages/error/error-page';
 import { authGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -26,17 +33,26 @@ export const routes: Routes = [
     children: [
       { path: '',            component: DashboardHomeComponent },
       { path: 'pedidos',     component: PedidosComponent },
+      { path: 'odontologos', component: OdontologosComponent },
+      { path: 'odontologos/:id/historial', component: OdontologoHistorialComponent },
       { path: 'produccion',  component: ProduccionComponent },
       { path: 'entregas',    component: EntregasComponent },
       { path: 'catalogo',    component: CatalogoComponent },
       { path: 'stock',       component: StockComponent },
       { path: 'finanzas',    component: FinanzasComponent },
+      { path: 'proveedores', component: ProveedoresComponent },
+      { path: 'bot-registros', component: BotRegistrosComponent },
       { path: 'reportes',    component: ReportesComponent },
       { path: 'documentos',  component: DocumentosComponent },
       { path: 'escaneos',    component: EscaneosComponent },
-      { path: 'auditoria',   component: AuditoriaComponent },
-      { path: 'usuarios',    component: UsuariosComponent },
+      { path: 'auditoria',      component: AuditoriaComponent },
+      { path: 'usuarios',       component: UsuariosComponent },
+      { path: 'mi-perfil',      component: MiPerfilComponent },
+      { path: 'manual',         component: ManualComponent },
     ]
   },
-  { path: '**', redirectTo: '' }
+  // Páginas de error
+  { path: 'sin-permisos', component: ErrorPageComponent, data: { tipo: 'forbidden' } },
+  { path: 'error',        component: ErrorPageComponent, data: { tipo: 'server' } },
+  { path: '**',           component: ErrorPageComponent, data: { tipo: 'not-found' } },
 ];

@@ -27,7 +27,17 @@ frontend-app/*.js.map
 # ── Variables de entorno / secretos ────────────────────────
 .env
 *.env.local
-application-prod.properties
+# NOTA: application-prod.properties SE VERSIONA. Solo usa placeholders
+# ${VAR:default} (sin secretos); los valores reales van por env/.env en runtime.
+# Asi un clone limpio + docker compose up funciona out-of-the-box.
+
+# ── Claves criptográficas (NUNCA commitear) ────────────────
+*.p12
+*.jks
+*.key
+*.pem
+**/keys/*.p12
+**/keys/*.jks
 
 # ── Sistema operativo ──────────────────────────────────────
 .DS_Store
@@ -39,3 +49,7 @@ docker-volumes/
 
 # ── Backup interno del vault Obsidian ──────────────────────
 _obsidian-backup/
+
+# ── Claude Code ────────────────────────────────────────────
+.claude/
+**/.claude/

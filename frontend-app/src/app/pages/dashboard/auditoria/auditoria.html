@@ -1,18 +1,80 @@
-<div class="stub-page">
-  <div class="stub-icon red">
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-    </svg>
+<div class="audit-page">
+
+  <div class="page-header">
+    <div class="header-left">
+      <div class="page-icon red">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      </div>
+      <div><h1>Auditoría</h1><p class="subtitle">Bitácora inmutable de eventos del sistema — Solo Admins</p></div>
+    </div>
+    <div class="event-count">{{ filtros.length }} eventos</div>
   </div>
-  <h1>Auditoría</h1>
-  <p>Bitácora completa de eventos sensibles del sistema. Solo visible para administradores. Permite rastrear quién hizo qué cosa y cuándo, fundamental para resolver discrepancias.</p>
-  <div class="stub-features">
-    <div class="feat"><span class="dot"></span>Login y logout de usuarios (con IP y horario)</div>
-    <div class="feat"><span class="dot"></span>Creación, modificación y eliminación de pedidos</div>
-    <div class="feat"><span class="dot"></span>Movimientos financieros (cobros, pagos triangulados, aprobaciones)</div>
-    <div class="feat"><span class="dot"></span>Cambios de precios en el catálogo</div>
-    <div class="feat"><span class="dot"></span>Filtros por usuario, fecha y tipo de acción</div>
-    <div class="feat"><span class="dot"></span>Eventos no editables ni eliminables (auditoría inmutable)</div>
+
+  @if (error) {
+    <div class="audit-error">{{ error }}</div>
+  }
+
+  @if (loading) {
+    <div class="audit-loading">
+      <div class="audit-spinner"></div>
+      <span>Cargando registros...</span>
+    </div>
+  }
+
+  <!-- Filtros -->
+  <div class="filter-bar" [style.display]="loading ? 'none' : ''">
+    <div class="search-wrap">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" placeholder="Buscar usuario, acción, entidad..." [(ngModel)]="busqueda" (ngModelChange)="filtrar()" class="search-input"/>
+    </div>
+    <select [(ngModel)]="tipoFiltro" (ngModelChange)="filtrar()" class="tipo-select">
+      @for (t of tiposAudit; track t.valor) {
+        <option [value]="t.valor">{{ t.label }}</option>
+      }
+    </select>
   </div>
-  <span class="sprint-badge">Sprint 10 — Q4 2026</span>
+
+  <!-- Tabla -->
+  <div class="table-wrap">
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>Hora</th>
+          <th>Tipo</th>
+          <th>Usuario</th>
+          <th>Acción</th>
+          <th>Entidad</th>
+          <th>Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of filtros; track e.id) {
+          <tr>
+            <td class="ts-cell">{{ formatTs(e.timestamp) }}</td>
+            <td>
+              <span class="tipo-badge" [attr.data-color]="colorTipo(e.tipo)">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path [attr.d]="iconTipo(e.tipo)"/>
+                </svg>
+                {{ e.tipo }}
+              </span>
+            </td>
+            <td class="user-cell">{{ e.usuario }}</td>
+            <td class="accion-cell">{{ e.accion }}</td>
+            <td class="entidad-cell">{{ e.entidad }}</td>
+            <td class="detalle-cell">{{ e.detalle }}</td>
+          </tr>
+        }
+        @empty {
+          <tr><td colspan="6" class="empty-row">No hay eventos que coincidan con los filtros.</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="audit-footer">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Los registros de auditoría son inmutables. Nadie puede editarlos ni eliminarlos, ni el admin.
+  </div>
+
 </div>

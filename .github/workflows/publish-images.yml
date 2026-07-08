@@ -1,0 +1,71 @@
+name: Publish images → GHCR
+
+# Buildea y publica las imagenes Docker de los 9 servicios en el GitHub
+# Container Registry (ghcr.io). Dispara al pushear a main, al crear un tag de
+# version (vX.Y.Z), o manualmente desde la pestaña Actions.
+#
+# Las imagenes quedan en: ghcr.io/<owner>/<servicio>
+# No requiere secrets: usa el GITHUB_TOKEN con permiso packages:write.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: discovery-server, context: discovery-server }
+          - { image: api-gateway,      context: api-gateway }
+          - { image: ms-auth,          context: ms-auth }
+          - { image: ms-catalogo,      context: ms-catalogo }
+          - { image: ms-pedidos,       context: ms-pedidos }
+          - { image: ms-finanzas,      context: ms-finanzas }
+          - { image: ms-stock,         context: ms-stock }
+          - { image: frontend,         context: frontend-app }
+          - { image: bot,              context: gs-bot-whatsapp }
+    steps:
+      - uses: actions/checkout@v4
+
+      # GHCR exige el owner en minusculas (412034-CHIOFALO -> 412034-chiofalo)
+      - name: Owner en minusculas
+        id: owner
+        run: echo "lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Metadata (tags + labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ steps.owner.outputs.lc }}/${{ matrix.image }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.context }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

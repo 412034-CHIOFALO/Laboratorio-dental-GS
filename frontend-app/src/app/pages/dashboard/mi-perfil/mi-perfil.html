@@ -1,0 +1,84 @@
+<div class="perfil-page">
+  <header class="perfil-header">
+    <h1>Mi perfil</h1>
+    <p>Gestioná tus datos y tu contraseña.</p>
+  </header>
+
+  @if (cargando()) {
+    <div class="perfil-loading">Cargando tu perfil…</div>
+  } @else if (perfil(); as p) {
+
+    <!-- Tarjeta identidad -->
+    <section class="perfil-card identidad">
+      <div class="perfil-avatar">{{ iniciales }}</div>
+      <div class="identidad-info">
+        <strong>{{ p.nombre }} {{ p.apellido }}</strong>
+        <span class="perfil-user">&#64;{{ p.username }}</span>
+        <span class="perfil-rol">{{ rolLabel }}</span>
+      </div>
+    </section>
+
+    <!-- Datos editables -->
+    <section class="perfil-card">
+      <h2>Mis datos</h2>
+      <div class="perfil-grid">
+        <div class="form-row">
+          <label>Nombre *</label>
+          <input type="text" class="form-input" [(ngModel)]="form.nombre" placeholder="Tu nombre"/>
+        </div>
+        <div class="form-row">
+          <label>Apellido</label>
+          <input type="text" class="form-input" [(ngModel)]="form.apellido" placeholder="Tu apellido"/>
+        </div>
+        <div class="form-row">
+          <label>Teléfono</label>
+          <input type="text" class="form-input" [(ngModel)]="form.telefono"
+                 (ngModelChange)="form.telefono = sanitizarTelefono($event)"
+                 inputmode="tel" placeholder="Ej: 3511234567"/>
+          <small class="form-hint">El bot usa tu teléfono para identificarte al enviar comprobantes.</small>
+        </div>
+        <div class="form-row">
+          <label>Usuario</label>
+          <input type="text" class="form-input" [value]="p.username" disabled/>
+          <small class="form-hint">El usuario y el rol solo los cambia un administrador.</small>
+        </div>
+      </div>
+      <div class="perfil-acciones">
+        <button class="btn-primary" (click)="guardarPerfil()" [disabled]="guardando()">
+          {{ guardando() ? 'Guardando…' : 'Guardar cambios' }}
+        </button>
+      </div>
+    </section>
+
+    <!-- Cambiar contraseña -->
+    <section class="perfil-card">
+      <h2>Cambiar contraseña</h2>
+      <div class="perfil-grid">
+        <div class="form-row full">
+          <label>Contraseña actual *</label>
+          <input type="password" class="form-input" [(ngModel)]="pass.actual" autocomplete="current-password"/>
+        </div>
+        <div class="form-row">
+          <label>Nueva contraseña *</label>
+          <input type="password" class="form-input" [(ngModel)]="pass.nueva" autocomplete="new-password"/>
+          <small class="form-hint">Mínimo 6 caracteres.</small>
+        </div>
+        <div class="form-row">
+          <label>Repetir nueva *</label>
+          <input type="password" class="form-input" [(ngModel)]="pass.repetir" autocomplete="new-password"/>
+          @if (pass.repetir && pass.nueva !== pass.repetir) {
+            <small class="form-hint err">No coinciden.</small>
+          }
+        </div>
+      </div>
+      <div class="perfil-acciones">
+        <button class="btn-primary" (click)="cambiarPassword()" [disabled]="!passValido || cambiandoPass()">
+          {{ cambiandoPass() ? 'Cambiando…' : 'Cambiar contraseña' }}
+        </button>
+      </div>
+    </section>
+
+  } @else {
+    <div class="perfil-loading">No se pudo cargar tu perfil.</div>
+  }
+</div>

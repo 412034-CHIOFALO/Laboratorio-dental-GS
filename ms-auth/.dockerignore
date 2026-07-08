@@ -1,0 +1,16 @@
+# No copiar al build context artefactos locales que rompen la generación
+# determinística de la imagen.
+
+# Build local (que se recompila dentro del contenedor)
+target/
+
+# Keystore local: DEBE regenerarse en el build con el KEYSTORE_PASSWORD del
+# entorno. Si se copiara el .p12 local, el Dockerfile saltearía keytool y
+# quedaría con el password viejo → ms-auth no abriría la clave en runtime.
+src/main/resources/keys/*.p12
+src/main/resources/keys/*.jks
+
+# IDE / varios
+.idea/
+*.iml
+.git/

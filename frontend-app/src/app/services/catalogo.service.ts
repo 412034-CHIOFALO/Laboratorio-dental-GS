@@ -7,6 +7,23 @@ import { MOCK_CATALOGO, clonar } from './mock-data';
 
 export type Categoria = 'FIJA' | 'REMOVIBLE' | 'ORTODONCIA' | 'ATM' | 'PERSONALIZADO';
 
+export interface IngredienteRecetaResponse {
+  id: number;
+  materialId: number;
+  materialNombre: string;
+  cantidad: number;
+  unidad: string | null;
+  notas: string | null;
+}
+
+export interface IngredienteRecetaRequest {
+  materialId: number;
+  materialNombre: string;
+  cantidad: number;
+  unidad?: string | null;
+  notas?: string | null;
+}
+
 export interface TipoTrabajoResponse {
   id: number;
   nombre: string;
@@ -16,6 +33,7 @@ export interface TipoTrabajoResponse {
   tiempoEstimadoDias: number;
   fotoUrl: string | null;
   activo: boolean;
+  receta: IngredienteRecetaResponse[];
   fechaCreacion: string;
   fechaModificacion: string;
 }
@@ -27,6 +45,7 @@ export interface TipoTrabajoRequest {
   categoria: Categoria;
   tiempoEstimadoDias: number;
   fotoUrl?: string | null;
+  receta?: IngredienteRecetaRequest[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -34,7 +53,7 @@ export class CatalogoService {
 
   private readonly base = `${environment.apiUrl}/api/catalogo`;
 
-  // 🎬 Estado mock en memoria (se mutila para que crear/editar/eliminar funcionen visualmente)
+  // Estado mock en memoria (se mutila para que crear/editar/eliminar funcionen visualmente)
   private mockStore: TipoTrabajoResponse[] = clonar(MOCK_CATALOGO);
   private nextMockId = 11;
 
@@ -62,11 +81,13 @@ export class CatalogoService {
   crear(request: TipoTrabajoRequest): Observable<TipoTrabajoResponse> {
     if (environment.useMocks) {
       const HOY = new Date().toISOString();
+      let nextItemId = 1000;
       const nuevo: TipoTrabajoResponse = {
         id: this.nextMockId++,
         ...request,
         fotoUrl: request.fotoUrl ?? null,
         activo: true,
+        receta: (request.receta ?? []).map(r => ({ id: nextItemId++, ...r, unidad: r.unidad ?? null, notas: r.notas ?? null })),
         fechaCreacion: HOY,
         fechaModificacion: HOY,
       };
@@ -80,10 +101,12 @@ export class CatalogoService {
     if (environment.useMocks) {
       const idx = this.mockStore.findIndex(t => t.id === id);
       if (idx === -1) throw new Error('No encontrado');
+      let nextItemId = Date.now();
       this.mockStore[idx] = {
         ...this.mockStore[idx],
         ...request,
         fotoUrl: request.fotoUrl ?? this.mockStore[idx].fotoUrl,
+        receta: (request.receta ?? []).map(r => ({ id: nextItemId++, ...r, unidad: r.unidad ?? null, notas: r.notas ?? null })),
         fechaModificacion: new Date().toISOString(),
       };
       return of(clonar(this.mockStore[idx])).pipe(delay(250));

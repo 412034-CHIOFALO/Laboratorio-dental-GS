@@ -1,0 +1,44 @@
+<div class="modal-overlay" (click)="cerrar.emit()">
+  <div class="modal-panel" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Registrar pago — {{ odontologoNombre }}</h2>
+      <button class="btn-close" (click)="cerrar.emit()">✕</button>
+    </div>
+
+    <div class="modal-body">
+      <p class="cc-saldo-info">Saldo actual: <strong>{{ formatPrecio(saldoActual) }}</strong></p>
+
+      <div class="form-row">
+        <label>Monto del pago *</label>
+        <input type="number" min="0" step="100" class="form-input" [(ngModel)]="form.monto"
+               placeholder="Cuánto pagó"/>
+        <small class="form-hint">Se imputa a las deudas más viejas primero (puede ser parcial).</small>
+      </div>
+
+      <div class="form-row">
+        <label>Medio</label>
+        <select class="form-input" [(ngModel)]="form.medio">
+          <option value="TRANSFERENCIA">Transferencia (Caja Bancaria)</option>
+          <option value="EFECTIVO">Efectivo (Caja Física)</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <label>Fecha</label>
+        <input type="date" class="form-input" [(ngModel)]="form.fecha"/>
+      </div>
+
+      <div class="form-row">
+        <label>Nota</label>
+        <input type="text" class="form-input" [(ngModel)]="form.nota" placeholder="Opcional"/>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="cerrar.emit()">Cancelar</button>
+      <button class="btn-primary" (click)="confirmar()" [disabled]="!valido || saving()">
+        {{ saving() ? 'Registrando…' : 'Registrar pago' }}
+      </button>
+    </div>
+  </div>
+</div>
