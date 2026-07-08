@@ -132,17 +132,20 @@ export class DashboardHomeComponent implements OnInit {
         sparkColor: 'var(--color-success)',
         to: '/dashboard/entregas',
       },
-      {
+      // Plata (sueldos/deudas) es solo-ADMIN en el backend — para el resto de
+      // roles ni se pide el dato (ver `cargar()`), así que tampoco mostramos
+      // esta tarjeta: mostrar "$0" sería engañoso, no "sin deuda".
+      ...(this.auth.isAdmin() ? [{
         label: 'Saldo pendiente',
         value: this.formatMoney(saldoPendiente),
         delta: saldoPendiente > 0
-          ? { texto: 'Por cobrar y pagar', clase: 'down' }
-          : { texto: 'Al día', clase: 'flat' },
+          ? { texto: 'Por cobrar y pagar', clase: 'down' as const }
+          : { texto: 'Al día', clase: 'flat' as const },
         hue: 'var(--color-warning)',
         sparkline: this.generarSparkline(saldoPendiente / 100000, 7, 0.18),
         sparkColor: 'var(--color-warning)',
         to: '/dashboard/finanzas',
-      },
+      }] : []),
       {
         label: 'Stock bajo mínimo',
         value: String(stockBajo.length),

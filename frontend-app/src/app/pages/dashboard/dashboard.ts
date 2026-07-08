@@ -47,10 +47,10 @@ export class DashboardComponent implements OnInit {
     { type: 'item', label: 'Catálogo',     icon: 'list',      route: '/dashboard/catalogo',     tourId: 'nav-catalogo' },
     { type: 'item', label: 'Odontólogos',  icon: 'tooth',     route: '/dashboard/odontologos' },
     { type: 'item', label: 'Stock',        icon: 'box',       route: '/dashboard/stock',        tourId: 'nav-stock' },
-    { type: 'item', label: 'Finanzas',     icon: 'dollar',    route: '/dashboard/finanzas',     tourId: 'nav-finanzas' },
-    { type: 'item', label: 'Proveedores',  icon: 'briefcase', route: '/dashboard/proveedores' },
+    { type: 'item', label: 'Finanzas',     icon: 'dollar',    route: '/dashboard/finanzas',     roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'], tourId: 'nav-finanzas' },
+    { type: 'item', label: 'Proveedores',  icon: 'briefcase', route: '/dashboard/proveedores',  roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'] },
     { type: 'item', label: 'Bot WhatsApp', icon: 'chat',      route: '/dashboard/bot-registros', roles: ['ROLE_ADMIN'], tourId: 'nav-bot' },
-    { type: 'item', label: 'Reportes',     icon: 'chart',     route: '/dashboard/reportes',     tourId: 'nav-reportes' },
+    { type: 'item', label: 'Reportes',     icon: 'chart',     route: '/dashboard/reportes',      roles: ['ROLE_ADMIN'], tourId: 'nav-reportes' },
 
     { type: 'group', label: 'Archivo' },
     { type: 'item', label: 'Documentos',   icon: 'file',      route: '/dashboard/documentos' },

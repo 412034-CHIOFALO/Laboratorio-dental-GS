@@ -94,12 +94,37 @@
 .captura-img.oculta { display: none; }
 
 @media (max-width: 720px) {
-  .manual-page { grid-template-columns: 1fr; }
+  .manual-page {
+    grid-template-columns: 1fr;
+    /* En desktop el grid vive dentro de un contenedor con altura fija (scrollea
+       cada columna por separado); en mobile no hay esa altura fija, así que hay
+       que dejar que la página entera scrollee normal. */
+    height: auto;
+    overflow: visible;
+  }
+  /* Sin min-width:0 en los items de un grid de 1 columna, el track "1fr" toma
+     el ancho intrínseco del contenido más ancho (acá, la tira de tabs sin
+     wrap) en vez del ancho disponible real — así fue como el contenido
+     terminaba angosto/cortado a la derecha aunque la página no scrolleaba
+     horizontal (el overflow quedaba "adentro" del grid, invisible). */
+  .manual-nav, .manual-contenido { min-width: 0; }
   .manual-nav {
     border-right: none;
     border-bottom: 1px solid var(--border);
     padding: 0 0 0.75rem;
-    max-height: 160px;
+    /* Antes: max-height: 160px con overflow oculto — con más de ~10 secciones
+       las últimas quedaban cortadas y el scroll interno no se notaba. Ahora es
+       una tira horizontal (patrón típico de tabs en mobile: siempre entra todo,
+       y que se corte un ítem a la mitad ya avisa que hay que deslizar). */
+    max-height: none;
   }
-  .manual-nav nav { flex-direction: row; flex-wrap: wrap; }
+  .manual-nav nav {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+  .manual-nav-item { flex-shrink: 0; white-space: nowrap; }
+  .manual-contenido { overflow-y: visible; }
 }
