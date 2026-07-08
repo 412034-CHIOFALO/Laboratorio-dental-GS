@@ -235,13 +235,13 @@
              [class.gallery-item--tall]="item.layout === 'tall'"
              [class.gallery-item--wide]="item.layout === 'wide'">
           @if (item.tipo === 'video') {
-            <video [src]="'/instagram/' + item.archivo" [attr.aria-label]="item.alt"
+            <video [src]="'instagram/' + item.archivo" [attr.aria-label]="item.alt"
                    autoplay muted loop playsinline preload="metadata"></video>
             <span class="gallery-video-badge" aria-hidden="true">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </span>
           } @else {
-            <img [src]="'/instagram/' + item.archivo" [alt]="item.alt" loading="lazy">
+            <img [src]="'instagram/' + item.archivo" [alt]="item.alt" loading="lazy">
           }
           <div class="gallery-overlay">
             <span>{{ item.caption }}</span>

@@ -1,8 +1,12 @@
-name: JavaDoc → GitHub Pages
+name: GitHub Pages (docs + demo)
 
-# Genera y publica la documentación JavaDoc de los 5 microservicios
-# en GitHub Pages automáticamente cuando se pushea a main.
-# También puede dispararse manualmente desde la pestaña Actions.
+# Publica en GitHub Pages, en un solo sitio:
+#   /            -> demo del frontend (Angular, 100% mocks, sin backend real)
+#   /docs/       -> JavaDoc de los 5 microservicios
+#
+# El repo es privado, pero el sitio publicado en Pages es público (GitHub lo
+# permite: el codigo fuente sigue privado, solo se expone lo que este workflow
+# arma en site/). Dispara al pushear a main o manualmente desde Actions.
 
 on:
   push:
@@ -24,6 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ── JavaDoc de los 5 microservicios → site/docs/<ms> ──────────────────
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -61,21 +66,21 @@ jobs:
           chmod +x mvnw
           ./mvnw -B --no-transfer-progress javadoc:javadoc -DskipTests
 
-      - name: Consolidar salida en carpeta site/
+      - name: Consolidar JavaDoc en site/docs/
         run: |
-          mkdir -p site
+          mkdir -p site/docs
           for ms in ms-auth ms-pedidos ms-catalogo ms-finanzas ms-stock; do
             if [ -d "$ms/target/site/apidocs" ]; then
-              cp -r "$ms/target/site/apidocs" "site/$ms"
-              echo "Copiado: $ms → site/$ms"
+              cp -r "$ms/target/site/apidocs" "site/docs/$ms"
+              echo "Copiado: $ms -> site/docs/$ms"
             else
-              echo "ADVERTENCIA: $ms no generó apidocs"
+              echo "ADVERTENCIA: $ms no genero apidocs"
             fi
           done
 
-      - name: Crear página índice
+      - name: Crear indice de documentacion (site/docs/index.html)
         run: |
-          cat > site/index.html << 'HTML'
+          cat > site/docs/index.html << 'HTML'
           <!DOCTYPE html>
           <html lang="es">
           <head>
@@ -113,6 +118,7 @@ jobs:
               .card h2 { font-size: 1.1rem; margin: 0 0 .5rem; color: #f1f5f9; }
               .card p  { font-size: .82rem; color: #94a3b8; margin: 0; line-height: 1.5; }
               footer { margin-top: 4rem; color: #475569; font-size: .8rem; }
+              footer a { color: #22c55e; }
             </style>
           </head>
           <body>
@@ -147,10 +153,36 @@ jobs:
                 <p>Inventario de materiales dentales con descuento automático por receta del catálogo.</p>
               </a>
             </div>
-            <footer>Generado con Maven Javadoc Plugin · <a href="https://github.com/412034-CHIOFALO" style="color:#22c55e">412034-CHIOFALO</a></footer>
+            <footer>
+              <a href="../">&larr; Volver a la demo del sistema</a>
+              · Generado con Maven Javadoc Plugin
+            </footer>
           </body>
           </html>
           HTML
+
+      # ── Demo del frontend (Angular, 100% mocks) → site/ (raiz) ────────────
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend-app/package-lock.json
+
+      - name: Build demo (mocks, sin backend)
+        working-directory: frontend-app
+        run: |
+          npm ci --legacy-peer-deps
+          npx ng build --configuration demo --base-href /${{ github.event.repository.name }}/
+
+      - name: Copiar build al sitio + trick de rutas para SPA
+        run: |
+          cp -r frontend-app/dist/frontend-app/browser/. site/
+          # GitHub Pages no soporta rewrites de servidor: cualquier ruta que no
+          # sea un archivo real (ej. /dashboard/pedidos) devuelve 404. Copiamos
+          # el index.html como 404.html para que Angular Router la resuelva
+          # del lado del cliente una vez que el bundle ya cargo.
+          cp site/index.html site/404.html
 
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v4
