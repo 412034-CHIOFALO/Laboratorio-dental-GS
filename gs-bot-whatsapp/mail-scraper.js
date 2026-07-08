@@ -247,6 +247,13 @@ async function procesarEmail(uid, envelope, source) {
         console.error('[MailScraper]    ❌ Error creando pedido:', e2.response?.data?.message || e2.message);
         return false;  // falla de infraestructura: NO marcar leído, reintentar luego
       }
+    } else if (e.response?.status >= 400 && e.response?.status < 500) {
+      // Error del propio contenido del email (ej: fecha no futura, texto muy largo).
+      // Reintentar no lo va a arreglar — se cae en loop infinito si no lo resolvemos acá.
+      console.error('[MailScraper]    ❌ Datos del pedido rechazados:', e.response?.data?.mensaje || e.response?.data?.error || e.message);
+      await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
+        'no pudimos registrar el pedido con los datos detectados. Por favor comuníquese con el laboratorio');
+      return true;  // problema de contenido: ya respondimos, no reintentar
     } else {
       console.error('[MailScraper]    ❌ Error creando pedido:', e.response?.data?.message || e.message);
       return false;  // falla de infraestructura: NO marcar leído, reintentar luego
