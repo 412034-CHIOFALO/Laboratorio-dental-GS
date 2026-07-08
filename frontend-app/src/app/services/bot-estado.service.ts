@@ -42,6 +42,18 @@ export class BotEstadoService {
     return this.http.post<void>(`${environment.gatewayUrl}/api/bot/regenerar-qr`, {});
   }
 
+  /**
+   * Pide al bot que revise el historial reciente de los grupos por si quedaron
+   * comprobantes sin cargar (por ejemplo, mientras estuvo desconectado). Corre
+   * en segundo plano en el bot — esta llamada solo confirma que arrancó.
+   */
+  reconciliar(): Observable<{ ok: boolean; mensaje: string }> {
+    if (environment.useMocks) {
+      return of({ ok: true, mensaje: 'Revisión iniciada (demo).' }).pipe(delay(400));
+    }
+    return this.http.post<{ ok: boolean; mensaje: string }>(`${environment.gatewayUrl}/api/bot/reconciliar`, {});
+  }
+
   // En modo demo mostramos el estado "desvinculado" con un QR de ejemplo, para
   // que se vea cómo queda la pantalla de re-vinculación sin tener el bot levantado.
   private mockEstado(): EstadoBot {

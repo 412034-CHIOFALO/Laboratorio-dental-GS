@@ -114,6 +114,27 @@ export class BotRegistrosComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── Revisar mensajes perdidos (reconciliación) ────────────────────────────
+  reconciliando = signal(false);
+
+  reconciliar(): void {
+    if (this.reconciliando()) return;
+    this.reconciliando.set(true);
+    this.botEstado.reconciliar().subscribe({
+      next: res => {
+        this.notif.exito(res.mensaje || 'El bot está revisando el historial reciente.', 'Revisión iniciada');
+        this.reconciliando.set(false);
+        // El bot procesa en segundo plano (OCR/IA por cada grupo) — refrescamos
+        // el historial un rato después para que se vea lo que fue encontrando.
+        setTimeout(() => this.cargar(), 8000);
+      },
+      error: (e) => {
+        this.notif.errorHttp(e, 'No se pudo iniciar la revisión');
+        this.reconciliando.set(false);
+      },
+    });
+  }
+
   claseConexion(): 'ok' | 'warn' | 'err' {
     if (this.sinConexionBot()) return 'err';
     const e = this.estado();

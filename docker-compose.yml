@@ -298,6 +298,7 @@ services:
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
       ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:4200
       BOT_URI: http://gs-bot:3001          # ruta del gateway hacia el estado del bot
+      GS_BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}   # para autenticar los POST que el gateway le reenvia al bot
     ports:
       - "127.0.0.1:8080:8080"
     depends_on:

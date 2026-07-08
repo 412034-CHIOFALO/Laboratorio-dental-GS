@@ -53,6 +53,42 @@ if (GEMINI_ENABLED) {
 const pendientes = new Map();
 const TIMEOUT_PENDIENTE = 5 * 60 * 1000;   // 5 minutos
 
+// ─── Reconciliación (recuperar comprobantes mandados con el bot caído) ───────
+// IDs de mensajes de WhatsApp ya revisados por la reconciliación, persistidos
+// en el mismo volumen que la sesión para no repetir OCR/Gemini tras un reinicio
+// del contenedor. Guarda solo IDs (livianos), no el contenido de los mensajes.
+const RUTA_PROCESADOS = path.join(path.resolve('./.wwebjs_auth/'), 'mensajes-procesados.json');
+const MAX_PROCESADOS_GUARDADOS = 3000;
+
+function cargarProcesados() {
+  try {
+    const data = JSON.parse(fs.readFileSync(RUTA_PROCESADOS, 'utf8'));
+    return new Set(Array.isArray(data) ? data : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function guardarProcesados() {
+  try {
+    fs.mkdirSync(path.dirname(RUTA_PROCESADOS), { recursive: true });
+    fs.writeFileSync(RUTA_PROCESADOS, JSON.stringify([...mensajesProcesados]));
+  } catch (e) {
+    console.warn('[Bot] No se pudo guardar mensajes-procesados.json:', e.message);
+  }
+}
+
+/** Marca un mensaje como visto y recorta el historial guardado si crece demasiado. */
+function marcarProcesado(msgId) {
+  mensajesProcesados.add(msgId);
+  if (mensajesProcesados.size > MAX_PROCESADOS_GUARDADOS * 1.2) {
+    mensajesProcesados = new Set([...mensajesProcesados].slice(-MAX_PROCESADOS_GUARDADOS));
+  }
+  guardarProcesados();
+}
+
+let mensajesProcesados = cargarProcesados();
+
 // Estado del bot expuesto a la pantalla web "Estado del bot".
 let estadoBot = {
   conectado: false,
@@ -143,14 +179,83 @@ client.on('ready', async () => {
   console.log('   Preparando OCR...');
   ocrWorker = await createWorker('spa');
   console.log('   ✅ OCR listo.\n');
+
+  // Por si quedaron comprobantes sin procesar mientras el bot estuvo caído
+  // (reinicio del contenedor, sesión desvinculada, corte de red, etc.)
+  reconciliarChats(RECONCILIACION_LIMITE_RECONEXION).catch(e =>
+    console.error('[Reconciliación] Error al arrancar:', e.message));
 });
 
+/**
+ * Reprocesa los últimos mensajes de cada grupo monitoreado, por si alguno no
+ * se llegó a procesar en vivo (bot desconectado, reinicio, etc.). Usa el mismo
+ * camino que un mensaje en vivo (`manejarMensaje`), así que:
+ *   - El anti-duplicado por N° de operación del backend filtra lo que ya está
+ *     cargado (no hace falta comparar nada acá: si ya existe, el backend
+ *     devuelve DUPLICADO y no se crea de nuevo).
+ *   - `mensajesProcesados` evita repetir OCR/Gemini sobre mensajes que esta
+ *     misma reconciliación (o una anterior) ya miró, aunque no hayan generado
+ *     una carga (ej: no era comprobante).
+ */
+async function reconciliarChats(limitePorGrupo) {
+  if (!estadoBot.conectado) return { chats: 0, mensajes: 0 };
+  console.log(`\n🔄 Reconciliación: revisando historial (últimos ${limitePorGrupo} msj. por grupo)...`);
+  let chatsRevisados = 0;
+  let mensajesRevisados = 0;
+  try {
+    const chats = await client.getChats();
+    const grupos = chats.filter(c => c.isGroup &&
+      (GRUPOS.length === 0 || GRUPOS.includes(c.name.toLowerCase())));
+
+    for (const chat of grupos) {
+      try {
+        const mensajes = await chat.fetchMessages({ limit: limitePorGrupo });
+        mensajes.sort((a, b) => a.timestamp - b.timestamp); // más viejo primero, igual que en vivo
+        for (const msg of mensajes) {
+          await manejarMensaje(msg, { reconciliacion: true });
+          mensajesRevisados++;
+        }
+        chatsRevisados++;
+      } catch (e) {
+        console.warn(`[Reconciliación] Error en el grupo "${chat.name}":`, e.message);
+      }
+    }
+  } catch (e) {
+    console.error('[Reconciliación] Error general:', e.message);
+  }
+  console.log(`🔄 Reconciliación completa: ${chatsRevisados} grupo(s), ${mensajesRevisados} mensaje(s) revisado(s).\n`);
+  return { chats: chatsRevisados, mensajes: mensajesRevisados };
+}
+
+// Ventanas de revisión: grande al reconectar/manual (probablemente hay más para
+// recuperar), chica en el chequeo periódico (solo red de seguridad).
+const RECONCILIACION_LIMITE_RECONEXION = parseInt(process.env.RECONCILIACION_LIMITE_RECONEXION || '100', 10);
+const RECONCILIACION_LIMITE_MANUAL     = parseInt(process.env.RECONCILIACION_LIMITE_MANUAL || '150', 10);
+const RECONCILIACION_LIMITE_PERIODICA  = parseInt(process.env.RECONCILIACION_LIMITE_PERIODICA || '25', 10);
+const RECONCILIACION_INTERVALO_MIN     = parseInt(process.env.RECONCILIACION_INTERVALO_MIN || '30', 10);
+
+// Chequeo periódico liviano: red de seguridad para el caso raro de un mensaje
+// que se pierde sin que el bot llegue a marcar una desconexión real.
+setInterval(() => {
+  reconciliarChats(RECONCILIACION_LIMITE_PERIODICA).catch(e =>
+    console.error('[Reconciliación] Error en chequeo periódico:', e.message));
+}, RECONCILIACION_INTERVALO_MIN * 60 * 1000);
+
 // ─── Manejo de mensajes ──────────────────────────────────────────────────────
-client.on('message', async (msg) => {
+// `manejarMensaje` es el mismo código para un mensaje que llega en vivo y para
+// uno que se revisa después (reconciliación tras una desconexión) — así la
+// lógica de emparejar comprobante+pie es idéntica en los dos casos y no hay
+// que mantenerla dos veces. La única diferencia es `opciones.reconciliacion`.
+async function manejarMensaje(msg, opciones = {}) {
+  const { reconciliacion = false } = opciones;
   try {
     const chat = await msg.getChat();
     if (!chat.isGroup) return;
     if (GRUPOS.length && !GRUPOS.includes(chat.name.toLowerCase())) return;
+
+    // En reconciliación, si ya vimos este mensaje en una pasada anterior, no
+    // repetimos OCR/Gemini ni volvemos a registrarlo (evita duplicados y gasto).
+    if (reconciliacion && mensajesProcesados.has(msg.id._serialized)) return;
 
     const contacto = await msg.getContact();
     const clave = `${chat.id._serialized}|${contacto.number}`;
@@ -162,42 +267,62 @@ client.on('message', async (msg) => {
 
       if (pie.receptor) {
         // Comprobante + pie en el mismo mensaje → procesar directo
-        await procesarPago(msg, chat, contacto, pie, lectura);
+        await procesarPago(msg, chat, contacto, pie, lectura, undefined, { reconciliacion });
+        if (reconciliacion) marcarProcesado(msg.id._serialized);
       } else {
         // Sin pie → guardar y esperar el siguiente mensaje
         pendientes.set(clave, { msg, chat, contacto, lectura, ts: Date.now() });
-        console.log(`\n📎 [${chat.name}] Comprobante de ${contacto.pushname || contacto.number} — esperando "Emisor (Receptor)"...`);
-        await msg.reply('📎 Recibí el comprobante. Ahora mandá quién a quién: *Emisor (Receptor)*\nEj: Dr. García (Carlos López)');
+        if (!reconciliacion) {
+          console.log(`\n📎 [${chat.name}] Comprobante de ${contacto.pushname || contacto.number} — esperando "Emisor (Receptor)"...`);
+          await msg.reply('📎 Recibí el comprobante. Ahora mandá quién a quién: *Emisor (Receptor)*\nEj: Dr. García (Carlos López)');
+        }
+        // En reconciliación no lo marcamos procesado todavía: si el pie viene
+        // en un mensaje posterior DENTRO del mismo lote revisado, se empareja
+        // más abajo igual que en vivo.
       }
 
     } else if (msg.body) {
       // ── ¿Es declaración de efectivo? ──────────────────────────────────────
       const efectivo = parsearEfectivo(msg.body);
       if (efectivo) {
-        await registrarEfectivo(msg, chat, contacto, efectivo);
+        await registrarEfectivo(msg, chat, contacto, efectivo, { reconciliacion });
+        if (reconciliacion) marcarProcesado(msg.id._serialized);
         return;
       }
 
       // ── Llegó texto: ¿es el pie de un comprobante pendiente? ──
       const pie = parsearPie(msg.body);
-      if (!pie.receptor) return;
+      if (!pie.receptor) {
+        if (reconciliacion) marcarProcesado(msg.id._serialized);
+        return;
+      }
 
       const pend = pendientes.get(clave);
       if (pend && (Date.now() - pend.ts) < TIMEOUT_PENDIENTE) {
         pendientes.delete(clave);
-        await procesarPago(pend.msg, pend.chat, pend.contacto, pie, pend.lectura, msg);
+        await procesarPago(pend.msg, pend.chat, pend.contacto, pie, pend.lectura, msg, { reconciliacion });
+        if (reconciliacion) {
+          marcarProcesado(pend.msg.id._serialized);
+          marcarProcesado(msg.id._serialized);
+        }
+      } else if (reconciliacion) {
+        marcarProcesado(msg.id._serialized);
       }
     }
   } catch (err) {
     console.error('❌ Error:', err.message);
   }
-});
+}
+
+client.on('message', (msg) => manejarMensaje(msg));
 
 // ─── Procesar un pago (comprobante + pie ya emparejados) ─────────────────────
-async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie) {
+async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie, opciones = {}) {
+  const { reconciliacion = false } = opciones;
   const cargadoPorNombre   = contacto.pushname || contacto.name || 'Desconocido';
   const cargadoPorTelefono = contacto.number;
-  const responder = (txt) => (msgPie || msgComprobante).reply(txt);
+  const prefijoReconciliacion = reconciliacion ? '🔄 _(recuperado tras una desconexión)_\n' : '';
+  const responder = (txt) => (msgPie || msgComprobante).reply(prefijoReconciliacion + txt);
 
   // Monto: el del comprobante (PDF) o, si no se leyó, el que pusieron en el pie
   const monto = lectura.monto ?? pie.montoManual;
@@ -666,14 +791,17 @@ async function registrarPago(datos) {
 }
 
 // ─── Registro de efectivo (borrador pendiente de confirmación) ───────────────
-async function registrarEfectivo(msg, chat, contacto, efectivo) {
+async function registrarEfectivo(msg, chat, contacto, efectivo, opciones = {}) {
+  const { reconciliacion = false } = opciones;
+  const prefijoReconciliacion = reconciliacion ? '🔄 _(recuperado tras una desconexión)_\n' : '';
+  const responder = (txt) => msg.reply(prefijoReconciliacion + txt);
   const cargadoPorNombre   = contacto.pushname || contacto.name || 'Desconocido';
   const cargadoPorTelefono = contacto.number;
   const montoFmt = efectivo.monto.toLocaleString('es-AR');
   console.log(`\n💵 [${chat.name}] ${cargadoPorNombre} declaró efectivo $${montoFmt} para "${efectivo.receptor}"`);
 
   if (!BACKEND_ENABLED) {
-    await msg.reply(`🧪 *Modo prueba* — Efectivo detectado:\n• Monto: $${montoFmt}\n• Para: ${efectivo.receptor}`);
+    await responder(`🧪 *Modo prueba* — Efectivo detectado:\n• Monto: $${montoFmt}\n• Para: ${efectivo.receptor}`);
     return;
   }
 
@@ -686,7 +814,7 @@ async function registrarEfectivo(msg, chat, contacto, efectivo) {
       { headers, timeout: 10000 }
     );
     console.log(`[BOT-EFECTIVO] Borrador id=${res.data?.id} creado para "${efectivo.receptor}"`);
-    await msg.reply(
+    await responder(
       `💵 Efectivo anotado como *pendiente de confirmación*\n` +
       `• Monto: *$${montoFmt}*\n` +
       `• Para: *${efectivo.receptor}*\n` +
@@ -694,7 +822,7 @@ async function registrarEfectivo(msg, chat, contacto, efectivo) {
     );
   } catch (e) {
     console.error('[BOT-EFECTIVO] Error:', e.message);
-    await msg.reply(`⚠️ No se pudo registrar el efectivo: ${e.response?.data?.mensaje || e.message}`);
+    await responder(`⚠️ No se pudo registrar el efectivo: ${e.response?.data?.mensaje || e.message}`);
   }
 }
 
@@ -756,6 +884,24 @@ http.createServer((req, res) => {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: e.message }));
         }
+        return;
+      }
+
+      // ── POST /api/bot/reconciliar ──────────────────────────────────────────
+      // Revisa el historial reciente de los grupos por si quedaron comprobantes
+      // sin cargar (bot desconectado, reinicio, etc.). Corre en segundo plano —
+      // devuelve enseguida y el resultado real queda en los logs del bot y en
+      // el historial de "Bot WhatsApp" a medida que va procesando.
+      if (req.url === '/api/bot/reconciliar') {
+        if (!estadoBot.conectado) {
+          res.writeHead(503, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Bot no conectado' }));
+        }
+        console.log('🔄 Reconciliación manual solicitada desde la UI...');
+        reconciliarChats(RECONCILIACION_LIMITE_MANUAL).catch(e =>
+          console.error('[Reconciliación] Error (manual):', e.message));
+        res.writeHead(202, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, mensaje: 'Revisión iniciada — puede tardar unos segundos por grupo.' }));
         return;
       }
 

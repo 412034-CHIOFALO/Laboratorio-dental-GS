@@ -11,6 +11,12 @@
         <span class="dot"></span>
         <span>{{ labelConexion() }}</span>
       </button>
+      @if (!sinConexionBot() && estado()?.conectado) {
+        <button class="btn-refresh" (click)="reconciliar()" [disabled]="reconciliando()"
+                title="Revisa el historial reciente de los grupos por si quedó algún comprobante sin cargar">
+          {{ reconciliando() ? 'Revisando…' : '🔄 Revisar mensajes perdidos' }}
+        </button>
+      }
       <button class="btn-refresh" (click)="cargar()" [disabled]="cargando()">↻ Actualizar</button>
     </div>
   </header>
