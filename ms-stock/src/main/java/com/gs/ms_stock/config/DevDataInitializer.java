@@ -1,9 +1,7 @@
 package com.gs.ms_stock.config;
 
 import com.gs.ms_stock.model.CategoriaMaterial;
-import com.gs.ms_stock.model.ConfiguracionAlerta;
 import com.gs.ms_stock.model.Material;
-import com.gs.ms_stock.repository.ConfiguracionAlertaRepository;
 import com.gs.ms_stock.repository.MaterialRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,19 +28,13 @@ public class DevDataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DevDataInitializer.class);
     private final MaterialRepository repository;
-    private final ConfiguracionAlertaRepository configAlertaRepository;
 
-    public DevDataInitializer(MaterialRepository repository,
-                              ConfiguracionAlertaRepository configAlertaRepository) {
+    public DevDataInitializer(MaterialRepository repository) {
         this.repository = repository;
-        this.configAlertaRepository = configAlertaRepository;
     }
 
     @Override
     public void run(String... args) {
-        // La config de alertas es singleton (id=1) e independiente de los materiales.
-        seedConfiguracionAlerta();
-
         if (repository.count() > 0) {
             log.info("[GS-DEV] ms-stock ya tiene datos — se omite la carga inicial.");
             return;
@@ -164,20 +156,5 @@ public class DevDataInitializer implements CommandLineRunner {
         log.info("[GS-DEV] {} materiales cargados en stock ({} medibles + {} por uso).",
             materiales.size(), medibles, materiales.size() - medibles);
         log.info("[GS-DEV] Alertas: Yeso Tipo IV (3 < 5), Cerámica VM13 (2 < 4), Resina Auto (4 = 4)");
-    }
-
-    /**
-     * Siembra la configuración de alertas (singleton id=1) para que la alerta de
-     * stock bajo funcione de entrada en el demo: activa y con el WhatsApp del
-     * laboratorio. El admin puede cambiar número y activación desde la UI.
-     */
-    private void seedConfiguracionAlerta() {
-        if (configAlertaRepository.existsById(1L)) return;
-        configAlertaRepository.save(ConfiguracionAlerta.builder()
-                .id(1L)
-                .alertasActivas(true)
-                .adminWhatsappPhone("5493516588576")  // Rebeca González — demo
-                .build());
-        log.info("[GS-DEV] ConfiguracionAlerta sembrada (id=1, alertas activas).");
     }
 }

@@ -30,7 +30,6 @@ class StockServiceTest {
 
     @Mock private MaterialRepository materialRepo;
     @Mock private MovimientoStockRepository movimientoRepo;
-    @Mock private AlertaStockService alertaService;
 
     @InjectMocks private StockService service;
 
@@ -98,19 +97,17 @@ class StockServiceTest {
 
         assertThat(m.getStockActual()).isEqualTo(15.0);
         verify(movimientoRepo).save(any(MovimientoStock.class));
-        verify(alertaService, never()).notificarStockBajo(any());
     }
 
     @Test
-    void movimiento_salida_restaYDisparaAlertaBajoMinimo() {
+    void movimiento_salida_restaStockPorDebajoDelMinimo() {
         Material m = material(6, 5.0);
         when(materialRepo.findById(1L)).thenReturn(Optional.of(m));
         when(materialRepo.save(any())).thenAnswer(i -> i.getArgument(0));
 
-        service.registrarMovimiento(mov(TipoMovimiento.SALIDA, 3)); // 6-3=3 <= 5 → alerta
+        service.registrarMovimiento(mov(TipoMovimiento.SALIDA, 3)); // 6-3=3 <= 5
 
         assertThat(m.getStockActual()).isEqualTo(3.0);
-        verify(alertaService).notificarStockBajo(m);
     }
 
     @Test

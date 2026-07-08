@@ -18,7 +18,6 @@ import { OdontologosComponent } from './pages/dashboard/odontologos/odontologos'
 import { OdontologoHistorialComponent } from './pages/dashboard/odontologos/historial/odontologo-historial';
 import { BotRegistrosComponent } from './pages/dashboard/bot-registros/bot-registros';
 import { ProveedoresComponent } from './pages/dashboard/proveedores/proveedores';
-import { ConfiguracionComponent } from './pages/dashboard/configuracion/configuracion';
 import { ManualComponent } from './pages/dashboard/manual/manual';
 import { MiPerfilComponent } from './pages/dashboard/mi-perfil/mi-perfil';
 import { ErrorPageComponent } from './pages/error/error-page';
@@ -48,7 +47,6 @@ export const routes: Routes = [
       { path: 'escaneos',    component: EscaneosComponent },
       { path: 'auditoria',      component: AuditoriaComponent },
       { path: 'usuarios',       component: UsuariosComponent },
-      { path: 'configuracion',  component: ConfiguracionComponent },
       { path: 'mi-perfil',      component: MiPerfilComponent },
       { path: 'manual',         component: ManualComponent },
     ]

@@ -59,7 +59,6 @@ export class DashboardComponent implements OnInit {
 
     { type: 'group', label: 'Administración' },
     { type: 'item', label: 'Usuarios',     icon: 'users',     route: '/dashboard/usuarios',     roles: ['ROLE_ADMIN'] },
-    { type: 'item', label: 'Configuración', icon: 'settings', route: '/dashboard/configuracion', roles: ['ROLE_ADMIN'], tourId: 'nav-configuracion' },
     { type: 'item', label: 'Manual',       icon: 'book',      route: '/dashboard/manual',       tourId: 'nav-manual' },
   ];
 
@@ -86,10 +85,6 @@ export class DashboardComponent implements OnInit {
     if (this.notisOpen) {
       this.notis.refrescar();
     }
-  }
-
-  get esAdmin(): boolean {
-    return this.authService.isAdmin();
   }
 
   @HostListener('document:click')

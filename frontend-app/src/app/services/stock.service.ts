@@ -160,24 +160,4 @@ export class StockService {
     }
     return this.http.delete<void>(`${this.base}/${id}`);
   }
-
-  obtenerConfigAlerta(): Observable<ConfiguracionAlerta> {
-    if (environment.useMocks) {
-      return of({ id: 1, adminWhatsappPhone: '', alertasActivas: false }).pipe(delay(120));
-    }
-    return this.http.get<ConfiguracionAlerta>(`${this.base}/configuracion`);
-  }
-
-  actualizarConfigAlerta(config: Partial<ConfiguracionAlerta>): Observable<ConfiguracionAlerta> {
-    if (environment.useMocks) {
-      return of({ id: 1, ...config } as ConfiguracionAlerta).pipe(delay(200));
-    }
-    return this.http.put<ConfiguracionAlerta>(`${this.base}/configuracion`, config);
-  }
-}
-
-export interface ConfiguracionAlerta {
-  id: number;
-  adminWhatsappPhone: string | null;
-  alertasActivas: boolean;
 }
