@@ -94,6 +94,30 @@ function marcarProcesado(msgId) {
 
 let mensajesProcesados = cargarProcesados();
 
+// Grupos para los que ya establecimos una "línea base" (ver más abajo). Se
+// persiste junto con la sesión para no repetirla en cada reinicio.
+const RUTA_BASELINE = path.join(path.resolve('./.wwebjs_auth/'), 'chats-con-baseline.json');
+
+function cargarBaseline() {
+  try {
+    const data = JSON.parse(fs.readFileSync(RUTA_BASELINE, 'utf8'));
+    return new Set(Array.isArray(data) ? data : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function guardarBaseline() {
+  try {
+    fs.mkdirSync(path.dirname(RUTA_BASELINE), { recursive: true });
+    fs.writeFileSync(RUTA_BASELINE, JSON.stringify([...chatsConBaseline]));
+  } catch (e) {
+    console.warn('[Bot] No se pudo guardar chats-con-baseline.json:', e.message);
+  }
+}
+
+let chatsConBaseline = cargarBaseline();
+
 // Estado del bot expuesto a la pantalla web "Estado del bot".
 let estadoBot = {
   conectado: false,
@@ -214,6 +238,24 @@ async function reconciliarChats(limitePorGrupo) {
 
     for (const chat of grupos) {
       try {
+        const idChat = chat.id._serialized;
+
+        // Primera vez que vemos ESTE grupo (recién agregado a GRUPOS, o un grupo
+        // de prueba renombrado para que coincida): no reprocesamos su historial
+        // viejo — solo lo marcamos como visto, sin contestar ni registrar nada.
+        // Si no hiciéramos esto, cualquier grupo con historial (por ejemplo uno
+        // de pruebas reciclado) generaría una respuesta del bot por cada mensaje
+        // viejo que tenga, todas de una vez ("bombardeo").
+        if (!chatsConBaseline.has(idChat)) {
+          const mensajes = await chat.fetchMessages({ limit: limitePorGrupo });
+          for (const msg of mensajes) marcarProcesado(msg.id._serialized);
+          chatsConBaseline.add(idChat);
+          guardarBaseline();
+          console.log(`   ℹ "${chat.name}" es nuevo para la reconciliación — línea base establecida (${mensajes.length} mensaje(s) ya existentes, sin reprocesar). De acá en más sí se van a recuperar los que falten.`);
+          chatsRevisados++;
+          continue;
+        }
+
         const mensajes = await chat.fetchMessages({ limit: limitePorGrupo });
         mensajes.sort((a, b) => a.timestamp - b.timestamp); // más viejo primero, igual que en vivo
         for (const msg of mensajes) {
