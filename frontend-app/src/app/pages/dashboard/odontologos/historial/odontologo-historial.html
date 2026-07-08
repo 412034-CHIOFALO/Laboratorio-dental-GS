@@ -34,6 +34,9 @@
       <div class="hero-saldo" [class.deuda]="saldoDeuda > 0">
         <span class="saldo-label">Te debe</span>
         <span class="saldo-val">{{ formatMoney(saldoDeuda) }}</span>
+        @if (saldoDeuda > 0) {
+          <button class="btn-registrar-pago" (click)="abrirModalPago()">Registrar pago</button>
+        }
       </div>
     </header>
 
@@ -249,3 +252,12 @@
   }
 
 </div>
+
+@if (showModalPago && odontologo) {
+  <app-pago-cuenta-corriente-modal
+    [odontologoId]="odontologo.id"
+    [odontologoNombre]="odontologo.nombre"
+    [saldoActual]="saldoDeuda"
+    (cerrar)="cerrarModalPago()"
+    (pagado)="onPagoRegistrado()" />
+}

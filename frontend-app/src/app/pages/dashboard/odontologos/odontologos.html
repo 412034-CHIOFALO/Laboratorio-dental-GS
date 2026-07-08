@@ -318,50 +318,12 @@
      REGISTRAR PAGO A CUENTA CORRIENTE
      ───────────────────────────────────────────────────────────── -->
 @if (showModalPago && detalleAbierto) {
-  <div class="modal-overlay" (click)="cerrarModalPago()">
-    <div class="modal-panel" (click)="$event.stopPropagation()">
-      <div class="modal-header">
-        <h2>Registrar pago — {{ detalleAbierto.nombre }}</h2>
-        <button class="btn-close" (click)="cerrarModalPago()">✕</button>
-      </div>
-
-      <div class="modal-body">
-        <p class="cc-saldo-info">Saldo actual: <strong>{{ formatPrecio(ccSaldo) }}</strong></p>
-
-        <div class="form-row">
-          <label>Monto del pago *</label>
-          <input type="number" min="0" step="100" class="form-input" [(ngModel)]="formPago.monto"
-                 placeholder="Cuánto pagó"/>
-          <small class="form-hint">Se imputa a las deudas más viejas primero (puede ser parcial).</small>
-        </div>
-
-        <div class="form-row">
-          <label>Medio</label>
-          <select class="form-input" [(ngModel)]="formPago.medio">
-            <option value="TRANSFERENCIA">Transferencia (Caja Bancaria)</option>
-            <option value="EFECTIVO">Efectivo (Caja Física)</option>
-          </select>
-        </div>
-
-        <div class="form-row">
-          <label>Fecha</label>
-          <input type="date" class="form-input" [(ngModel)]="formPago.fecha"/>
-        </div>
-
-        <div class="form-row">
-          <label>Nota</label>
-          <input type="text" class="form-input" [(ngModel)]="formPago.nota" placeholder="Opcional"/>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn-secondary" (click)="cerrarModalPago()">Cancelar</button>
-        <button class="btn-primary" (click)="confirmarPago()" [disabled]="!formPagoValido || pagoSaving">
-          {{ pagoSaving ? 'Registrando…' : 'Registrar pago' }}
-        </button>
-      </div>
-    </div>
-  </div>
+  <app-pago-cuenta-corriente-modal
+    [odontologoId]="detalleAbierto.id"
+    [odontologoNombre]="detalleAbierto.nombre"
+    [saldoActual]="ccSaldo"
+    (cerrar)="cerrarModalPago()"
+    (pagado)="onPagoRegistrado()" />
 }
 
 <!-- ─────────────────────────────────────────────────────────────

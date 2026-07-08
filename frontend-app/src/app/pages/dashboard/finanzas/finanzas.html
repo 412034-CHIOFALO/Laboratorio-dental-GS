@@ -387,6 +387,7 @@
                     <th class="th-num sortable-th" (click)="ordenarPorCuenta('totalDeuda')">
                       Deuda total <span class="sort-icon">{{ iconoSortCuenta('totalDeuda') }}</span>
                     </th>
+                    <th class="th-num">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -412,6 +413,10 @@
                         </span>
                       </td>
                       <td class="th-num celda-deuda">{{ formatPrecioMoneda(c.totalDeuda) }}</td>
+                      <td class="th-num">
+                        <button class="btn-ver-comp" [disabled]="c.totalDeuda <= 0"
+                                (click)="abrirModalPago(c, $event)">Pagar</button>
+                      </td>
                     </tr>
                   }
                 </tbody>
@@ -427,7 +432,7 @@
           <div class="cuentas-header">
             <div>
               <h2>Comprobantes recibidos</h2>
-              <p class="cuentas-sub">Pagos cargados por el bot de WhatsApp y a mano · buscá por odontólogo, técnico o monto</p>
+              <p class="cuentas-sub">Sueldos y pagos a proveedores (directos o triangulados) cargados por el bot o a mano · buscá por nombre o monto</p>
             </div>
             <div class="cuentas-stats">
               <div class="stat-pill">
@@ -474,15 +479,16 @@
                   <tr>
                     <th>Fecha</th>
                     <th>Origen</th>
-                    <th>Pagó (odontólogo)</th>
-                    <th>Recibió (técnico)</th>
+                    <th>Tipo</th>
+                    <th>Pagó</th>
+                    <th>Recibió</th>
                     <th>Cargado por</th>
                     <th class="th-num">Monto</th>
                     <th class="th-num">Comprobante</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (c of comprobantesFiltrados; track c.id) {
+                  @for (c of comprobantesFiltrados; track c.fuente + '-' + c.id) {
                     <tr>
                       <td class="muted">{{ formatFechaCortaSueldo(c.fecha) }}</td>
                       <td>
@@ -490,12 +496,17 @@
                           {{ c.origen === 'BOT_WHATSAPP' ? 'Bot' : 'Manual' }}
                         </span>
                       </td>
+                      <td>
+                        <span class="tipo-badge" [attr.data-tipo]="c.tipoReceptor">
+                          {{ labelTipoReceptor(c.tipoReceptor) }}
+                        </span>
+                      </td>
                       <td>{{ c.emisor ?? '—' }}</td>
-                      <td><strong>{{ c.empleadoNombre }}</strong></td>
+                      <td><strong>{{ c.receptorNombre }}</strong></td>
                       <td class="muted">{{ c.cargadoPorNombre ?? '—' }}</td>
                       <td class="th-num celda-deuda">{{ formatMoney(c.monto) }}</td>
                       <td class="th-num">
-                        @if (c.comprobanteUrl) {
+                        @if (c.tieneComprobante) {
                           <button class="btn-ver-comp" (click)="verComprobante(c)">Ver</button>
                         } @else {
                           <span class="muted">—</span>
@@ -973,4 +984,13 @@
       </div>
     </div>
   </div>
+}
+
+@if (odontologoPago) {
+  <app-pago-cuenta-corriente-modal
+    [odontologoId]="odontologoPago.odontologoId"
+    [odontologoNombre]="odontologoPago.odontologoNombre"
+    [saldoActual]="odontologoPago.totalDeuda"
+    (cerrar)="cerrarModalPago()"
+    (pagado)="onPagoRegistrado()" />
 }

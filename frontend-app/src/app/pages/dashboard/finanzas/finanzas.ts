@@ -1,6 +1,7 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { forkJoin } from 'rxjs';
 import {
   FinanzasService, ResumenCajasResponse, CajaMovimientoResponse, TipoCaja,
   CuentaCorrienteOdontologoResponse, SeveridadDeuda,
@@ -11,6 +12,7 @@ import {
   PagoSueldoResponse, RegistroBot, DistribucionCascada
 } from '../../../services/sueldos.service';
 import { NotificationService } from '../../../services/notification.service';
+import { PagoCuentaCorrienteModalComponent } from '../odontologos/pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 
 export type FiltroMorosos = 'TODOS' | 'MOROSOS' | 'MAS_30' | 'MAS_60';
 export type FiltroMovimientos = 'TODOS' | 'INGRESO' | 'EGRESO';
@@ -31,10 +33,28 @@ interface SortState<K> {
   dir: SortDir;
 }
 
+/**
+ * Fila unificada para "Comprobantes recibidos": junta pagos de sueldo (PagoSueldo,
+ * tabla de empleados) con registros del bot a proveedores/triangulados (RegistroPagoBot),
+ * que son dos tablas de backend distintas. Sin esto la pestaña solo mostraba sueldos.
+ */
+interface ComprobanteRecibido {
+  id: number;
+  fuente: 'SUELDO' | 'BOT_REGISTRO';
+  fecha: string;
+  origen: 'MANUAL' | 'BOT_WHATSAPP';
+  tipoReceptor: 'EMPLEADO' | 'PROVEEDOR';
+  receptorNombre: string;
+  emisor: string | null;
+  cargadoPorNombre: string | null;
+  monto: number;
+  tieneComprobante: boolean;
+}
+
 @Component({
   selector: 'app-finanzas',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PagoCuentaCorrienteModalComponent],
   templateUrl: './finanzas.html',
   styleUrls: ['./finanzas.css'],
 })
@@ -96,6 +116,9 @@ export class FinanzasComponent implements OnInit {
   loadingCuentas = false;
   filtroMorosos: FiltroMorosos = 'TODOS';
   busquedaMoroso = '';
+
+  // Modal registrar pago (desde el ranking de morosos, sin salir de Finanzas)
+  odontologoPago: CuentaCorrienteOdontologoResponse | null = null;
 
   private notif = inject(NotificationService);
 
@@ -159,9 +182,9 @@ export class FinanzasComponent implements OnInit {
   historial: PagoSueldoResponse[] = [];
   loadingHistorial = false;
 
-  // ── Comprobantes recibidos (Triangulados) ───────────────────────
-  comprobantes: PagoSueldoResponse[] = [];
-  comprobantesFiltrados: PagoSueldoResponse[] = [];
+  // ── Comprobantes recibidos (sueldos + proveedores/triangulados) ──
+  comprobantes: ComprobanteRecibido[] = [];
+  comprobantesFiltrados: ComprobanteRecibido[] = [];
   loadingComprobantes = false;
   busquedaComprobante = '';
   filtroOrigen: 'TODOS' | 'BOT_WHATSAPP' | 'MANUAL' = 'TODOS';
@@ -288,10 +311,50 @@ export class FinanzasComponent implements OnInit {
 
   // ═════════════════════════ COMPROBANTES (TRIANGULADOS) ═════════════════════════
 
+  /**
+   * Junta dos fuentes de backend: PagoSueldo (empleados, vía historialPagosGlobal)
+   * y RegistroPagoBot (proveedores/triangulados registrados por el bot, vía
+   * registrosBot). Antes esta pestaña solo leía la primera, así que un comprobante
+   * a un proveedor quedaba invisible acá aunque el bot lo hubiera cargado bien.
+   */
   cargarComprobantes(): void {
     this.loadingComprobantes = true;
-    this.sueldosService.historialPagosGlobal().subscribe({
-      next: data => { this.comprobantes = data; this.aplicarFiltroComprobantes(); this.loadingComprobantes = false; },
+    forkJoin({
+      sueldos: this.sueldosService.historialPagosGlobal(),
+      registrosBot: this.sueldosService.registrosBot(),
+    }).subscribe({
+      next: ({ sueldos, registrosBot }) => {
+        const deSueldos: ComprobanteRecibido[] = sueldos.map(p => ({
+          id: p.id,
+          fuente: 'SUELDO',
+          fecha: p.fecha,
+          origen: p.origen,
+          tipoReceptor: 'EMPLEADO',
+          receptorNombre: p.empleadoNombre,
+          emisor: p.emisor,
+          cargadoPorNombre: p.cargadoPorNombre,
+          monto: p.monto,
+          tieneComprobante: !!p.comprobanteUrl,
+        }));
+        const deProveedores: ComprobanteRecibido[] = registrosBot
+          .filter(r => r.estado === 'REGISTRADO' && r.tipoReceptor === 'PROVEEDOR')
+          .map(r => ({
+            id: r.id,
+            fuente: 'BOT_REGISTRO',
+            fecha: r.fechaHora,
+            origen: 'BOT_WHATSAPP',
+            tipoReceptor: 'PROVEEDOR',
+            receptorNombre: r.receptorResuelto ?? r.receptorNombre ?? '—',
+            emisor: r.emisor,
+            cargadoPorNombre: r.cargadoPorNombre,
+            monto: r.monto ?? 0,
+            tieneComprobante: r.tieneComprobante,
+          }));
+        this.comprobantes = [...deSueldos, ...deProveedores]
+          .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+        this.aplicarFiltroComprobantes();
+        this.loadingComprobantes = false;
+      },
       error: err => { this.loadingComprobantes = false; this.notif.errorHttp(err, 'No se pudieron cargar los comprobantes'); },
     });
   }
@@ -308,7 +371,7 @@ export class FinanzasComponent implements OnInit {
     if (q) {
       r = r.filter(c =>
         (c.emisor ?? '').toLowerCase().includes(q) ||
-        (c.empleadoNombre ?? '').toLowerCase().includes(q) ||
+        c.receptorNombre.toLowerCase().includes(q) ||
         (c.cargadoPorNombre ?? '').toLowerCase().includes(q) ||
         String(c.monto).includes(q)
       );
@@ -320,10 +383,17 @@ export class FinanzasComponent implements OnInit {
   get totalPorBot(): number { return this.comprobantes.filter(c => c.origen === 'BOT_WHATSAPP').length; }
   get montoTotalComprobantes(): number { return this.comprobantes.reduce((s, c) => s + c.monto, 0); }
 
+  labelTipoReceptor(t: 'EMPLEADO' | 'PROVEEDOR'): string {
+    return t === 'PROVEEDOR' ? 'Proveedor' : 'Sueldo';
+  }
+
   /** Abre el comprobante guardado (PDF/imagen) en una pestaña nueva. */
-  verComprobante(c: PagoSueldoResponse): void {
-    if (!c.comprobanteUrl) { this.notif.alerta('Este pago no tiene comprobante guardado'); return; }
-    this.sueldosService.descargarComprobante(c.id).subscribe({
+  verComprobante(c: ComprobanteRecibido): void {
+    if (!c.tieneComprobante) { this.notif.alerta('Este pago no tiene comprobante guardado'); return; }
+    const descarga$ = c.fuente === 'SUELDO'
+      ? this.sueldosService.descargarComprobante(c.id)
+      : this.sueldosService.descargarComprobanteRegistro(c.id);
+    descarga$.subscribe({
       next: blob => {
         const url = URL.createObjectURL(blob);
         window.open(url, '_blank');
@@ -574,6 +644,21 @@ export class FinanzasComponent implements OnInit {
 
     // Pasamos pesos de severidad para que ese sort sea por gravedad, no alfabético
     this.cuentasFiltradas = this.aplicarSort(r, this.sortCuentas, SEVERIDAD_PESO);
+  }
+
+  /** Abre el modal de pago para un odontólogo del ranking, sin salir de Finanzas. */
+  abrirModalPago(c: CuentaCorrienteOdontologoResponse, event: Event): void {
+    event.stopPropagation(); // la fila tiene routerLink al historial; no navegar
+    this.odontologoPago = c;
+  }
+
+  cerrarModalPago(): void {
+    this.odontologoPago = null;
+  }
+
+  onPagoRegistrado(): void {
+    this.odontologoPago = null;
+    this.cargarCuentasCorrientes();
   }
 
   // ── Stats agregadas del ranking ──────────────────────────────────

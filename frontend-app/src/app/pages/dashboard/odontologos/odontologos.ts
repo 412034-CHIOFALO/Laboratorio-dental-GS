@@ -5,15 +5,15 @@ import {
   OdontologosService, OdontologoResponse, OdontologoRequest
 } from '../../../services/odontologos.service';
 import {
-  FinanzasService, ComprobanteResponse, PagoCuentaCorrienteResponse, MedioPago
+  FinanzasService, ComprobanteResponse, PagoCuentaCorrienteResponse
 } from '../../../services/finanzas.service';
 import { NotificationService } from '../../../services/notification.service';
-import { hoyComoLocalDate } from '../../../services/date-utils';
+import { PagoCuentaCorrienteModalComponent } from './pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 
 @Component({
   selector: 'app-odontologos',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, PagoCuentaCorrienteModalComponent],
   templateUrl: './odontologos.html',
   styleUrls: ['./odontologos.css'],
 })
@@ -49,8 +49,6 @@ export class OdontologosComponent implements OnInit {
 
   // Modal registrar pago
   showModalPago = false;
-  pagoSaving = false;
-  formPago: { monto: number | null; medio: MedioPago; fecha: string; nota: string } = this.formPagoVacio();
 
   // Confirm desactivar
   confirmDesactivarId: number | null = null;
@@ -269,17 +267,7 @@ export class OdontologosComponent implements OnInit {
     });
   }
 
-  private formPagoVacio() {
-    return {
-      monto: null as number | null,
-      medio: 'TRANSFERENCIA' as MedioPago,
-      fecha: hoyComoLocalDate(),
-      nota: '',
-    };
-  }
-
   abrirModalPago(): void {
-    this.formPago = this.formPagoVacio();
     this.showModalPago = true;
   }
 
@@ -287,31 +275,10 @@ export class OdontologosComponent implements OnInit {
     this.showModalPago = false;
   }
 
-  get formPagoValido(): boolean {
-    return this.formPago.monto != null && this.formPago.monto > 0;
-  }
-
-  confirmarPago(): void {
-    if (!this.detalleAbierto || !this.formPagoValido) return;
-    this.pagoSaving = true;
-    const id = this.detalleAbierto.id;
-    this.finanzas.registrarPagoCuentaCorriente(id, {
-      monto: this.formPago.monto!,
-      medio: this.formPago.medio,
-      fecha: this.formPago.fecha,
-      nota: this.formPago.nota?.trim() || null,
-    }).subscribe({
-      next: res => {
-        this.pagoSaving = false;
-        this.showModalPago = false;
-        this.notif.exito(res.mensaje);
-        this.cargarCuentaCorriente(id);   // refresca saldo/comprobantes/historial
-      },
-      error: err => {
-        this.pagoSaving = false;
-        this.notif.errorHttp(err, 'No se pudo registrar el pago');
-      },
-    });
+  /** El modal ya registró el pago en el backend; acá solo refrescamos la vista. */
+  onPagoRegistrado(): void {
+    this.showModalPago = false;
+    if (this.detalleAbierto) this.cargarCuentaCorriente(this.detalleAbierto.id);
   }
 
   formatPrecio(n: number | null | undefined): string {

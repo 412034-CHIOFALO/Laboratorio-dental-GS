@@ -8,6 +8,7 @@ import { OdontologosService, OdontologoResponse } from '../../../../services/odo
 import { PedidosService, PedidoResponse } from '../../../../services/pedidos.service';
 import { FinanzasService } from '../../../../services/finanzas.service';
 import { NotificationService } from '../../../../services/notification.service';
+import { PagoCuentaCorrienteModalComponent } from '../pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 
 type Tab = 'resumen' | 'pedidos' | 'finanzas' | 'escaneres' | 'documentos';
 
@@ -23,7 +24,7 @@ type Tab = 'resumen' | 'pedidos' | 'finanzas' | 'escaneres' | 'documentos';
 @Component({
   selector: 'app-odontologo-historial',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, PagoCuentaCorrienteModalComponent],
   templateUrl: './odontologo-historial.html',
   styleUrls: ['./odontologo-historial.css'],
 })
@@ -43,6 +44,9 @@ export class OdontologoHistorialComponent implements OnInit {
   saldoDeuda = 0;
 
   tabActiva: Tab = 'resumen';
+
+  // Modal registrar pago
+  showModalPago = false;
 
   // ─── Tabs disponibles (los últimos 2 son placeholders por ahora) ────
   readonly tabs: { id: Tab; label: string; count?: () => number }[] = [
@@ -89,6 +93,23 @@ export class OdontologoHistorialComponent implements OnInit {
 
   cambiarTab(t: Tab): void {
     this.tabActiva = t;
+  }
+
+  abrirModalPago(): void {
+    this.showModalPago = true;
+  }
+
+  cerrarModalPago(): void {
+    this.showModalPago = false;
+  }
+
+  onPagoRegistrado(): void {
+    this.showModalPago = false;
+    if (!this.odontologo) return;
+    this.finanzasService.saldoPorOdontologo(this.odontologo.id).subscribe({
+      next: saldo => this.saldoDeuda = saldo,
+      error: () => {},
+    });
   }
 
   // ─── Stats derivadas ────────────────────────────────────────────────

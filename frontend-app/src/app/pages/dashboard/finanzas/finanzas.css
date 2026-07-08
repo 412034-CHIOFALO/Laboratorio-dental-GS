@@ -1462,6 +1462,16 @@
 .origen-badge[data-origen=BOT_WHATSAPP] { background: rgba(34,197,94,0.15); color: #16a34a; }
 .origen-badge[data-origen=MANUAL]       { background: rgba(107,114,128,0.15); color: #6b7280; }
 
+.tipo-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.tipo-badge[data-tipo=EMPLEADO]  { background: rgba(59,130,246,0.15); color: #3b82f6; }
+.tipo-badge[data-tipo=PROVEEDOR] { background: rgba(168,85,247,0.15); color: #a855f7; }
+
 .btn-ver-comp {
   padding: 0.3rem 0.7rem;
   background: transparent;
@@ -1475,6 +1485,8 @@
   transition: background 0.15s;
 }
 .btn-ver-comp:hover { background: rgba(34,197,94,0.1); }
+.btn-ver-comp:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ver-comp:disabled:hover { background: transparent; }
 
 /* ═══════════ EFECTIVO PENDIENTE ═══════════ */
 .efectivo-section {

@@ -91,6 +91,19 @@
   border-color: rgba(234, 88, 12, 0.35);
 }
 .hero-saldo.deuda .saldo-val { color: #ea580c; }
+.btn-registrar-pago {
+  margin-top: 0.5rem;
+  padding: 0.4rem 0.9rem;
+  background: var(--gs-gradient-green, #16a34a);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn-registrar-pago:hover { opacity: 0.88; }
 
 /* ─── KPIs ──────────────────────────────────────────────────── */
 .kpi-row {
