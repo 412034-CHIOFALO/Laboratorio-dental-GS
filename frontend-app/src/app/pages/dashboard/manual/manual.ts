@@ -86,7 +86,7 @@ export class ManualComponent {
       titulo: 'Entregas',
       intro: 'Cuando el trabajo está listo, confirmás la entrega. Acá es donde se genera la deuda del odontólogo.',
       queVes: ['Los trabajos LISTO esperando retiro y el historial de entregados.'],
-      queHaces: ['Marcás "Entregar": indicás quién retiró, la fecha y el Monto a facturar (viene pre-cargado con el precio del pedido).'],
+      queHaces: ['Marcás "Entregar": indicás quién recibió el trabajo (odontólogo, asistente, cadete, etc.), la fecha y el Monto a facturar (viene pre-cargado con el precio del pedido).'],
       flujo: ['Al confirmar, se crea automáticamente la cuenta por cobrar del odontólogo por ese monto → aparece en su cuenta corriente y en el ranking de morosos. La entrega genera la DEUDA, no el cobro.'],
       captura: { id: 'cap-entregas-modal', descripcion: 'El modal de entrega con el campo "Monto a facturar" resaltado.' },
     },

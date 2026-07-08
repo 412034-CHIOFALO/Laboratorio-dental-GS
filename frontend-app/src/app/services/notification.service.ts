@@ -169,7 +169,7 @@ export class NotificationService {
       nota: 'Nota',
       observaciones: 'Observaciones',
       observacionesEntrega: 'Observaciones de entrega',
-      retiradoPor: 'Retirado por',
+      retiradoPor: 'Recibido por',
       nroPedido: 'N° de pedido',
       nroFacturaProveedor: 'N° de factura',
       frecuencia: 'Frecuencia',
