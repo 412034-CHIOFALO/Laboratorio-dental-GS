@@ -24,6 +24,8 @@ const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const http = require('http');
 const QRCode = require('qrcode');
+const fs = require('fs');
+const path = require('path');
 
 let ocrWorker = null;
 
@@ -59,6 +61,32 @@ let estadoBot = {
   ultimaActualizacion: new Date().toISOString(),
 };
 const BOT_HTTP_PORT = parseInt(process.env.BOT_HTTP_PORT || '3001', 10);
+
+/**
+ * Si el contenedor se reinició de forma no controlada (crash, OOM, `docker stop`
+ * forzado), Chromium deja un archivo `SingletonLock` en el perfil persistido
+ * (volumen `wpp_auth`). Al arrancar de nuevo, Chromium ve ese lock y se niega
+ * a iniciar creyendo que "otra máquina" todavía lo tiene abierto — aunque en
+ * realidad el proceso viejo ya no existe. Como solo puede haber una instancia
+ * de este contenedor corriendo a la vez, cualquier lock que encontremos acá es
+ * necesariamente viejo: lo borramos antes de que Chromium intente arrancar.
+ */
+function limpiarLocksDeSesionColgados() {
+  // Misma resolución que usa LocalAuth internamente (relativa a process.cwd()),
+  // sin clientId → carpeta 'session' a secas.
+  const dirSesion = path.join(path.resolve('./.wwebjs_auth/'), 'session');
+  const archivosLock = ['SingletonLock', 'SingletonCookie', 'SingletonSocket'];
+  for (const nombre of archivosLock) {
+    const ruta = path.join(dirSesion, nombre);
+    try {
+      fs.unlinkSync(ruta);
+      console.log(`[Bot] Lock de sesión colgado eliminado: ${nombre}`);
+    } catch (e) {
+      if (e.code !== 'ENOENT') console.warn(`[Bot] No se pudo limpiar ${nombre}: ${e.message}`);
+    }
+  }
+}
+limpiarLocksDeSesionColgados();
 
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
