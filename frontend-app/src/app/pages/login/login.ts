@@ -48,8 +48,9 @@ export class LoginComponent {
     this.authService.login(this.username, this.password).subscribe({
       next: (response) => {
         this.authService.saveToken(response.access_token);
+        this.authService.saveTerminosAceptados(response.terminosAceptados);
         this.notif.exito(`Bienvenido ${this.username}`, 'Sesión iniciada');
-        this.router.navigate(['/dashboard']);
+        this.router.navigate([response.terminosAceptados ? '/dashboard' : '/terminos']);
       },
       error: (err: HttpErrorResponse) => {
         this.loginLoading = false;

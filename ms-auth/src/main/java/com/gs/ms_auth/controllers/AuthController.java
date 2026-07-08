@@ -114,7 +114,11 @@ public class AuthController {
             auditoriaService.registrar(auth.getName(), "LOGIN", "Inicio de sesión",
                 "Sesión", "Login exitoso · roles: " + roles);
 
-            return ResponseEntity.ok(Map.of("access_token", token));
+            Usuario u = usuarioService.buscarPorUsername(auth.getName());
+            return ResponseEntity.ok(Map.of(
+                "access_token", token,
+                "terminosAceptados", u.isTerminosAceptados()
+            ));
 
         } catch (DisabledException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -338,6 +342,18 @@ public class AuthController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @Operation(summary = "Aceptar los términos y condiciones",
+               description = "Marca al usuario autenticado como habiendo aceptado los términos y condiciones " +
+                             "del sistema, con fecha. Se pide una única vez, generalmente en su primer login.")
+    @ApiResponse(responseCode = "200", description = "Términos aceptados")
+    @PostMapping("/me/aceptar-terminos")
+    public ResponseEntity<?> aceptarTerminos(@AuthenticationPrincipal Jwt jwt) {
+        Usuario u = usuarioService.aceptarTerminos(jwt.getSubject());
+        auditoriaService.registrar(jwt.getSubject(), "EDITAR", "Aceptación de términos y condiciones",
+            "Usuario " + u.getUsername(), "Términos y condiciones aceptados");
+        return ResponseEntity.ok(UsuarioResponse.from(u));
     }
 
     public record LoginRequest(

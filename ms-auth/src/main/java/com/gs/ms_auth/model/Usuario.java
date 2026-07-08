@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 /**
  * Representa a un integrante del Laboratorio G&amp;S registrado en el sistema.
  * <p>
@@ -88,4 +90,14 @@ public class Usuario {
      */
     @Builder.Default
     private boolean pendienteAprobacion = true;
+
+    /**
+     * Indica si el usuario ya aceptó los términos y condiciones del sistema.
+     * Se pide una única vez, en su primer login (no lo acepta el ADMIN que lo crea).
+     */
+    @Builder.Default
+    private boolean terminosAceptados = false;
+
+    /** Momento en que el usuario aceptó los términos y condiciones. {@code null} si aún no los aceptó. */
+    private Instant fechaAceptacionTerminos;
 }

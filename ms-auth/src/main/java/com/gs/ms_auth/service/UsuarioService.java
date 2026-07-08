@@ -6,6 +6,7 @@ import com.gs.ms_auth.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -158,6 +159,17 @@ public class UsuarioService {
             throw new IllegalArgumentException("La contraseña actual no es correcta.");
         }
         u.setPassword(passwordEncoder.encode(nueva));
+        return usuarioRepository.save(u);
+    }
+
+    /**
+     * Registra la aceptación de los términos y condiciones por parte del propio usuario.
+     * Se pide una única vez, en su primer login; queda con fecha para trazabilidad.
+     */
+    public Usuario aceptarTerminos(String username) {
+        Usuario u = buscarPorUsername(username);
+        u.setTerminosAceptados(true);
+        u.setFechaAceptacionTerminos(Instant.now());
         return usuarioRepository.save(u);
     }
 }

@@ -104,8 +104,8 @@ export class ManualComponent {
       titulo: 'Stock',
       intro: 'El inventario de materiales, con alertas cuando algo cae por debajo del mínimo.',
       queVes: ['Los materiales con stock actual, mínimo y estado (Normal / Bajo / Crítico).'],
-      queHaces: ['Registrás entradas (compras) y salidas, configurás la alerta y el WhatsApp del admin.'],
-      flujo: ['Cuando una salida perfora el mínimo, el sistema te avisa por WhatsApp (si está configurado el número y activa la alerta).'],
+      queHaces: ['Registrás entradas (compras) y salidas de materiales.'],
+      flujo: ['Cuando una salida perfora el mínimo, el material queda marcado Bajo/Crítico y te llega la alerta por la campanita de notificaciones del sistema.'],
       captura: { id: 'cap-stock', descripcion: 'La lista de materiales con al menos uno en estado Bajo/Crítico.' },
     },
     {
@@ -168,7 +168,7 @@ export class ManualComponent {
         'Cobranza / "quién me debe": la deuda vive en la cuenta corriente de cada odontólogo; el ranking de morosos te ordena quién debe más y hace cuántos días. Registrás cada pago manual (efectivo/transferencia) y todo queda al día.',
         'El bot y los comprobantes: el odontólogo manda el comprobante al grupo → el bot lo lee con IA, evita duplicados y lo clasifica → vos confirmás o rechazás.',
         'Sueldos: configurás el sueldo objetivo, registrás pagos (que egresan de la caja); si pagás de más, el excedente se descuenta del próximo ciclo.',
-        'Stock: cada producción descuenta materiales; si algo perfora el mínimo, te llega la alerta por WhatsApp.',
+        'Stock: cada producción descuenta materiales; si algo perfora el mínimo, te llega la alerta por la campanita de notificaciones.',
       ],
     },
   ];

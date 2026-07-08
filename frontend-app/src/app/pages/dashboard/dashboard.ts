@@ -60,6 +60,7 @@ export class DashboardComponent implements OnInit {
     { type: 'group', label: 'Administración' },
     { type: 'item', label: 'Usuarios',     icon: 'users',     route: '/dashboard/usuarios',     roles: ['ROLE_ADMIN'] },
     { type: 'item', label: 'Manual',       icon: 'book',      route: '/dashboard/manual',       tourId: 'nav-manual' },
+    { type: 'item', label: 'Preguntas frecuentes', icon: 'help', route: '/dashboard/faq' },
   ];
 
   readonly themeService    = inject(ThemeService);
