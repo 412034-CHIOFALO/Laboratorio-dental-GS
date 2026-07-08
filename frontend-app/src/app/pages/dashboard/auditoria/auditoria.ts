@@ -13,7 +13,7 @@ import { clonar, MOCK_AUDIT, MockAuditEvent, TipoAudit } from '../../../services
   styleUrls: ['./auditoria.css'],
 })
 export class AuditoriaComponent implements OnInit {
-  private gatewayUrl = environment.gatewayUrl || 'http://localhost:8080';
+  private gatewayUrl = environment.gatewayUrl;
 
   events: MockAuditEvent[] = [];
   filtros: MockAuditEvent[] = [];

@@ -14,7 +14,7 @@ import { MOCK_USUARIOS, MockUsuario, clonar } from '../../../services/mock-data'
   styleUrls: ['./usuarios.css']
 })
 export class UsuariosComponent implements OnInit {
-  private gatewayUrl = environment.gatewayUrl || 'http://localhost:8080';
+  private gatewayUrl = environment.gatewayUrl;
 
   usuarios: MockUsuario[] = [];
   loading = false;
