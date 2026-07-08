@@ -7,6 +7,7 @@ import { OdontologosService, OdontologoResponse } from '../../../services/odonto
 import { CatalogoService, TipoTrabajoResponse } from '../../../services/catalogo.service';
 import { NotificationService } from '../../../services/notification.service';
 import { EscaneosService } from '../../../services/escaneos.service';
+import { fechaLocal, comoLocalDate } from '../../../services/date-utils';
 
 type FiltroEstado = EstadoPedido | 'TODOS';
 
@@ -219,7 +220,7 @@ export class PedidosComponent implements OnInit {
       paciente: '',
       catalogoTrabajoId: null,
       trabajo: '',
-      fechaEntrega: hoy.toISOString().split('T')[0],
+      fechaEntrega: comoLocalDate(hoy),
       prioridad: 'NORMAL',
       precioAcordado: null,
       observaciones: '',
@@ -546,7 +547,7 @@ export class PedidosComponent implements OnInit {
 
   diasRestantes(fechaEntrega: string): { dias: number; texto: string; clase: string } {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const fe = new Date(fechaEntrega); fe.setHours(0, 0, 0, 0);
+    const fe = fechaLocal(fechaEntrega); fe.setHours(0, 0, 0, 0);
     const dias = Math.round((fe.getTime() - hoy.getTime()) / 86_400_000);
     if (dias < 0)  return { dias, texto: `Atrasado (${Math.abs(dias)}d)`, clase: 'vencido' };
     if (dias === 0) return { dias, texto: 'Entrega hoy',                   clase: 'urgente' };

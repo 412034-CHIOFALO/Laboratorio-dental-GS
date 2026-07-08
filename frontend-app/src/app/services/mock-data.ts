@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════
 
 import { TipoTrabajoResponse } from './catalogo.service';
+import { comoLocalDate } from './date-utils';
 
 // ── JWT FAKE ──────────────────────────────────────────────────
 // Token con payload { sub: "admin", roles: "ROLE_ADMIN", exp: 9999999999 }
@@ -119,7 +120,7 @@ export const MOCK_CATALOGO: TipoTrabajoResponse[] = [
 const hoyISO = (offsetDias: number): string => {
   const d = new Date();
   d.setDate(d.getDate() + offsetDias);
-  return d.toISOString().split('T')[0];
+  return comoLocalDate(d);
 };
 
 // ── USUARIOS DEL SISTEMA ──────────────────────────────────────

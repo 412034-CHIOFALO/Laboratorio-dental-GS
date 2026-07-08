@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse, EntregaRequest } from '../../../services/pedidos.service';
 import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
 import { NotificationService } from '../../../services/notification.service';
+import { fechaLocal, hoyComoLocalDate } from '../../../services/date-utils';
 
 type Tab = 'PENDIENTES' | 'HISTORIAL';
 
@@ -91,7 +92,7 @@ export class EntregasComponent implements OnInit {
   /** URGENTES primero, después por fecha de entrega ascendente. */
   private ordenarPendientes = (a: PedidoResponse, b: PedidoResponse): number => {
     if (a.prioridad !== b.prioridad) return a.prioridad === 'URGENTE' ? -1 : 1;
-    return new Date(a.fechaEntrega).getTime() - new Date(b.fechaEntrega).getTime();
+    return fechaLocal(a.fechaEntrega).getTime() - fechaLocal(b.fechaEntrega).getTime();
   };
 
   private tsEntrega(p: PedidoResponse): number {
@@ -106,10 +107,10 @@ export class EntregasComponent implements OnInit {
   get urgentesPendientes(): number { return this.pendientes.filter(p => p.prioridad === 'URGENTE').length; }
   get vencidasPendientes(): number {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    return this.pendientes.filter(p => new Date(p.fechaEntrega) < hoy).length;
+    return this.pendientes.filter(p => fechaLocal(p.fechaEntrega) < hoy).length;
   }
   get entregadasHoy(): number {
-    const hoyStr = new Date().toISOString().split('T')[0];
+    const hoyStr = hoyComoLocalDate();
     return this.historial.filter(p => p.fechaEntregaReal === hoyStr).length;
   }
 
@@ -135,7 +136,7 @@ export class EntregasComponent implements OnInit {
   private formVacio() {
     return {
       retiradoPor: '',
-      fechaEntregaReal: new Date().toISOString().split('T')[0],
+      fechaEntregaReal: hoyComoLocalDate(),
       observacionesEntrega: '',
       monto: null as number | null,
     };
@@ -236,7 +237,7 @@ export class EntregasComponent implements OnInit {
 
   diasEsperando(p: PedidoResponse): { texto: string; clase: string } {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const fe = new Date(p.fechaEntrega); fe.setHours(0, 0, 0, 0);
+    const fe = fechaLocal(p.fechaEntrega); fe.setHours(0, 0, 0, 0);
     const dias = Math.round((hoy.getTime() - fe.getTime()) / 86_400_000);
     if (dias > 0)  return { texto: `Vencido hace ${dias}d`, clase: 'vencido' };
     if (dias === 0) return { texto: 'Para hoy',              clase: 'urgente' };

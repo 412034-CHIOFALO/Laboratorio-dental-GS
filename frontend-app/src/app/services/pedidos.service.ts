@@ -4,6 +4,7 @@ import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { MOCK_PEDIDOS_BACKEND, clonar } from './mock-data';
+import { hoyComoLocalDate } from './date-utils';
 
 export type EstadoPedido = 'RECIBIDO' | 'EN_PROCESO' | 'CONTROL' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
 export type Prioridad = 'NORMAL' | 'URGENTE';
@@ -219,7 +220,7 @@ export class PedidosService {
     if (environment.useMocks) {
       const idx = this.mockStore.findIndex(p => p.id === id);
       if (idx === -1) throw new Error('Pedido no encontrado');
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = hoyComoLocalDate();
       this.mockStore[idx] = {
         ...this.mockStore[idx],
         estado: 'ENTREGADO',

@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { PedidosService, PedidoResponse, EstadoPedido } from '../../../services/pedidos.service';
 import { StockService, MaterialResponse } from '../../../services/stock.service';
 import { FinanzasService, ResumenCajasResponse } from '../../../services/finanzas.service';
+import { fechaLocal } from '../../../services/date-utils';
 
 type Periodo = 'HOY' | 'SEMANA' | 'MES';
 
@@ -173,7 +174,7 @@ export class DashboardHomeComponent implements OnInit {
 
     // 1. Pedido vencido
     const vencidos = activos.concat(listos)
-      .filter(p => new Date(p.fechaEntrega) < hoy)
+      .filter(p => fechaLocal(p.fechaEntrega) < hoy)
       .slice(0, 1);
     vencidos.forEach(p => {
       items.push({
@@ -296,7 +297,7 @@ export class DashboardHomeComponent implements OnInit {
 
   diasParaEntrega(fecha: string): { texto: string; vencido: boolean } {
     const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    const f = new Date(fecha); f.setHours(0, 0, 0, 0);
+    const f = fechaLocal(fecha); f.setHours(0, 0, 0, 0);
     const dias = Math.round((f.getTime() - hoy.getTime()) / 86_400_000);
     if (dias < 0)  return { texto: 'Vencido',          vencido: true  };
     if (dias === 0) return { texto: 'Hoy',              vencido: false };

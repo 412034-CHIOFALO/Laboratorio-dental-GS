@@ -8,6 +8,7 @@ import {
   FinanzasService, ComprobanteResponse, PagoCuentaCorrienteResponse, MedioPago
 } from '../../../services/finanzas.service';
 import { NotificationService } from '../../../services/notification.service';
+import { hoyComoLocalDate } from '../../../services/date-utils';
 
 @Component({
   selector: 'app-odontologos',
@@ -272,7 +273,7 @@ export class OdontologosComponent implements OnInit {
     return {
       monto: null as number | null,
       medio: 'TRANSFERENCIA' as MedioPago,
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: hoyComoLocalDate(),
       nota: '',
     };
   }
