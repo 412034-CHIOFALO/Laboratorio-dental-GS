@@ -231,6 +231,15 @@ export class AuthService {
     return this.getRoles().includes('ROLE_ADMIN');
   }
 
+  isAdministrativo(): boolean {
+    return this.getRoles().includes('ROLE_ADMINISTRATIVO');
+  }
+
+  /** ADMIN o ADMINISTRATIVO — los dos roles que ven información financiera. */
+  puedeVerFinanzas(): boolean {
+    return this.isAdmin() || this.isAdministrativo();
+  }
+
   logout(): void {
     localStorage.removeItem(this.TOKEN_KEY);
   }

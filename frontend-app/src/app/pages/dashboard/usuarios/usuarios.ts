@@ -45,6 +45,11 @@ export class UsuariosComponent implements OnInit {
 
   constructor(private http: HttpClient, private authService: AuthService) {}
 
+  /** Dar de alta (activar) una cuenta pendiente es exclusivo de ADMINISTRATIVO. */
+  get puedeActivar(): boolean {
+    return this.authService.isAdministrativo();
+  }
+
   ngOnInit() { this.cargarUsuarios(); }
 
   private headers(): HttpHeaders {

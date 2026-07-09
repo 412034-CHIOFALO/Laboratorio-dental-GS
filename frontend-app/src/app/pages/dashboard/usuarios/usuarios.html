@@ -73,7 +73,9 @@
               </td>
               <td class="td-acciones">
                 @if (!u.enabled) {
-                  <button class="btn-activar" (click)="activar(u.id)">Activar</button>
+                  <button class="btn-activar" (click)="activar(u.id)"
+                          [disabled]="!puedeActivar"
+                          [title]="puedeActivar ? '' : 'Dar de alta requiere rol Administrativo'">Activar</button>
                 } @else {
                   <button class="btn-desactivar" (click)="desactivar(u.id)">Desactivar</button>
                 }

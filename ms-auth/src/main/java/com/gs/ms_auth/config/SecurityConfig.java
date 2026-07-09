@@ -98,7 +98,12 @@ public class SecurityConfig {
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // H2 Console solo en desarrollo — requiere autenticación básica
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
-                .requestMatchers("/api/auth/register", "/api/auth/usuarios/**", "/api/auth/auditoria").hasRole("ADMIN")
+                // Auditoría — exclusiva de ADMIN (ADMINISTRATIVO ve todo lo demás, esto no)
+                .requestMatchers("/api/auth/auditoria").hasRole("ADMIN")
+                // Registrar y administrar usuarios — ADMIN y ADMINISTRATIVO. La asimetría
+                // "quién puede dar de alta" (ADMINISTRATIVO sí, ADMIN no) se controla
+                // dentro de AuthController.cambiarEstado, no acá.
+                .requestMatchers("/api/auth/register", "/api/auth/usuarios/**").hasAnyRole("ADMIN", "ADMINISTRATIVO")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

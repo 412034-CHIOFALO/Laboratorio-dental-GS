@@ -36,6 +36,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -200,6 +201,10 @@ public class AuthController {
             @Parameter(description = "ID numérico del usuario a aprobar", required = true, example = "5")
             @PathVariable @Positive Long id,
             @AuthenticationPrincipal Jwt jwt) {
+        if (!esAdministrativo(jwt)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Dar de alta un usuario requiere rol ADMINISTRATIVO."));
+        }
         try {
             Usuario aprobado = usuarioService.aprobar(id);
             auditoriaService.registrar(jwt.getSubject(), "EDITAR", "Activación de usuario",
@@ -238,8 +243,14 @@ public class AuthController {
         if (body == null || body.get("activo") == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "El campo 'activo' (true/false) es obligatorio."));
         }
+        boolean activo = Boolean.TRUE.equals(body.get("activo"));
+        // Dar de alta (activo=true) es exclusivo de ADMINISTRATIVO — el ADMIN que crea
+        // la cuenta no puede ser quien la activa. Desactivar sigue abierto a ambos.
+        if (activo && !esAdministrativo(jwt)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", "Dar de alta un usuario requiere rol ADMINISTRATIVO."));
+        }
         try {
-            boolean activo = Boolean.TRUE.equals(body.get("activo"));
             Usuario u = usuarioService.cambiarEstado(id, activo);
             auditoriaService.registrar(jwt.getSubject(), "EDITAR", "Cambio de estado de usuario",
                 "Usuario " + u.getUsername(), activo ? "Activado" : "Desactivado");
@@ -354,6 +365,13 @@ public class AuthController {
         auditoriaService.registrar(jwt.getSubject(), "EDITAR", "Aceptación de términos y condiciones",
             "Usuario " + u.getUsername(), "Términos y condiciones aceptados");
         return ResponseEntity.ok(UsuarioResponse.from(u));
+    }
+
+    /** ¿El JWT del que llama tiene ROLE_ADMINISTRATIVO? */
+    private boolean esAdministrativo(Jwt jwt) {
+        String roles = jwt.getClaimAsString("roles");
+        if (roles == null) return false;
+        return Arrays.asList(roles.split(",")).contains("ROLE_ADMINISTRATIVO");
     }
 
     public record LoginRequest(

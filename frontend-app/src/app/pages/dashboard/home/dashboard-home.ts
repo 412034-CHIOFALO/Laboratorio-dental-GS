@@ -69,11 +69,11 @@ export class DashboardHomeComponent implements OnInit {
 
   private cargar(): void {
     this.loading = true;
-    // El resumen de cajas es solo-ADMIN en el backend (403 para el resto de roles).
-    // Si no es admin ni pedimos el endpoint: un 403 acá tira abajo TODO el forkJoin
+    // El resumen de cajas es ADMIN/ADMINISTRATIVO en el backend (403 para el resto).
+    // Si el rol no lo ve ni pedimos el endpoint: un 403 acá tira abajo TODO el forkJoin
     // y el interceptor global redirige a /sin-permisos, bloqueando el dashboard entero
-    // (técnicos, administrativos, etc. quedaban sin poder ni entrar al sistema).
-    const cajas$ = this.auth.isAdmin()
+    // (técnicos, etc. quedaban sin poder ni entrar al sistema).
+    const cajas$ = this.auth.puedeVerFinanzas()
       ? this.finanzasService.obtenerResumen().pipe(catchError(() => of(null)))
       : of(null);
     forkJoin({
@@ -132,10 +132,10 @@ export class DashboardHomeComponent implements OnInit {
         sparkColor: 'var(--color-success)',
         to: '/dashboard/entregas',
       },
-      // Plata (sueldos/deudas) es solo-ADMIN en el backend — para el resto de
-      // roles ni se pide el dato (ver `cargar()`), así que tampoco mostramos
-      // esta tarjeta: mostrar "$0" sería engañoso, no "sin deuda".
-      ...(this.auth.isAdmin() ? [{
+      // Plata (sueldos/deudas) es ADMIN/ADMINISTRATIVO en el backend — para el
+      // resto de roles ni se pide el dato (ver `cargar()`), así que tampoco
+      // mostramos esta tarjeta: mostrar "$0" sería engañoso, no "sin deuda".
+      ...(this.auth.puedeVerFinanzas() ? [{
         label: 'Saldo pendiente',
         value: this.formatMoney(saldoPendiente),
         delta: saldoPendiente > 0
