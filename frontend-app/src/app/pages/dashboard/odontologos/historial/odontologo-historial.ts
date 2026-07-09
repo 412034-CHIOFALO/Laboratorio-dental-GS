@@ -8,6 +8,7 @@ import { OdontologosService, OdontologoResponse } from '../../../../services/odo
 import { PedidosService, PedidoResponse } from '../../../../services/pedidos.service';
 import { FinanzasService } from '../../../../services/finanzas.service';
 import { NotificationService } from '../../../../services/notification.service';
+import { AuthService } from '../../../../services/auth';
 import { PagoCuentaCorrienteModalComponent } from '../pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 import { PedidoDetalleModalComponent } from '../../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
 
@@ -36,6 +37,12 @@ export class OdontologoHistorialComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private finanzasService = inject(FinanzasService);
   private notif = inject(NotificationService);
+  private auth = inject(AuthService);
+
+  /** Técnicos no ven deuda/facturación — solo ADMIN y ADMINISTRATIVO manejan plata. */
+  get puedeVerFinanzas(): boolean {
+    return this.auth.puedeVerFinanzas();
+  }
 
   loading = true;
   errorCarga = '';
@@ -53,13 +60,15 @@ export class OdontologoHistorialComponent implements OnInit {
   detalleAbiertoId: number | null = null;
 
   // ─── Tabs disponibles (los últimos 2 son placeholders por ahora) ────
-  readonly tabs: { id: Tab; label: string; count?: () => number }[] = [
-    { id: 'resumen',    label: 'Resumen' },
-    { id: 'pedidos',    label: 'Pedidos', count: () => this.pedidos.length },
-    { id: 'finanzas',   label: 'Finanzas' },
-    { id: 'escaneres',  label: 'Escáneres 3D' },
-    { id: 'documentos', label: 'Documentos' },
-  ];
+  get tabs(): { id: Tab; label: string; count?: () => number }[] {
+    return [
+      { id: 'resumen',    label: 'Resumen' },
+      { id: 'pedidos',    label: 'Pedidos', count: () => this.pedidos.length },
+      ...(this.puedeVerFinanzas ? [{ id: 'finanzas' as Tab, label: 'Finanzas' }] : []),
+      { id: 'escaneres',  label: 'Escáneres 3D' },
+      { id: 'documentos', label: 'Documentos' },
+    ];
+  }
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -83,9 +92,9 @@ export class OdontologoHistorialComponent implements OnInit {
       pedidos: this.pedidosService.listarTodos().pipe(
         catchError(() => of([] as PedidoResponse[]))
       ),
-      saldo: this.finanzasService.saldoPorOdontologo(id).pipe(
-        catchError(() => of(0))
-      ),
+      saldo: this.puedeVerFinanzas
+        ? this.finanzasService.saldoPorOdontologo(id).pipe(catchError(() => of(0)))
+        : of(0),
     }).subscribe(({ odontologo, pedidos, saldo }) => {
       this.odontologo = odontologo;
       this.pedidos = pedidos.filter(p => p.odontologoId === id)

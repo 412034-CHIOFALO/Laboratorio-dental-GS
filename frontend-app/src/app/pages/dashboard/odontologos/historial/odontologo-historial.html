@@ -31,13 +31,15 @@
           @if (odontologo.telefono)  { <span>· {{ odontologo.telefono }}</span> }
         </div>
       </div>
-      <div class="hero-saldo" [class.deuda]="saldoDeuda > 0">
-        <span class="saldo-label">Te debe</span>
-        <span class="saldo-val">{{ formatMoney(saldoDeuda) }}</span>
-        @if (saldoDeuda > 0) {
-          <button class="btn-registrar-pago" (click)="abrirModalPago()">Registrar pago</button>
-        }
-      </div>
+      @if (puedeVerFinanzas) {
+        <div class="hero-saldo" [class.deuda]="saldoDeuda > 0">
+          <span class="saldo-label">Te debe</span>
+          <span class="saldo-val">{{ formatMoney(saldoDeuda) }}</span>
+          @if (saldoDeuda > 0) {
+            <button class="btn-registrar-pago" (click)="abrirModalPago()">Registrar pago</button>
+          }
+        </div>
+      }
     </header>
 
     <!-- ── KPIs ── -->
@@ -54,10 +56,12 @@
         <span class="kpi-label">Entregados</span>
         <strong data-color="green">{{ pedidosEntregados.length }}</strong>
       </div>
-      <div class="kpi">
-        <span class="kpi-label">Facturado total</span>
-        <strong>{{ formatMoney(totalFacturado) }}</strong>
-      </div>
+      @if (puedeVerFinanzas) {
+        <div class="kpi">
+          <span class="kpi-label">Facturado total</span>
+          <strong>{{ formatMoney(totalFacturado) }}</strong>
+        </div>
+      }
       <div class="kpi">
         <span class="kpi-label">Último pedido</span>
         <strong>{{ formatFecha(fechaUltimoPedido) }}</strong>
@@ -147,7 +151,7 @@
         }
       }
 
-      @if (tabActiva === 'finanzas') {
+      @if (tabActiva === 'finanzas' && puedeVerFinanzas) {
         <div class="finanzas-resumen">
           <div class="big-stat" [class.deuda]="saldoDeuda > 0">
             <span class="big-label">Saldo pendiente</span>

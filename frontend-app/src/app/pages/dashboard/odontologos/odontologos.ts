@@ -9,6 +9,7 @@ import {
 } from '../../../services/finanzas.service';
 import { NotificationService } from '../../../services/notification.service';
 import { PagoCuentaCorrienteModalComponent } from './pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
+import { AuthService } from '../../../services/auth';
 
 @Component({
   selector: 'app-odontologos',
@@ -55,6 +56,12 @@ export class OdontologosComponent implements OnInit {
 
   private notif = inject(NotificationService);
   private finanzas = inject(FinanzasService);
+  private auth = inject(AuthService);
+
+  /** Técnicos no ven deuda/cuenta corriente — solo ADMIN y ADMINISTRATIVO manejan plata. */
+  get puedeVerFinanzas(): boolean {
+    return this.auth.puedeVerFinanzas();
+  }
 
   constructor(private service: OdontologosService) {}
 
@@ -239,7 +246,7 @@ export class OdontologosComponent implements OnInit {
 
   abrirDetalle(o: OdontologoResponse): void {
     this.detalleAbierto = o;
-    this.cargarCuentaCorriente(o.id);
+    if (this.puedeVerFinanzas) this.cargarCuentaCorriente(o.id);
   }
 
   cerrarDetalle(): void {
