@@ -133,8 +133,8 @@ public class AuthController {
     @Operation(
         summary = "Registrar nuevo usuario (requiere ADMIN)",
         description = "Crea un nuevo usuario en estado pendiente de aprobación. " +
-                      "El usuario queda deshabilitado hasta que un administrador lo apruebe con PUT /usuarios/{id}/aprobar. " +
-                      "Requiere rol ADMIN (Bearer JWT)."
+                      "El usuario queda deshabilitado hasta que un ADMINISTRATIVO lo active con PUT /usuarios/{id}/aprobar " +
+                      "(a propósito no puede ser el mismo ADMIN que lo creó). Requiere rol ADMIN (Bearer JWT)."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Solicitud de registro creada correctamente",

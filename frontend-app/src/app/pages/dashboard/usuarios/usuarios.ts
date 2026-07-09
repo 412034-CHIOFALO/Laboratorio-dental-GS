@@ -3,6 +3,7 @@ import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../../../services/auth';
+import { NotificationService } from '../../../services/notification.service';
 import { environment } from '../../../../environments/environment';
 import { MOCK_USUARIOS, MockUsuario, clonar } from '../../../services/mock-data';
 
@@ -43,9 +44,19 @@ export class UsuariosComponent implements OnInit {
   private mockStore: MockUsuario[] = clonar(MOCK_USUARIOS);
   private nextMockId = 100;
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService,
+    private notif: NotificationService,
+  ) {}
 
-  /** Dar de alta (activar) una cuenta pendiente es exclusivo de ADMINISTRATIVO. */
+  /** Crear un usuario nuevo es exclusivo de ADMIN. */
+  get puedeCrear(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  /** Dar de alta (activar) una cuenta pendiente es exclusivo de ADMINISTRATIVO — a
+   * propósito no puede ser el mismo ADMIN que la creó (separación de poderes). */
   get puedeActivar(): boolean {
     return this.authService.isAdministrativo();
   }
@@ -75,6 +86,10 @@ export class UsuariosComponent implements OnInit {
   // ── Crear ────────────────────────────────────────────────────
 
   abrirModal() {
+    if (!this.puedeCrear) {
+      this.notif.alerta('Crear usuarios es exclusivo de un Administrador.', 'Sin permisos');
+      return;
+    }
     this.form = { nombre: '', apellido: '', username: '', password: '', rol: '' };
     this.saveError = ''; this.saveSuccess = '';
     this.showModal = true;
@@ -115,6 +130,10 @@ export class UsuariosComponent implements OnInit {
   // ── Activar / Desactivar ─────────────────────────────────────
 
   activar(id: number) {
+    if (!this.puedeActivar) {
+      this.notif.alerta('Dar de alta un usuario requiere rol Administrativo — no puede ser el mismo Admin que lo creó.', 'Sin permisos');
+      return;
+    }
     this.cambiarEstado(id, true);
   }
 
