@@ -21,6 +21,7 @@ export class MiPerfilComponent implements OnInit {
   guardando = signal(false);
 
   pass = { actual: '', nueva: '', repetir: '' };
+  mostrarPass = { actual: false, nueva: false, repetir: false };
   cambiandoPass = signal(false);
 
   ngOnInit(): void {

@@ -54,7 +54,7 @@ export class LoginComponent {
       },
       error: (err: HttpErrorResponse) => {
         this.loginLoading = false;
-        const msg = err.error?.error ?? err.error?.mensaje ?? 'Usuario o contraseña incorrectos';
+        const msg = this.mensajeError(err, 'Usuario o contraseña incorrectos');
         this.errorMessage = msg; // mantener la versión inline para accesibilidad
         // status 0 = sin conexión al back. Mensaje específico, no genérico.
         if (err.status === 0) {
@@ -68,5 +68,19 @@ export class LoginComponent {
         }
       }
     });
+  }
+
+  /**
+   * Extrae el mejor mensaje de un error HTTP del backend para mostrarlo inline.
+   * Prioriza el detalle de validación por campo, luego el mensaje de negocio.
+   * El campo 'error' del ErrorResponse es solo la frase HTTP genérica (ej:
+   * "Bad Request") — nunca hay que mostrarlo como si fuera el mensaje real.
+   */
+  private mensajeError(err: any, fallback: string): string {
+    const body = err?.error ?? {};
+    if (Array.isArray(body.campos) && body.campos.length > 0) {
+      return body.campos.map((c: any) => c.mensaje).join(' · ');
+    }
+    return body.mensaje ?? fallback;
   }
 }

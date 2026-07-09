@@ -1,8 +1,17 @@
 <div class="perfil-page">
-  <header class="perfil-header">
-    <h1>Mi perfil</h1>
-    <p>Gestioná tus datos y tu contraseña.</p>
-  </header>
+  <div class="page-header">
+    <div class="header-left">
+      <div class="page-icon green">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Mi perfil</h1>
+        <p class="subtitle">Gestioná tus datos y tu contraseña</p>
+      </div>
+    </div>
+  </div>
 
   @if (cargando()) {
     <div class="perfil-loading">Cargando tu perfil…</div>
@@ -56,16 +65,46 @@
       <div class="perfil-grid">
         <div class="form-row full">
           <label>Contraseña actual *</label>
-          <input type="password" class="form-input" [(ngModel)]="pass.actual" autocomplete="current-password"/>
+          <div class="pass-wrap">
+            <input [type]="mostrarPass.actual ? 'text' : 'password'" class="form-input" [(ngModel)]="pass.actual" autocomplete="current-password"/>
+            <button type="button" class="toggle-pass" (click)="mostrarPass.actual = !mostrarPass.actual"
+                    [attr.aria-label]="mostrarPass.actual ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+              @if (mostrarPass.actual) {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              } @else {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
+            </button>
+          </div>
         </div>
         <div class="form-row">
           <label>Nueva contraseña *</label>
-          <input type="password" class="form-input" [(ngModel)]="pass.nueva" autocomplete="new-password"/>
+          <div class="pass-wrap">
+            <input [type]="mostrarPass.nueva ? 'text' : 'password'" class="form-input" [(ngModel)]="pass.nueva" autocomplete="new-password"/>
+            <button type="button" class="toggle-pass" (click)="mostrarPass.nueva = !mostrarPass.nueva"
+                    [attr.aria-label]="mostrarPass.nueva ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+              @if (mostrarPass.nueva) {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              } @else {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
+            </button>
+          </div>
           <small class="form-hint">Mínimo 6 caracteres.</small>
         </div>
         <div class="form-row">
           <label>Repetir nueva *</label>
-          <input type="password" class="form-input" [(ngModel)]="pass.repetir" autocomplete="new-password"/>
+          <div class="pass-wrap">
+            <input [type]="mostrarPass.repetir ? 'text' : 'password'" class="form-input" [(ngModel)]="pass.repetir" autocomplete="new-password"/>
+            <button type="button" class="toggle-pass" (click)="mostrarPass.repetir = !mostrarPass.repetir"
+                    [attr.aria-label]="mostrarPass.repetir ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+              @if (mostrarPass.repetir) {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              } @else {
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
+            </button>
+          </div>
           @if (pass.repetir && pass.nueva !== pass.repetir) {
             <small class="form-hint err">No coinciden.</small>
           }

@@ -53,7 +53,7 @@ export class AuthService {
       if (username && password) {
         return of({ access_token: FAKE_JWT, terminosAceptados: true }).pipe(delay(400));
       }
-      return throwError(() => ({ status: 401, error: { error: 'Credenciales incorrectas' } }));
+      return throwError(() => ({ status: 401, error: { mensaje: 'Credenciales incorrectas' } }));
     }
 
     // El endpoint de login viene de environment.loginUrl: en dev va por el
