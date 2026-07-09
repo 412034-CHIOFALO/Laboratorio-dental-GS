@@ -63,23 +63,30 @@ const geminiModel = genAI.getGenerativeModel({ model: GEMINI_MODEL });
  */
 async function extraerDatosConGemini(cuerpoEmail, remitenteNombre, fechaHoy) {
   const prompt =
-    'Sos un asistente de un laboratorio dental argentino. ' +
-    'Analizá el siguiente email de un odontólogo que solicita un trabajo y extraé los datos del pedido.\n\n' +
+    'Sos un asistente de un laboratorio dental argentino que filtra la casilla de ' +
+    'entrada: la mayoría de los emails NO son pedidos (son respuestas automáticas, ' +
+    'confirmaciones, spam, publicidad, notificaciones u otro tipo de correspondencia). ' +
+    'Analizá el siguiente email y decidí primero si es una solicitud real de trabajo ' +
+    'dental de un odontólogo.\n\n' +
     `Fecha de hoy: ${fechaHoy}\n` +
-    `Remitente (odontólogo): ${remitenteNombre}\n\n` +
+    `Remitente: ${remitenteNombre}\n\n` +
     'Email:\n' +
     cuerpoEmail + '\n\n' +
     'Devolvé SOLO un JSON válido sin markdown ni texto extra, con esta estructura exacta:\n' +
     '{\n' +
+    '  "esSolicitudTrabajo": <true SOLO si es un pedido real de un trabajo dental concreto, false para cualquier otra cosa>,\n' +
     '  "paciente": "<nombre del paciente, o null>",\n' +
-    '  "trabajo": "<tipo de trabajo dental, ej: Corona zirconio, Prótesis superior — obligatorio>",\n' +
+    '  "trabajo": "<tipo de trabajo dental, ej: Corona zirconio, Prótesis superior. null si esSolicitudTrabajo es false>",\n' +
     '  "fechaEntrega": "<YYYY-MM-DD. Si dicen el viernes, calculá desde la fecha de hoy. null si no hay>",\n' +
     '  "prioridad": "<URGENTE | ALTA | NORMAL según el tono del pedido>",\n' +
     '  "precioAcordado": <número sin símbolo si se menciona, si no null>,\n' +
     '  "observaciones": "<instrucciones especiales de material, color, forma, etc. null si no hay>"\n' +
     '}\n\n' +
     'Reglas:\n' +
-    '- "trabajo" es obligatorio — inferilo aunque sea parcialmente del contexto.\n' +
+    '- Si "esSolicitudTrabajo" es false, TODOS los demás campos van en null — nunca ' +
+    'expliques el motivo del rechazo dentro de "trabajo" ni de ningún otro campo.\n' +
+    '- "trabajo" nunca es una explicación ni una frase — es solo el nombre corto del ' +
+    'procedimiento (ej: "Corona zirconio"), o null.\n' +
     '- Fechas relativas ("el viernes", "la semana que viene") → calculá la fecha absoluta desde hoy.\n' +
     '- Si algo no figura, poné null. No inventes datos.';
 
@@ -187,8 +194,11 @@ async function procesarEmail(uid, envelope, source) {
     return true;  // problema de contenido: ya respondimos, no reintentar
   }
 
-  if (!datos.trabajo) {
-    console.log('[MailScraper]    ⚠ Sin trabajo identificado — email descartado');
+  if (!datos.esSolicitudTrabajo || !datos.trabajo) {
+    console.log('[MailScraper]    ⚠ No es una solicitud de trabajo — email descartado (sin crear pedido)');
+    // Solo respondemos si de verdad parece dirigido al laboratorio (tiene remitente
+    // legible); evita contestar spam/notificaciones automáticas sin sentido.
+    if (datos.esSolicitudTrabajo === false) return true;
     await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
       'no se pudo determinar el tipo de trabajo. Por favor reenvíe con más detalles');
     return true;  // problema de contenido: ya respondimos, no reintentar

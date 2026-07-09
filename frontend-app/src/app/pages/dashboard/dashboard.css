@@ -680,6 +680,9 @@
 
   .sidebar.mobile-open { transform: translateX(0); }
   .mobile-overlay { display: block; }
+  /* Con el sidebar mobile abierto, el contenido de atrás (que tiene su propio
+     scroll interno, no la página) no debe seguir scrolleando debajo del overlay. */
+  .app-shell.mobile-menu-open .main-content { overflow: hidden; }
   .close-mobile-btn { display: flex; }
   .collapse-btn { display: none; }
   .mobile-topbar { display: flex; }

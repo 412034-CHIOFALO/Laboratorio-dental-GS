@@ -1,4 +1,4 @@
-<div class="app-shell" [class.sidebar-collapsed]="!sidebarOpen && !isMobile()">
+<div class="app-shell" [class.sidebar-collapsed]="!sidebarOpen && !isMobile()" [class.mobile-menu-open]="mobileMenuOpen">
 
   <!-- ── OVERLAY MÓVIL ── -->
   <div class="mobile-overlay" [class.visible]="mobileMenuOpen" (click)="closeMobileMenu()"></div>
