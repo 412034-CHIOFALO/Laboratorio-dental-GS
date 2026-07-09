@@ -9,9 +9,10 @@ import {
 } from '../../../services/finanzas.service';
 import {
   SueldosService, EmpleadoSueldo, FrecuenciaPago, ConfigSueldoRequest, PagoSueldoRequest,
-  PagoSueldoResponse, RegistroBot, DistribucionCascada
+  PagoSueldoResponse, RegistroBot, DistribucionCascada, CrearEmpleadoRequest
 } from '../../../services/sueldos.service';
 import { NotificationService } from '../../../services/notification.service';
+import { AuthService, UsuarioListado } from '../../../services/auth';
 import { PagoCuentaCorrienteModalComponent } from '../odontologos/pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 
 export type FiltroMorosos = 'TODOS' | 'MOROSOS' | 'MAS_30' | 'MAS_60';
@@ -161,6 +162,13 @@ export class FinanzasComponent implements OnInit {
   configForm: ConfigSueldoRequest = { frecuencia: 'MENSUAL', montoBase: 0 };
   savingConfig = false;
 
+  // Modal alta de empleado nuevo (usuarios de ms-auth sin dar de alta en sueldos)
+  showNuevoEmpleadoModal = false;
+  usuariosSinAlta: UsuarioListado[] = [];
+  loadingUsuariosSinAlta = false;
+  nuevoEmpleadoForm: CrearEmpleadoRequest = this.nuevoEmpleadoFormVacio();
+  savingNuevoEmpleado = false;
+
   // Modal registrar pago
   showPagoModal = false;
   empleadoPagando: EmpleadoSueldo | null = null;
@@ -205,6 +213,7 @@ export class FinanzasComponent implements OnInit {
   constructor(
     private finanzasService: FinanzasService,
     private sueldosService: SueldosService,
+    private authService: AuthService,
   ) {}
 
   private movFormVacio(): CajaMovimientoRequest {
@@ -435,6 +444,65 @@ export class FinanzasComponent implements OnInit {
     this.showConfigModal = true;
   }
   cerrarConfigModal(): void { this.showConfigModal = false; this.empleadoEditando = null; }
+
+  // ── Modal alta de empleado nuevo ──
+  private nuevoEmpleadoFormVacio(): CrearEmpleadoRequest {
+    return { usuarioId: 0, nombre: '', rol: '', telefono: '', frecuencia: 'MENSUAL', montoBase: 0 };
+  }
+
+  /** Abre el modal y trae los usuarios de ms-auth que todavía no están dados de alta en sueldos. */
+  abrirNuevoEmpleado(): void {
+    this.nuevoEmpleadoForm = this.nuevoEmpleadoFormVacio();
+    this.showNuevoEmpleadoModal = true;
+    this.loadingUsuariosSinAlta = true;
+    this.authService.listarUsuarios().subscribe({
+      next: usuarios => {
+        const yaDadosDeAlta = new Set(this.empleados.map(e => e.usuarioId));
+        this.usuariosSinAlta = usuarios.filter(u => !yaDadosDeAlta.has(u.id));
+        this.loadingUsuariosSinAlta = false;
+      },
+      error: err => {
+        this.loadingUsuariosSinAlta = false;
+        this.notif.errorHttp(err, 'No se pudo cargar la lista de usuarios');
+      },
+    });
+  }
+
+  cerrarNuevoEmpleadoModal(): void { this.showNuevoEmpleadoModal = false; }
+
+  /** Al elegir un usuario del combo, precarga nombre/rol/teléfono en el form. */
+  onSeleccionarUsuarioNuevo(): void {
+    const u = this.usuariosSinAlta.find(x => x.id === this.nuevoEmpleadoForm.usuarioId);
+    if (!u) return;
+    this.nuevoEmpleadoForm.nombre = `${u.nombre} ${u.apellido}`.trim();
+    this.nuevoEmpleadoForm.rol = u.rol.replace('ROLE_', '');
+  }
+
+  get nuevoEmpleadoValido(): boolean {
+    return this.nuevoEmpleadoForm.usuarioId > 0
+        && !!this.nuevoEmpleadoForm.nombre?.trim()
+        && this.nuevoEmpleadoForm.montoBase >= 0;
+  }
+
+  crearEmpleado(): void {
+    if (!this.nuevoEmpleadoValido) {
+      this.notif.alerta('Elegí un usuario y completá el nombre');
+      return;
+    }
+    this.savingNuevoEmpleado = true;
+    this.sueldosService.crearEmpleado(this.nuevoEmpleadoForm).subscribe({
+      next: creado => {
+        this.empleados = [...this.empleados, creado].sort((a, b) => a.nombre.localeCompare(b.nombre));
+        this.savingNuevoEmpleado = false;
+        this.showNuevoEmpleadoModal = false;
+        this.notif.exito(`${creado.nombre} dado de alta en sueldos`);
+      },
+      error: err => {
+        this.savingNuevoEmpleado = false;
+        this.notif.errorHttp(err, 'No se pudo dar de alta al empleado');
+      },
+    });
+  }
 
   guardarConfig(): void {
     if (!this.empleadoEditando) return;

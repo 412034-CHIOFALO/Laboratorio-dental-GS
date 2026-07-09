@@ -46,12 +46,12 @@ public class SecurityConfig {
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // Endpoint del bot: lo autentica el BotApiKeyFilter (API key), no JWT
                 .requestMatchers(HttpMethod.POST, "/api/finanzas/sueldos/pago-automatico").hasRole("ADMIN")
-                // Cajas — solo ADMIN
-                .requestMatchers("/api/finanzas/cajas/**").hasRole("ADMIN")
-                // Reportes financieros mensuales — solo ADMIN
-                .requestMatchers("/api/finanzas/reportes/**").hasRole("ADMIN")
-                // Sueldos — solo ADMIN
-                .requestMatchers("/api/finanzas/sueldos/**").hasRole("ADMIN")
+                // Cajas — ADMIN y ADMINISTRATIVO
+                .requestMatchers("/api/finanzas/cajas/**").hasAnyRole("ADMIN", "ADMINISTRATIVO")
+                // Reportes financieros mensuales — ADMIN y ADMINISTRATIVO
+                .requestMatchers("/api/finanzas/reportes/**").hasAnyRole("ADMIN", "ADMINISTRATIVO")
+                // Sueldos — ADMIN y ADMINISTRATIVO
+                .requestMatchers("/api/finanzas/sueldos/**").hasAnyRole("ADMIN", "ADMINISTRATIVO")
                 // Proveedores — ADMIN y ADMINISTRATIVO
                 .requestMatchers("/api/finanzas/proveedores/**").hasAnyRole("ADMIN", "ADMINISTRATIVO")
                 // Consulta de comprobantes y saldos — ADMIN y ADMINISTRATIVO

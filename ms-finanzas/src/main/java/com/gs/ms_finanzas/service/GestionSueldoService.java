@@ -64,6 +64,24 @@ public class GestionSueldoService implements IGestionSueldoService {
 
     @Override
     @Transactional
+    public EmpleadoSueldoResponse crearEmpleado(CrearEmpleadoRequest req) {
+        if (configRepo.findByEmpleadoId(req.getUsuarioId()).isPresent()) {
+            throw new com.gs.ms_finanzas.exception.ConflictException("Ese empleado ya está dado de alta en sueldos.");
+        }
+        ConfiguracionSueldo c = ConfiguracionSueldo.builder()
+                .empleadoId(req.getUsuarioId())
+                .empleadoNombre(req.getNombre())
+                .rol(req.getRol())
+                .telefono(req.getTelefono())
+                .activo(true)
+                .frecuencia(req.getFrecuencia())
+                .montoBase(req.getMontoBase())
+                .build();
+        return EmpleadoSueldoResponse.from(configRepo.save(c));
+    }
+
+    @Override
+    @Transactional
     public PagoSueldoResponse registrarPago(PagoSueldoRequest req) {
         ConfiguracionSueldo c = getConfig(req.getUsuarioId());
 
@@ -287,22 +305,45 @@ public class GestionSueldoService implements IGestionSueldoService {
                     .findFirst();
         }
         if (req.getReceptorNombre() != null && !req.getReceptorNombre().isBlank()) {
-            String q = req.getReceptorNombre().trim().toLowerCase();
             List<ConfiguracionSueldo> matches = configRepo.findAllByOrderByEmpleadoNombreAsc().stream()
-                    .filter(x -> x.getEmpleadoNombre() != null && x.getEmpleadoNombre().toLowerCase().contains(q))
+                    .filter(x -> coincideNombre(x.getEmpleadoNombre(), req.getReceptorNombre()))
                     .toList();
             if (matches.size() == 1) return Optional.of(matches.get(0));
         }
         return Optional.empty();
     }
 
-    /** Resuelve al proveedor por nombre (match parcial, case-insensitive). */
+    /** Resuelve al proveedor por nombre (match parcial, case-insensitive, sin acentos). */
     private Optional<Proveedor> resolverProveedorOpt(String nombre) {
         if (nombre == null || nombre.isBlank()) return Optional.empty();
-        String q = nombre.trim().toLowerCase();
         return proveedorRepo.findByActivoTrue().stream()
-                .filter(p -> p.getNombre() != null && p.getNombre().toLowerCase().contains(q))
+                .filter(p -> coincideNombre(p.getNombre(), nombre))
                 .findFirst();
+    }
+
+    /**
+     * Normaliza un nombre para comparar: sin acentos, minúsculas, espacios colapsados.
+     */
+    private static String normalizarNombre(String s) {
+        if (s == null) return "";
+        String sinAcentos = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return sinAcentos.toLowerCase().trim().replaceAll("\\s+", " ");
+    }
+
+    /**
+     * ¿Todas las palabras de la query aparecen en el nombre guardado? Compara
+     * normalizado (sin acentos, case-insensitive) y no depende del orden ni de
+     * que las palabras estén pegadas — así "pablo gabrenas" matchea contra
+     * "Pablo Martín Gabrenas".
+     */
+    private static boolean coincideNombre(String nombreGuardado, String query) {
+        String nombreNorm = normalizarNombre(nombreGuardado);
+        if (nombreNorm.isEmpty()) return false;
+        for (String palabra : normalizarNombre(query).split(" ")) {
+            if (!palabra.isBlank() && !nombreNorm.contains(palabra)) return false;
+        }
+        return true;
     }
 
     /**
@@ -541,9 +582,8 @@ public class GestionSueldoService implements IGestionSueldoService {
     /** Match por nombre para la confirmación de efectivo (igual que el rama-nombre de resolverEmpleadoOpt). */
     private Optional<ConfiguracionSueldo> resolverEmpleadoPorNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) return Optional.empty();
-        String q = nombre.trim().toLowerCase();
         List<ConfiguracionSueldo> matches = configRepo.findAllByOrderByEmpleadoNombreAsc().stream()
-                .filter(x -> x.getEmpleadoNombre() != null && x.getEmpleadoNombre().toLowerCase().contains(q))
+                .filter(x -> coincideNombre(x.getEmpleadoNombre(), nombre))
                 .toList();
         return matches.size() == 1 ? Optional.of(matches.get(0)) : Optional.empty();
     }

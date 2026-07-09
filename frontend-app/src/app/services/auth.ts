@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { FAKE_JWT } from './mock-data';
+import { FAKE_JWT, MOCK_USUARIOS, clonar } from './mock-data';
 
 export interface RegisterPayload {
   nombre: string;
@@ -29,6 +29,15 @@ export interface PerfilUpdate {
   nombre?: string;
   apellido?: string;
   telefono?: string | null;
+}
+
+export interface UsuarioListado {
+  id: number;
+  username: string;
+  nombre: string;
+  apellido: string;
+  rol: string;
+  enabled: boolean;
 }
 
 interface JwtPayload {
@@ -80,6 +89,13 @@ export class AuthService {
 
   terminosAceptados(): boolean {
     return localStorage.getItem(this.TERMINOS_KEY) === '1';
+  }
+
+  listarUsuarios(): Observable<UsuarioListado[]> {
+    if (environment.useMocks) {
+      return of(clonar(MOCK_USUARIOS) as unknown as UsuarioListado[]).pipe(delay(200));
+    }
+    return this.http.get<UsuarioListado[]>(`${this.gatewayUrl}/api/auth/usuarios`, { headers: this.authHeaders() });
   }
 
   register(payload: RegisterPayload): Observable<{ mensaje: string; username: string }> {

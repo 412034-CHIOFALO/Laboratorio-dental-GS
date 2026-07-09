@@ -41,16 +41,27 @@ public interface IGestionSueldoService {
     EmpleadoSueldoResponse buscarEmpleado(Long usuarioId);
 
     /**
-     * Crea o actualiza la configuración de sueldo de un empleado.
-     *
-     * <p>Si ya existe una configuración para el {@code usuarioId}, la actualiza.
-     * Si no existe, la crea con saldo devengado y sobrante en cero.</p>
+     * Actualiza la configuración de sueldo de un empleado ya dado de alta.
      *
      * @param usuarioId ID del usuario en ms-auth.
      * @param req       configuración a aplicar (frecuencia de pago y monto base).
      * @return la configuración actualizada.
+     * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si el empleado no fue dado de alta con {@link #crearEmpleado}.
      */
     EmpleadoSueldoResponse guardarConfig(Long usuarioId, ConfigSueldoRequest req);
+
+    /**
+     * Da de alta a un integrante del laboratorio en el módulo de sueldos.
+     *
+     * <p>ms-finanzas mantiene su propia tabla de empleados, denormalizada de
+     * ms-auth: un usuario nuevo (creado en Usuarios) no es reconocido acá ni
+     * por el bot de WhatsApp hasta que se lo da de alta con este método.</p>
+     *
+     * @param req datos del empleado (usuarioId, nombre, rol, teléfono y configuración inicial).
+     * @return la configuración recién creada, con saldo devengado y sobrante en cero.
+     * @throws com.gs.ms_finanzas.exception.ConflictException si ya existe una configuración para ese usuarioId.
+     */
+    EmpleadoSueldoResponse crearEmpleado(CrearEmpleadoRequest req);
 
     /**
      * Registra un pago de sueldo desde la aplicación web (pago manual).
