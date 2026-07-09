@@ -1,13 +1,21 @@
 package com.gs.ms_auth.service;
 
+import com.gs.ms_auth.client.FinanzasClient;
+import com.gs.ms_auth.client.dto.CrearEmpleadoRequest;
 import com.gs.ms_auth.dto.RegisterRequest;
+import com.gs.ms_auth.model.Rol;
 import com.gs.ms_auth.model.Usuario;
 import com.gs.ms_auth.repository.UsuarioRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Servicio de gestión del ciclo de vida de usuarios del Laboratorio G&amp;S.
@@ -20,12 +28,20 @@ import java.util.List;
 @Service
 public class UsuarioService {
 
+    private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
+
+    /** Roles del laboratorio que cobran sueldo. ODONTOLOGO es cliente, no empleado. */
+    private static final Set<Rol> ROLES_EMPLEADO = EnumSet.of(Rol.TECNICO, Rol.ADMINISTRATIVO, Rol.ADMIN);
+
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FinanzasClient finanzasClient;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
+                           FinanzasClient finanzasClient) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.finanzasClient = finanzasClient;
     }
 
     /**
@@ -82,7 +98,9 @@ public class UsuarioService {
             .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
         usuario.setEnabled(true);
         usuario.setPendienteAprobacion(false);
-        return usuarioRepository.save(usuario);
+        Usuario guardado = usuarioRepository.save(usuario);
+        provisionarSueldoSiCorresponde(guardado);
+        return guardado;
     }
 
     /**
@@ -103,7 +121,30 @@ public class UsuarioService {
             .orElseThrow(() -> new RuntimeException("Usuario no encontrado."));
         usuario.setEnabled(activo);
         usuario.setPendienteAprobacion(false);
-        return usuarioRepository.save(usuario);
+        Usuario guardado = usuarioRepository.save(usuario);
+        if (activo) provisionarSueldoSiCorresponde(guardado);
+        return guardado;
+    }
+
+    /**
+     * Da de alta automáticamente al empleado en ms-finanzas apenas se activa su
+     * cuenta (ms-finanzas mantiene su propia tabla, separada de esta). Best-effort:
+     * nunca hace fallar la activación — ver {@link FinanzasClient}.
+     */
+    private void provisionarSueldoSiCorresponde(Usuario u) {
+        if (!ROLES_EMPLEADO.contains(u.getRol())) return;
+        try {
+            finanzasClient.crearEmpleado(new CrearEmpleadoRequest(
+                u.getId(),
+                (u.getNombre() + " " + u.getApellido()).trim(),
+                u.getRol().name(),
+                u.getTelefono(),
+                "MENSUAL",
+                BigDecimal.ZERO
+            ));
+        } catch (Exception e) {
+            log.warn("[GS-AUTH] No se pudo dar de alta en sueldos al usuario {}: {}", u.getId(), e.getMessage());
+        }
     }
 
     /**
