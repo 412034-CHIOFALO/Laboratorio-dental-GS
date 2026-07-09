@@ -1,0 +1,4 @@
+# Los scripts que corren dentro de containers Linux necesitan LF si o si,
+# sin importar el core.autocrlf de quien los edite en Windows.
+backup/*.sh text eol=lf
+backup/crontab text eol=lf

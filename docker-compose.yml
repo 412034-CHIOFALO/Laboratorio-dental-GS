@@ -94,6 +94,23 @@ services:
     depends_on:
       mysql: { condition: service_healthy }
 
+  # Backup diario (3 AM) de las 5 bases + archivos de MinIO a Google Drive.
+  # Ver backup/README.md para la configuracion inicial de rclone (una vez).
+  backup:
+    build: ./backup
+    container_name: gs-backup
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
+    volumes:
+      - minio_data:/minio_data:ro
+      - ./backup/rclone.conf:/root/.config/rclone/rclone.conf
+      - backup_tmp:/backups/tmp
+    depends_on:
+      mysql: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [gs-net]
+
   # ═════════════════════════ DISCOVERY ════════════════════════════════════
 
   discovery-server:
@@ -394,3 +411,5 @@ volumes:
     name: gs_wpp_auth
   ms_auth_keys:
     name: gs_auth_keys
+  backup_tmp:
+    name: gs_backup_tmp
