@@ -99,6 +99,7 @@ services:
   backup:
     build: ./backup
     container_name: gs-backup
+    init: true   # crond como PID 1 sin esto tira "setpgid: Operation not permitted"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
     volumes:
