@@ -16,11 +16,9 @@ interface ItemGaleria {
  * mismo para el detalle de nombres y formatos esperados.
  */
 const GALERIA_INSTAGRAM: ItemGaleria[] = [
-  { tipo: 'foto', archivo: 'trabajo-1.jpg', alt: 'Técnico dental en el laboratorio', caption: 'Precisión en cada trabajo', layout: 'tall' },
-  { tipo: 'foto', archivo: 'trabajo-2.jpg', alt: 'Aparato ortodóncico', caption: 'Ortodoncia removible' },
-  { tipo: 'video', archivo: 'proceso-armado.mp4', alt: 'Proceso de armado de un aparato', caption: 'Así armamos cada aparato' },
-  { tipo: 'foto', archivo: 'trabajo-3.jpg', alt: 'Modelos dentales de yeso en el banco de trabajo', caption: 'El pedido por el que esperan los odontólogos', layout: 'wide' },
-  { tipo: 'video', archivo: 'empaquetado.mp4', alt: 'Empaquetado del trabajo terminado', caption: 'Empaquetado y control final' },
+  { tipo: 'video', archivo: 'reel-1.mp4', alt: 'Trabajo del laboratorio GS Ortodoncia', caption: 'Así trabajamos en el laboratorio', layout: 'tall' },
+  { tipo: 'video', archivo: 'reel-2.mp4', alt: 'Trabajo del laboratorio GS Ortodoncia', caption: 'Precisión en cada detalle', layout: 'tall' },
+  { tipo: 'video', archivo: 'reel-3.mp4', alt: 'Trabajo del laboratorio GS Ortodoncia', caption: 'Un vistazo a nuestro día a día', layout: 'tall' },
 ];
 
 @Component({

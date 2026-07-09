@@ -3,15 +3,19 @@
 Esta carpeta se sirve tal cual en `/instagram/...` — lo que pongas acá con
 estos nombres exactos aparece automáticamente en la landing, sin tocar código.
 
-## Archivos esperados
+## Archivos actuales
 
-| Archivo               | Tipo  | Dónde aparece en la grilla   |
-|------------------------|-------|-------------------------------|
-| `trabajo-1.jpg`        | foto  | columna izquierda, alta       |
-| `trabajo-2.jpg`        | foto  | arriba centro                 |
-| `proceso-armado.mp4`   | video | arriba derecha                |
-| `trabajo-3.jpg`        | foto  | fila de abajo, ancha          |
-| `empaquetado.mp4`      | video | abajo derecha                 |
+| Archivo       | Tipo  | Layout |
+|----------------|-------|--------|
+| `reel-1.mp4`   | video | tall   |
+| `reel-2.mp4`   | video | tall   |
+| `reel-3.mp4`   | video | tall   |
+
+Son Reels bajados con `yt-dlp` (formato vertical), por eso los tres usan
+`layout: 'tall'` — así cada uno ocupa una columna completa (3 columnas ×
+2 filas) en vez de recortarse cuadrado. Podés mezclar fotos y videos
+libremente; el `layout` (`tall`/`wide`/sin especificar) solo cambia cuánto
+espacio ocupa cada ítem en la grilla.
 
 ## Recomendaciones
 
