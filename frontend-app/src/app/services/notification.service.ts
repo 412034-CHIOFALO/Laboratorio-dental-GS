@@ -101,8 +101,20 @@ export class NotificationService {
       return;
     }
 
-    // ── Caso 3: mensaje del backend (BusinessException, ConflictException, etc.) ──
-    const msg = body.mensaje ?? body.message ?? err?.message ?? fallback;
+    // ── Caso 3: gateway o microservicio caído (502/503/504), sin body propio ──
+    if (status === 502 || status === 503 || status === 504) {
+      this.toastr.error(
+        'El servidor no está disponible en este momento. Probá de nuevo en unos segundos.',
+        'Servicio no disponible',
+        { timeOut: 6000 }
+      );
+      return;
+    }
+
+    // ── Caso 4: mensaje del backend (BusinessException, ConflictException, etc.) ──
+    // Nunca usamos err.message: es la frase técnica cruda de Angular
+    // ("Http failure response for http://...: 502 Bad Gateway"), no algo para mostrar.
+    const msg = body.mensaje ?? body.message ?? fallback;
     const titulo = body.error
       ?? this.tituloPorStatus(status)
       ?? `Error ${status}`;

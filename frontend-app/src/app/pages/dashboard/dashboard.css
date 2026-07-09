@@ -359,8 +359,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 14px;
-  height: var(--topbar-h);
+  padding: env(safe-area-inset-top) 14px 0;
+  height: calc(var(--topbar-h) + env(safe-area-inset-top));
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -689,7 +689,9 @@
 
   /* ── Sidebar mobile: tamaños más grandes para tap targets cómodos ── */
   .sidebar { width: 280px; }
-  .sidebar-header { height: 60px; padding: 0 18px; }
+  /* padding-top respeta la isla dinámica / notch: si no, "Cerrar menú" queda
+     debajo del área del status bar y no se puede tocar en iPhone. */
+  .sidebar-header { height: calc(60px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 18px 0; }
   .brand-icon { width: 32px; height: 32px; font-size: 13px; border-radius: 8px; }
   .brand-name { font-size: 15px; }
   .brand-sub  { font-size: 10.5px; }
@@ -711,7 +713,7 @@
   .user-avatar { width: 36px; height: 36px; font-size: 13px; border-radius: 8px; }
   .user-name { font-size: 14px; }
   .user-role { font-size: 11.5px; }
-  .sidebar-footer { padding: 14px 16px; }
+  .sidebar-footer { padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
   .logout-btn { padding: 9px; }
   .logout-btn svg { width: 18px; height: 18px; }
 }

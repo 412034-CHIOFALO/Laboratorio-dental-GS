@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import { FormsModule } from '@angular/forms';
@@ -13,7 +13,7 @@ import { environment } from '../../../environments/environment';
   styleUrls: ['./login.css'],
   imports: [FormsModule, RouterLink]
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   username = '';
   password = '';
   mostrarPassword = false;
@@ -26,6 +26,13 @@ export class LoginComponent {
   private notif = inject(NotificationService);
 
   constructor(private authService: AuthService, private router: Router) {}
+
+  /** El ícono de la PWA abre directo en /login — si ya hay sesión, saltamos a destino. */
+  ngOnInit(): void {
+    if (this.authService.isLoggedIn()) {
+      this.router.navigate([this.authService.terminosAceptados() ? '/dashboard' : '/terminos']);
+    }
+  }
 
   /** Botón del hint demo — autocompleta los campos */
   usarCreds(user: string, pass: string): void {
