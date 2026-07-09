@@ -555,9 +555,37 @@
                 <span class="stat-val">{{ empleadosConDeuda }}</span>
               </div>
               <button class="btn-cascada" (click)="abrirCascadaModal()">Distribuir cobro</button>
-              <button class="btn-cascada" (click)="abrirNuevoEmpleado()">+ Nuevo empleado</button>
             </div>
           </div>
+
+          @if (!loadingUsuariosSinAlta && usuariosSinAlta.length > 0) {
+            <div class="pendientes-alta">
+              <h3>Pendientes de alta en sueldos</h3>
+              <p class="sueldos-nota">
+                Se activaron en <strong>Usuarios</strong> antes de que esto quedara automático
+                (o el alta automática falló) — dales de alta acá para que cobren y el bot los reconozca.
+              </p>
+              <div class="tabla-wrap">
+                <table class="pedidos-tabla">
+                  <thead>
+                    <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    @for (u of usuariosSinAlta; track u.id) {
+                      <tr>
+                        <td>{{ u.nombre }} {{ u.apellido }}</td>
+                        <td class="muted">{{ u.username }}</td>
+                        <td><span class="mini-estado">{{ u.rol.replace('ROLE_', '') }}</span></td>
+                        <td class="num">
+                          <button class="btn-config" (click)="abrirNuevoEmpleado(u)">Dar de alta</button>
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
 
           @if (loadingEmpleados) {
             <div class="loading">Cargando personal...</div>
@@ -613,12 +641,6 @@
                 </div>
               }
             </div>
-
-            <p class="sueldos-nota">
-              Al activar un usuario nuevo en <strong>Usuarios</strong>, acá aparece solo, listo
-              para configurarle el sueldo. <strong>"+ Nuevo empleado"</strong> es para los casos
-              excepcionales donde eso no pasó (ej: se creó antes de este cambio).
-            </p>
           }
 
           <!-- ── Efectivo declarado pendiente ── -->
@@ -755,34 +777,17 @@
   </div>
 }
 
-<!-- ═══════════════════ MODAL — NUEVO EMPLEADO ═══════════════════ -->
-@if (showNuevoEmpleadoModal) {
+<!-- ═══════════════════ MODAL — DAR DE ALTA EN SUELDOS ═══════════════════ -->
+@if (showNuevoEmpleadoModal && usuarioSeleccionado) {
   <div class="mov-overlay" (click)="cerrarNuevoEmpleadoModal()">
     <div class="mov-modal" (click)="$event.stopPropagation()">
       <div class="mov-modal-head">
-        <h2>Nuevo empleado</h2>
+        <h2>Dar de alta a {{ usuarioSeleccionado.nombre }} {{ usuarioSeleccionado.apellido }}</h2>
         <button class="mov-close" (click)="cerrarNuevoEmpleadoModal()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
       <div class="mov-modal-body">
-        @if (loadingUsuariosSinAlta) {
-          <div class="loading">Buscando usuarios sin dar de alta...</div>
-        } @else if (usuariosSinAlta.length === 0) {
-          <p class="mov-field-hint">
-            No hay usuarios pendientes de dar de alta — todos los de Usuarios ya están acá,
-            o falta crear el usuario primero en <strong>Usuarios</strong>.
-          </p>
-        } @else {
-          <div class="mov-field">
-            <label>Usuario del sistema <span class="req">*</span></label>
-            <select [(ngModel)]="nuevoEmpleadoForm.usuarioId" (ngModelChange)="onSeleccionarUsuarioNuevo()">
-              <option [ngValue]="0" disabled>Elegí un usuario...</option>
-              @for (u of usuariosSinAlta; track u.id) {
-                <option [ngValue]="u.id">{{ u.nombre }} {{ u.apellido }} ({{ u.rol.replace('ROLE_', '') }})</option>
-              }
-            </select>
-          </div>
           <div class="mov-field">
             <label>Nombre para el bot <span class="req">*</span></label>
             <input type="text" [(ngModel)]="nuevoEmpleadoForm.nombre" placeholder="Nombre y apellido">
@@ -807,7 +812,6 @@
               <input type="number" [(ngModel)]="nuevoEmpleadoForm.montoBase" placeholder="0" min="0">
             </div>
           </div>
-        }
       </div>
       <div class="mov-modal-foot">
         <button class="btn-secondary" (click)="cerrarNuevoEmpleadoModal()" [disabled]="savingNuevoEmpleado">Cancelar</button>

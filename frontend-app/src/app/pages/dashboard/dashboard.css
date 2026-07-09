@@ -414,11 +414,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── CONTENIDO PRINCIPAL ── */
+/* ── CONTENIDO PRINCIPAL ──
+   height (no min-height): fija el alto al viewport para que el scroll pase
+   ACA adentro (overflow-y) y no en la página entera — así el sidebar y el
+   topbar quedan fijos y cada sección scrollea en su propio contenedor. */
 .main-content {
   background: var(--gs-bg);
   overflow-y: auto;
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   -webkit-overflow-scrolling: touch;

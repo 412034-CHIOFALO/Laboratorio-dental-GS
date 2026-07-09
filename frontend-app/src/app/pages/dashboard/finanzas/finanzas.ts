@@ -417,11 +417,31 @@ export class FinanzasComponent implements OnInit {
   cargarEmpleados(): void {
     this.loadingEmpleados = true;
     this.sueldosService.listarEmpleados().subscribe({
-      next: data => { this.empleados = data; this.loadingEmpleados = false; },
+      next: data => {
+        this.empleados = data;
+        this.loadingEmpleados = false;
+        this.cargarUsuariosSinAlta();
+      },
       error: err => {
         this.loadingEmpleados = false;
         this.notif.errorHttp(err, 'No se pudieron cargar los empleados');
       },
+    });
+  }
+
+  /** Usuarios de ms-auth que todavía no tienen sueldo configurado (caso excepcional: ver nota en el HTML). */
+  cargarUsuariosSinAlta(): void {
+    this.loadingUsuariosSinAlta = true;
+    this.authService.listarUsuarios().subscribe({
+      next: usuarios => {
+        const yaDadosDeAlta = new Set(this.empleados.map(e => e.usuarioId));
+        this.usuariosSinAlta = usuarios.filter(u =>
+          !yaDadosDeAlta.has(u.id)
+          && u.username !== 'bot-pedidos'        // cuenta de servicio del bot, no un empleado
+          && !u.rol.includes('ODONTOLOGO'));      // cliente del labo, no cobra sueldo
+        this.loadingUsuariosSinAlta = false;
+      },
+      error: () => { this.loadingUsuariosSinAlta = false; },
     });
   }
 
@@ -445,37 +465,29 @@ export class FinanzasComponent implements OnInit {
   }
   cerrarConfigModal(): void { this.showConfigModal = false; this.empleadoEditando = null; }
 
-  // ── Modal alta de empleado nuevo ──
+  // ── Modal alta de empleado nuevo (se abre desde la fila del usuario pendiente) ──
+  usuarioSeleccionado: UsuarioListado | null = null;
+
   private nuevoEmpleadoFormVacio(): CrearEmpleadoRequest {
     return { usuarioId: 0, nombre: '', rol: '', telefono: '', frecuencia: 'MENSUAL', montoBase: 0 };
   }
 
-  /** Abre el modal y trae los usuarios de ms-auth que todavía no están dados de alta en sueldos. */
-  abrirNuevoEmpleado(): void {
-    this.nuevoEmpleadoForm = this.nuevoEmpleadoFormVacio();
+  abrirNuevoEmpleado(u: UsuarioListado): void {
+    this.usuarioSeleccionado = u;
+    this.nuevoEmpleadoForm = {
+      usuarioId: u.id,
+      nombre: `${u.nombre} ${u.apellido}`.trim(),
+      rol: u.rol.replace('ROLE_', ''),
+      telefono: '',
+      frecuencia: 'MENSUAL',
+      montoBase: 0,
+    };
     this.showNuevoEmpleadoModal = true;
-    this.loadingUsuariosSinAlta = true;
-    this.authService.listarUsuarios().subscribe({
-      next: usuarios => {
-        const yaDadosDeAlta = new Set(this.empleados.map(e => e.usuarioId));
-        this.usuariosSinAlta = usuarios.filter(u => !yaDadosDeAlta.has(u.id));
-        this.loadingUsuariosSinAlta = false;
-      },
-      error: err => {
-        this.loadingUsuariosSinAlta = false;
-        this.notif.errorHttp(err, 'No se pudo cargar la lista de usuarios');
-      },
-    });
   }
 
-  cerrarNuevoEmpleadoModal(): void { this.showNuevoEmpleadoModal = false; }
-
-  /** Al elegir un usuario del combo, precarga nombre/rol/teléfono en el form. */
-  onSeleccionarUsuarioNuevo(): void {
-    const u = this.usuariosSinAlta.find(x => x.id === this.nuevoEmpleadoForm.usuarioId);
-    if (!u) return;
-    this.nuevoEmpleadoForm.nombre = `${u.nombre} ${u.apellido}`.trim();
-    this.nuevoEmpleadoForm.rol = u.rol.replace('ROLE_', '');
+  cerrarNuevoEmpleadoModal(): void {
+    this.showNuevoEmpleadoModal = false;
+    this.usuarioSeleccionado = null;
   }
 
   get nuevoEmpleadoValido(): boolean {
@@ -485,16 +497,15 @@ export class FinanzasComponent implements OnInit {
   }
 
   crearEmpleado(): void {
-    if (!this.nuevoEmpleadoValido) {
-      this.notif.alerta('Elegí un usuario y completá el nombre');
-      return;
-    }
+    if (!this.nuevoEmpleadoValido) return;
     this.savingNuevoEmpleado = true;
     this.sueldosService.crearEmpleado(this.nuevoEmpleadoForm).subscribe({
       next: creado => {
         this.empleados = [...this.empleados, creado].sort((a, b) => a.nombre.localeCompare(b.nombre));
+        this.usuariosSinAlta = this.usuariosSinAlta.filter(u => u.id !== creado.usuarioId);
         this.savingNuevoEmpleado = false;
         this.showNuevoEmpleadoModal = false;
+        this.usuarioSeleccionado = null;
         this.notif.exito(`${creado.nombre} dado de alta en sueldos`);
       },
       error: err => {
