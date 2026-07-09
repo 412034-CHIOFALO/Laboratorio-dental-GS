@@ -236,7 +236,8 @@
              [class.gallery-item--wide]="item.layout === 'wide'">
           @if (item.tipo === 'video') {
             <video [src]="'instagram/' + item.archivo" [attr.aria-label]="item.alt"
-                   autoplay muted loop playsinline preload="metadata"></video>
+                   [muted]="true" [volume]="0"
+                   autoplay loop playsinline preload="metadata"></video>
             <span class="gallery-video-badge" aria-hidden="true">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
             </span>
