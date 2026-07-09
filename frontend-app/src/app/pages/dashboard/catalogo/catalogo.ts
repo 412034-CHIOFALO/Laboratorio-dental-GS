@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   CatalogoService, TipoTrabajoResponse, TipoTrabajoRequest,
@@ -6,6 +6,7 @@ import {
 } from '../../../services/catalogo.service';
 import { StockService, MaterialResponse } from '../../../services/stock.service';
 import { NotificationService } from '../../../services/notification.service';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 export type Categoria = 'FIJA' | 'REMOVIBLE' | 'ORTODONCIA' | 'ATM' | 'PERSONALIZADO';
 
@@ -89,6 +90,7 @@ export class CatalogoComponent implements OnInit {
   ];
 
   private notif = inject(NotificationService);
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private catService: CatalogoService,
@@ -98,6 +100,12 @@ export class CatalogoComponent implements OnInit {
   ngOnInit() {
     this.cargar();
     this.cargarMateriales();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
+  }
+
+  /** No pisar el catálogo mientras hay un modal o una edición inline en curso. */
+  private get hayEdicionEnCurso(): boolean {
+    return this.showModal || this.editandoPrecioId != null || this.deleteConfirmId != null;
   }
 
   private cargarMateriales() {
@@ -112,18 +120,20 @@ export class CatalogoComponent implements OnInit {
   }
 
   // ── CARGA DESDE EL BACKEND ─────────────────────────────────────
-  private cargar() {
-    this.loading = true;
-    this.error   = '';
+  private cargar(silencioso = false) {
+    if (silencioso && this.hayEdicionEnCurso) return;
+    if (!silencioso) { this.loading = true; this.error = ''; }
     this.catService.listar().subscribe({
       next: (data) => {
         this.trabajos = data.map(this.mapear);
         this.filtrar();
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: (err) => {
-        this.error   = 'No se pudo cargar el catálogo. Verificá que ms-catalogo esté corriendo.';
-        this.loading = false;
+        if (!silencioso) {
+          this.error   = 'No se pudo cargar el catálogo. Verificá que ms-catalogo esté corriendo.';
+          this.loading = false;
+        }
         console.error('Error al cargar catálogo:', err);
       }
     });

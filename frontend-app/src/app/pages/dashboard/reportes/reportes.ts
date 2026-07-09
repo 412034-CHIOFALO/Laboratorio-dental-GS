@@ -1,8 +1,9 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
 import { FinanzasService, CuentaCorrienteOdontologoResponse } from '../../../services/finanzas.service';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 interface BarData  { mes: string; valor: number; }
 interface LineData { mes: string; facturacion: number; }
@@ -22,6 +23,7 @@ const MES_CORTOS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct',
 export class ReportesComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private finanzasService = inject(FinanzasService);
+  private destroyRef = inject(DestroyRef);
 
   loading = true;
   error = '';
@@ -37,6 +39,13 @@ export class ReportesComponent implements OnInit {
   morosos: CuentaCorrienteOdontologoResponse[] = [];
 
   ngOnInit(): void {
+    this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
+  }
+
+  private cargar(silencioso = false): void {
+    if (silencioso && this.generandoPdf) return; // no cambiar los datos mientras se exporta el PDF
+    if (!silencioso) this.loading = true;
     forkJoin({
       pedidos: this.pedidosService.listarTodos(),
       resumen: this.finanzasService.obtenerResumen(),
@@ -44,11 +53,13 @@ export class ReportesComponent implements OnInit {
     }).subscribe({
       next: ({ pedidos, resumen, morosos }) => {
         this.calcular(pedidos, resumen, morosos);
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
-        this.error = 'No se pudieron cargar los datos. ¿Los servicios están corriendo?';
-        this.loading = false;
+        if (!silencioso) {
+          this.error = 'No se pudieron cargar los datos. ¿Los servicios están corriendo?';
+          this.loading = false;
+        }
         console.error(err);
       },
     });

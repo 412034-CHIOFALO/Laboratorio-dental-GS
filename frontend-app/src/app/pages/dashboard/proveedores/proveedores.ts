@@ -1,10 +1,11 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   ProveedoresService, Proveedor, DeudaProveedor, ProveedorRequest, DeudaProveedorRequest,
 } from '../../../services/proveedores.service';
 import { NotificationService } from '../../../services/notification.service';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 /**
  * Pantalla de Proveedores: lista de proveedores con su deuda pendiente y, al
@@ -21,6 +22,7 @@ import { NotificationService } from '../../../services/notification.service';
 export class ProveedoresComponent implements OnInit {
   private prov = inject(ProveedoresService);
   private notif = inject(NotificationService);
+  private destroyRef = inject(DestroyRef);
 
   proveedores = signal<Proveedor[]>([]);
   cargando = signal(false);
@@ -40,13 +42,22 @@ export class ProveedoresComponent implements OnInit {
   proveedorDeuda: Proveedor | null = null;
   deudaForm: DeudaProveedorRequest = this.deudaFormVacio();
 
-  ngOnInit(): void { this.cargar(); }
+  ngOnInit(): void {
+    this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
+  }
 
-  cargar(): void {
-    this.cargando.set(true);
+  cargar(silencioso = false): void {
+    if (silencioso && (this.modalAbierto() || this.modalDeudaAbierto())) return;
+    if (!silencioso) this.cargando.set(true);
     this.prov.listar().subscribe({
-      next: (p) => { this.proveedores.set(p); this.cargando.set(false); },
-      error: (e) => { this.notif.errorHttp(e, 'No se pudieron cargar los proveedores'); this.cargando.set(false); },
+      next: (p) => { this.proveedores.set(p); if (!silencioso) this.cargando.set(false); },
+      error: (e) => {
+        if (!silencioso) {
+          this.notif.errorHttp(e, 'No se pudieron cargar los proveedores');
+          this.cargando.set(false);
+        }
+      },
     });
   }
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, inject } from '@angular/core';
+import { Component, OnInit, HostListener, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpEventType } from '@angular/common/http';
 import {
@@ -10,6 +10,7 @@ import { NotificationService } from '../../../services/notification.service';
 import { EscaneosService } from '../../../services/escaneos.service';
 import { fechaLocal, comoLocalDate } from '../../../services/date-utils';
 import { PedidoDetalleModalComponent } from './pedido-detalle-modal/pedido-detalle-modal.component';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 type FiltroEstado = EstadoPedido | 'TODOS';
 
@@ -107,12 +108,15 @@ export class PedidosComponent implements OnInit {
     private escaneosService: EscaneosService,
   ) {}
 
+  private destroyRef = inject(DestroyRef);
+
   ngOnInit(): void {
     this.cargar();
     this.catalogoService.listar().subscribe({
       next: cat => this.catalogo = cat.filter(t => t.activo),
       error: err => console.error('No se pudo cargar el catálogo:', err),
     });
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
   /** Avisa antes de cerrar/refrescar si hay escaneos subiéndose: si se navega, se pierden. */
@@ -125,19 +129,20 @@ export class PedidosComponent implements OnInit {
   // CARGA Y FILTROS
   // ─────────────────────────────────────────────────────────────
 
-  private cargar(): void {
-    this.loading = true;
-    this.error = '';
+  private cargar(silencioso = false): void {
+    if (!silencioso) { this.loading = true; this.error = ''; }
     this.pedidosService.listarTodos().subscribe({
       next: data => {
         this.pedidos = data.sort((a, b) =>
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
         this.filtrar();
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
-        this.error = 'No se pudieron cargar los pedidos. ¿ms-pedidos está corriendo?';
-        this.loading = false;
+        if (!silencioso) {
+          this.error = 'No se pudieron cargar los pedidos. ¿ms-pedidos está corriendo?';
+          this.loading = false;
+        }
         console.error(err);
       },
     });

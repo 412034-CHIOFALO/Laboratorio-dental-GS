@@ -1,10 +1,11 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
 import { DocumentosService, DocumentoResponse } from '../../../services/documentos.service';
 import { FinanzasService, ReporteMensualResponse } from '../../../services/finanzas.service';
 import { AuthService } from '../../../services/auth';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 @Component({
   selector: 'app-documentos',
@@ -18,6 +19,7 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   private docService      = inject(DocumentosService);
   private finanzasService = inject(FinanzasService);
   private auth            = inject(AuthService);
+  private destroyRef      = inject(DestroyRef);
 
   readonly esAdmin = this.auth.isAdmin();
 
@@ -62,16 +64,25 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.cargarPedidos();
+    iniciarPolling(() => this.cargarPedidos(true), this.destroyRef);
+  }
+
+  private cargarPedidos(silencioso = false): void {
+    if (silencioso && this.subiendo()) return; // no pisar la lista mientras se sube un archivo
+    if (!silencioso) this.cargandoPedidos.set(true);
     this.pedidosService.listarTodos().subscribe({
       next: ps => {
         this.pedidos.set(ps.sort((a, b) =>
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
         ));
-        this.cargandoPedidos.set(false);
+        if (!silencioso) this.cargandoPedidos.set(false);
       },
       error: () => {
-        this.errorPedidos.set('No se pudieron cargar los pedidos.');
-        this.cargandoPedidos.set(false);
+        if (!silencioso) {
+          this.errorPedidos.set('No se pudieron cargar los pedidos.');
+          this.cargandoPedidos.set(false);
+        }
       },
     });
   }

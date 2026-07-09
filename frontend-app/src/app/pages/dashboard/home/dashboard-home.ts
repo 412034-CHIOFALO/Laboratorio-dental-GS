@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -9,6 +9,7 @@ import { FinanzasService, ResumenCajasResponse } from '../../../services/finanza
 import { AuthService } from '../../../services/auth';
 import { fechaLocal } from '../../../services/date-utils';
 import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 type Periodo = 'HOY' | 'SEMANA' | 'MES';
 
@@ -45,6 +46,7 @@ export class DashboardHomeComponent implements OnInit {
   private finanzasService = inject(FinanzasService);
   private auth = inject(AuthService);
   private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
 
   detalleAbiertoId: number | null = null;
 
@@ -65,10 +67,11 @@ export class DashboardHomeComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
-  private cargar(): void {
-    this.loading = true;
+  private cargar(silencioso = false): void {
+    if (!silencioso) this.loading = true;
     // El resumen de cajas es ADMIN/ADMINISTRATIVO en el backend (403 para el resto).
     // Si el rol no lo ve ni pedimos el endpoint: un 403 acá tira abajo TODO el forkJoin
     // y el interceptor global redirige a /sin-permisos, bloqueando el dashboard entero
@@ -86,11 +89,11 @@ export class DashboardHomeComponent implements OnInit {
         this.materiales = materiales;
         this.resumenCajas = cajas;
         this.calcular();
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
         console.error('Error cargando datos del home:', err);
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
     });
   }

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -11,6 +11,7 @@ import { NotificationService } from '../../../../services/notification.service';
 import { AuthService } from '../../../../services/auth';
 import { PagoCuentaCorrienteModalComponent } from '../pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 import { PedidoDetalleModalComponent } from '../../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
+import { iniciarPolling } from '../../../../shared/poll.util';
 
 type Tab = 'resumen' | 'pedidos' | 'finanzas' | 'escaneres' | 'documentos';
 
@@ -38,6 +39,7 @@ export class OdontologoHistorialComponent implements OnInit {
   private finanzasService = inject(FinanzasService);
   private notif = inject(NotificationService);
   private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
 
   /** Técnicos no ven deuda/facturación — solo ADMIN y ADMINISTRATIVO manejan plata. */
   get puedeVerFinanzas(): boolean {
@@ -78,14 +80,16 @@ export class OdontologoHistorialComponent implements OnInit {
       return;
     }
     this.cargar(id);
+    iniciarPolling(() => this.cargar(id, true), this.destroyRef);
   }
 
-  private cargar(id: number): void {
-    this.loading = true;
+  private cargar(id: number, silencioso = false): void {
+    if (silencioso && this.showModalPago) return; // no pisar mientras hay un pago en curso
+    if (!silencioso) this.loading = true;
     forkJoin({
       odontologo: this.odontologosService.buscarPorId(id).pipe(
         catchError(err => {
-          this.notif.errorHttp(err, 'No se pudo cargar el odontólogo');
+          if (!silencioso) this.notif.errorHttp(err, 'No se pudo cargar el odontólogo');
           return of(null);
         })
       ),
@@ -100,7 +104,7 @@ export class OdontologoHistorialComponent implements OnInit {
       this.pedidos = pedidos.filter(p => p.odontologoId === id)
                             .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
       this.saldoDeuda = saldo;
-      this.loading = false;
+      if (!silencioso) this.loading = false;
     });
   }
 

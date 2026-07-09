@@ -1,9 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../../../services/auth';
 import { environment } from '../../../../environments/environment';
 import { clonar, MOCK_AUDIT, MockAuditEvent, TipoAudit } from '../../../services/mock-data';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 @Component({
   selector: 'app-auditoria',
@@ -32,26 +33,28 @@ export class AuditoriaComponent implements OnInit {
     { valor: 'ESTADO',   label: 'Cambio de estado'  },
   ];
 
+  private destroyRef = inject(DestroyRef);
+
   constructor(private http: HttpClient, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
   private headers(): HttpHeaders {
     return new HttpHeaders({ Authorization: `Bearer ${this.authService.getToken()}` });
   }
 
-  cargar(): void {
-    this.loading = true;
-    this.error   = '';
+  cargar(silencioso = false): void {
+    if (!silencioso) { this.loading = true; this.error = ''; }
 
     if (environment.useMocks) {
       setTimeout(() => {
         this.events  = clonar(MOCK_AUDIT).sort((a: MockAuditEvent, b: MockAuditEvent) =>
           new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-        this.filtros = this.events;
-        this.loading = false;
+        this.filtrar();
+        if (!silencioso) this.loading = false;
       }, 200);
       return;
     }
@@ -60,12 +63,14 @@ export class AuditoriaComponent implements OnInit {
       .subscribe({
         next: (data) => {
           this.events  = data;
-          this.filtros = data;
-          this.loading = false;
+          this.filtrar();
+          if (!silencioso) this.loading = false;
         },
         error: () => {
-          this.error   = 'No se pudo cargar el registro de auditoría.';
-          this.loading = false;
+          if (!silencioso) {
+            this.error   = 'No se pudo cargar el registro de auditoría.';
+            this.loading = false;
+          }
         }
       });
   }

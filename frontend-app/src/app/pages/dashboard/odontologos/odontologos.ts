@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -10,6 +10,7 @@ import {
 import { NotificationService } from '../../../services/notification.service';
 import { PagoCuentaCorrienteModalComponent } from './pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 import { AuthService } from '../../../services/auth';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 @Component({
   selector: 'app-odontologos',
@@ -57,6 +58,7 @@ export class OdontologosComponent implements OnInit {
   private notif = inject(NotificationService);
   private finanzas = inject(FinanzasService);
   private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
 
   /** Técnicos no ven deuda/cuenta corriente — solo ADMIN y ADMINISTRATIVO manejan plata. */
   get puedeVerFinanzas(): boolean {
@@ -67,22 +69,25 @@ export class OdontologosComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
   // ── CARGA / FILTROS ──────────────────────────────────────────
 
-  private cargar(): void {
-    this.loading = true;
-    this.error = '';
+  private cargar(silencioso = false): void {
+    if (silencioso && (this.showModal || this.confirmDesactivarId != null)) return;
+    if (!silencioso) { this.loading = true; this.error = ''; }
     this.service.buscar().subscribe({
       next: data => {
         this.odontologos = data.sort((a, b) => a.nombre.localeCompare(b.nombre));
         this.filtrar();
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
-        this.error = 'No se pudieron cargar los odontólogos. ¿ms-pedidos está corriendo?';
-        this.loading = false;
+        if (!silencioso) {
+          this.error = 'No se pudieron cargar los odontólogos. ¿ms-pedidos está corriendo?';
+          this.loading = false;
+        }
         console.error(err);
       },
     });

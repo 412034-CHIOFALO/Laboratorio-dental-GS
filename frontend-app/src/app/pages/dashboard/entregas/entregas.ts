@@ -1,10 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse, EntregaRequest } from '../../../services/pedidos.service';
 import { OdontologosService, OdontologoResponse } from '../../../services/odontologos.service';
 import { NotificationService } from '../../../services/notification.service';
 import { fechaLocal, hoyComoLocalDate } from '../../../services/date-utils';
 import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 type Tab = 'PENDIENTES' | 'HISTORIAL';
 
@@ -45,6 +46,7 @@ export class EntregasComponent implements OnInit {
   private odontologosCache = new Map<number, OdontologoResponse>();
 
   private notif = inject(NotificationService);
+  private destroyRef = inject(DestroyRef);
 
   constructor(
     private pedidosService: PedidosService,
@@ -54,6 +56,7 @@ export class EntregasComponent implements OnInit {
   ngOnInit(): void {
     this.cargar();
     this.cargarOdontologos();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
   abrirDetalle(pedidoId: number): void {
@@ -79,9 +82,8 @@ export class EntregasComponent implements OnInit {
   // CARGA
   // ─────────────────────────────────────────────────────────────
 
-  private cargar(): void {
-    this.loading = true;
-    this.error = '';
+  private cargar(silencioso = false): void {
+    if (!silencioso) { this.loading = true; this.error = ''; }
     this.pedidosService.listarTodos().subscribe({
       next: data => {
         this.pendientes = data
@@ -91,11 +93,13 @@ export class EntregasComponent implements OnInit {
           .filter(p => p.estado === 'ENTREGADO')
           .sort((a, b) => this.tsEntrega(b) - this.tsEntrega(a))
           .slice(0, 30); // últimos 30 entregados
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
-        this.error = 'No se pudieron cargar las entregas. ¿ms-pedidos está corriendo?';
-        this.loading = false;
+        if (!silencioso) {
+          this.error = 'No se pudieron cargar las entregas. ¿ms-pedidos está corriendo?';
+          this.loading = false;
+        }
         console.error(err);
       },
     });

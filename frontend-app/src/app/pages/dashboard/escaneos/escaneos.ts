@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, HostListener, inject, signal, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpEventType } from '@angular/common/http';
@@ -6,6 +6,7 @@ import { PedidosService, PedidoResponse } from '../../../services/pedidos.servic
 import { EscaneosService, EscaneoResponse } from '../../../services/escaneos.service';
 import { Visor3dComponent } from './visor3d.component';
 import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 const EXTENSIONES_3D = ['.stl', '.obj', '.ply', '.3ds', '.step', '.stp', '.iges', '.igs'];
 // Formatos que el visor 3D embebido sabe renderizar.
@@ -21,6 +22,7 @@ const VISUALIZABLES_3D = ['.stl', '.obj'];
 export class EscaneosComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private escaneosService = inject(EscaneosService);
+  private destroyRef = inject(DestroyRef);
 
   cargandoPedidos = signal(true);
   errorPedidos    = signal('');
@@ -66,16 +68,25 @@ export class EscaneosComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.cargarPedidos();
+    iniciarPolling(() => this.cargarPedidos(true), this.destroyRef);
+  }
+
+  private cargarPedidos(silencioso = false): void {
+    if (silencioso && this.subiendo()) return; // no pisar la lista mientras se suben escaneos
+    if (!silencioso) this.cargandoPedidos.set(true);
     this.pedidosService.listarTodos().subscribe({
       next: ps => {
         this.pedidos.set(ps.sort((a, b) =>
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
         ));
-        this.cargandoPedidos.set(false);
+        if (!silencioso) this.cargandoPedidos.set(false);
       },
       error: () => {
-        this.errorPedidos.set('No se pudieron cargar los pedidos.');
-        this.cargandoPedidos.set(false);
+        if (!silencioso) {
+          this.errorPedidos.set('No se pudieron cargar los pedidos.');
+          this.cargandoPedidos.set(false);
+        }
       },
     });
   }

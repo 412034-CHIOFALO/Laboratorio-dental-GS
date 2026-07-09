@@ -37,6 +37,7 @@ export class BotRegistrosComponent implements OnInit, OnDestroy {
   modalAbierto = signal(false);
 
   private pollSub?: Subscription;
+  private pollRegistrosSub?: Subscription;
 
   ngOnInit(): void {
     this.cargar();
@@ -47,16 +48,22 @@ export class BotRegistrosComponent implements OnInit, OnDestroy {
       if (e) { this.estado.set(e); this.sinConexionBot.set(false); }
       else    { this.sinConexionBot.set(true); }
     });
+    // Refresco silencioso del historial: con dos pestañas abiertas, o mientras
+    // llegan comprobantes nuevos por WhatsApp, sin esto quedaba desactualizado.
+    this.pollRegistrosSub = interval(6000).subscribe(() => this.cargar(true));
   }
 
-  ngOnDestroy(): void { this.pollSub?.unsubscribe(); }
+  ngOnDestroy(): void {
+    this.pollSub?.unsubscribe();
+    this.pollRegistrosSub?.unsubscribe();
+  }
 
   // ── Historial ──────────────────────────────────────────────────────────────
-  cargar(): void {
-    this.cargando.set(true);
+  cargar(silencioso = false): void {
+    if (!silencioso) this.cargando.set(true);
     this.sueldos.registrosBot().subscribe({
-      next: (r) => { this.registros.set(r); this.cargando.set(false); },
-      error: (e) => { this.notif.errorHttp(e, 'No se pudo cargar el historial del bot'); this.cargando.set(false); },
+      next: (r) => { this.registros.set(r); if (!silencioso) this.cargando.set(false); },
+      error: (e) => { if (!silencioso) { this.notif.errorHttp(e, 'No se pudo cargar el historial del bot'); this.cargando.set(false); } },
     });
   }
 
