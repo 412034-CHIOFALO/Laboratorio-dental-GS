@@ -188,6 +188,16 @@ async function procesarEmail(uid, envelope, source) {
     datos = await extraerDatosConGemini(cuerpo, remitenteNombre, fechaHoy);
     console.log('[MailScraper]    ✨ Gemini:', JSON.stringify(datos));
   } catch (e) {
+    // 429 (cuota agotada) u otro error de infraestructura de Gemini: no es culpa
+    // del contenido del email. No respondemos "no pudimos interpretarlo" (sería
+    // engañoso) y dejamos el email sin leer para reintentar cuando la cuota se
+    // restablezca — si no, se pierde el pedido y además gastamos cuota en vano
+    // reintentando el mismo email roto en cada poll.
+    const esCuotaOInfra = /429|quota|rate limit|too many requests|50[0-9]/i.test(e.message || '');
+    if (esCuotaOInfra) {
+      console.error('[MailScraper]    ❌ Gemini sin cuota/infra — se reintentará más tarde:', e.message);
+      return false;
+    }
     console.error('[MailScraper]    ❌ Gemini falló:', e.message);
     await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
       'no fue posible interpretar el contenido del email');
@@ -309,6 +319,17 @@ async function pollMail() {
     secure: IMAP_SECURE,
     auth:   { user: IMAP_USER, pass: IMAP_PASSWORD },
     logger: false,
+    // Margen generoso: si Gemini está lento/reintentando (429), no queremos
+    // que la conexión IMAP (que queda abierta mientras tanto) se corte antes.
+    socketTimeout: 5 * 60 * 1000,
+  });
+
+  // Sin este listener, un error de socket (timeout, conexión cortada) es un
+  // 'error' event sin handler → Node lo re-lanza y tira ABAJO TODO EL PROCESO
+  // (el bot de WhatsApp incluido), no solo este poll. Ya pasó y generó un
+  // crash-loop reprocesando el mismo email una y otra vez.
+  imap.on('error', (err) => {
+    console.error('[MailScraper] Error de conexión IMAP:', err.message);
   });
 
   try {
