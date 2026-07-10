@@ -1,4 +1,9 @@
-:host { display: block; }
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 .ent-page {
   padding: 2rem 2.5rem;
@@ -6,6 +11,9 @@
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── HEADER ── */
@@ -15,6 +23,7 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .page-title h1 {
   font-size: 1.5rem;
@@ -78,6 +87,7 @@
   display: flex;
   gap: 0.4rem;
   border-bottom: 1px solid var(--gs-border);
+  flex-shrink: 0;
 }
 .tab {
   display: inline-flex;
@@ -118,6 +128,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: start;
 }
 
 .ent-card {
@@ -246,8 +260,9 @@
   background: var(--gs-card);
   border: 1px solid var(--gs-border);
   border-radius: 12px;
-  overflow: hidden;
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 .hist-table {
   width: 100%;
@@ -255,6 +270,9 @@
   font-size: 0.85rem;
 }
 .hist-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: var(--gs-card-2);
   border-bottom: 1.5px solid var(--gs-border-md);
 }

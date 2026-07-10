@@ -1,8 +1,27 @@
-:host { display: block; }
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 .fin-page {
   padding: 2rem 2.5rem;
   max-width: 1400px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Contenido de la sección activa (dentro del @switch) — es lo único que
+   scrollea; header y pills de navegación quedan siempre fijos arriba. */
+.fin-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -15,6 +34,7 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .page-title h1 {
   font-size: 1.5rem;
@@ -686,6 +706,7 @@
   margin-bottom: 1.5rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .fin-pill {
   display: inline-flex;
