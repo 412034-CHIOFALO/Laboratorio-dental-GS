@@ -514,8 +514,25 @@ async function leerComprobante(msg) {
       console.log('   (PDF — texto extraído)');
     }
 
-    // 1) IA Gemini — generaliza a CUALQUIER billetera y lee fotos
-    if (GEMINI_ENABLED && geminiModel) {
+    // 1) Reglas locales primero (gratis, sin gastar cuota de Gemini — resuelven
+    // bien MP/Personal Pay, que son los que llegan en la práctica)
+    if (esImg && !texto && ocrWorker) {
+      texto = (await ocrWorker.recognize(buffer)).data.text || '';
+      console.log('   (imagen — OCR local)');
+    }
+    logTexto(texto);
+    const { monto, confianza } = extraerMonto(texto);
+    const local = {
+      monto,
+      confianza,
+      idOperacion: extraerIdOperacion(texto),
+      ...extraerDePara(texto),
+    };
+
+    // 2) IA Gemini solo como respaldo — cuando las reglas locales no encontraron
+    // un monto confiable (billetera rara, foto mala, etc). Cuota muy limitada,
+    // compartida con el mail-scraper: se reserva para lo que de verdad la necesita.
+    if (local.confianza !== 'alta' && GEMINI_ENABLED && geminiModel) {
       const g = await leerConGemini(media, texto);
       if (g && g.monto) {
         console.log('   ✨ Leído con IA (Gemini)');
@@ -523,16 +540,7 @@ async function leerComprobante(msg) {
       }
     }
 
-    // 2) Fallback: reglas locales (MP / Personal Pay)
-    if (esImg && !texto && ocrWorker) {
-      texto = (await ocrWorker.recognize(buffer)).data.text || '';
-      console.log('   (imagen — OCR local)');
-    }
-    logTexto(texto);
-    const { monto, confianza } = extraerMonto(texto);
-    const idOperacion = extraerIdOperacion(texto);
-    const { de, para } = extraerDePara(texto);
-    return { monto, confianza, idOperacion, de, para, texto, ...archivo };
+    return { ...local, texto, ...archivo };
   } catch (e) {
     console.log('   (error leyendo comprobante:', e.message, ')');
     return vacio;
