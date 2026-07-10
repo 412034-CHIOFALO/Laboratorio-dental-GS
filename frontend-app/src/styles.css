@@ -107,6 +107,9 @@
   --gs-blue:            var(--color-info);
   --gs-blue-soft:       color-mix(in srgb, var(--color-info) 10%, transparent);
 
+  --gs-neutral:         var(--color-neutral);
+  --gs-neutral-soft:    color-mix(in srgb, var(--color-neutral) 10%, transparent);
+
   /* Superficies */
   --gs-bg:              var(--bg);
   --gs-surface:         var(--sidebar-bg);
@@ -180,6 +183,7 @@
   --gs-rose-soft:    color-mix(in srgb, var(--color-danger) 12%, transparent);
   --gs-purple-soft:  color-mix(in srgb, var(--color-special) 12%, transparent);
   --gs-blue-soft:    color-mix(in srgb, var(--color-info) 12%, transparent);
+  --gs-neutral-soft: color-mix(in srgb, var(--color-neutral) 12%, transparent);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

@@ -37,6 +37,7 @@ h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
 .tipo-badge[data-color=rose]   { background: var(--gs-rose-soft);   color: var(--gs-rose); }
 .tipo-badge[data-color=amber]  { background: var(--gs-amber-soft);  color: var(--gs-amber); }
 .tipo-badge[data-color=purple] { background: var(--gs-purple-soft); color: var(--gs-purple); }
+.tipo-badge[data-color=neutral] { background: var(--gs-neutral-soft); color: var(--gs-neutral); }
 
 .audit-footer { display: flex; align-items: center; gap: 0.5rem; font-size: 0.72rem; color: var(--gs-text-dim); padding: 0.5rem 0.75rem; background: var(--gs-rose-soft); border: 1px solid rgba(244,63,94,0.15); border-radius: 8px; }
 .audit-footer svg { color: var(--gs-rose); flex-shrink: 0; }

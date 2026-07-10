@@ -219,7 +219,7 @@ export const MOCK_MATERIALES: MockMaterial[] = [
 ];
 
 // ── AUDITORÍA ─────────────────────────────────────────────────
-export type TipoAudit = 'LOGIN' | 'CREAR' | 'EDITAR' | 'PAGO' | 'ESTADO' | 'ELIMINAR';
+export type TipoAudit = 'LOGIN' | 'CREAR' | 'EDITAR' | 'PAGO' | 'ESTADO' | 'ELIMINAR' | 'BACKUP';
 
 export interface MockAuditEvent {
   id: number;
@@ -252,6 +252,7 @@ export const MOCK_AUDIT: MockAuditEvent[] = [
   { id: 12, timestamp: tsISO(28),   usuario: 'admin',   accion: 'Trabajo desactivado',     entidad: 'Catálogo',             detalle: '"Modelo Diagnóstico" desactivado',                   tipo: 'ELIMINAR' },
   { id: 13, timestamp: tsISO(36),   usuario: 'mariana', accion: 'Pago triangulado',        entidad: 'Dr. Suárez',           detalle: '$150.000 → Juan Pereyra (sueldo)',                    tipo: 'PAGO'     },
   { id: 14, timestamp: tsISO(48),   usuario: 'admin',   accion: 'Stock ajustado',          entidad: 'Yeso Piedra Tipo IV',  detalle: 'Conteo físico: teórico 5 → real 3',                 tipo: 'EDITAR'   },
+  { id: 15, timestamp: tsISO(4),    usuario: 'sistema', accion: 'Backup completado',       entidad: 'Backup diario',       detalle: '5 bases + archivos de MinIO subidos a Google Drive', tipo: 'BACKUP'   },
 ];
 
 // ── ODONTÓLOGOS (alineados con OdontologoResponse del backend) ─
