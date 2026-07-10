@@ -47,6 +47,17 @@ const IMAP_SECURE   = process.env.MAIL_IMAP_SECURE !== 'false';
 const IMAP_USER     = process.env.MAIL_IMAP_USER || '';
 const IMAP_PASSWORD = process.env.MAIL_IMAP_PASSWORD || '';
 
+// Remitentes claramente automáticos (notificaciones, no-reply, rebotes) — se
+// descartan sin gastar una llamada a Gemini, que sale de una cuota muy chica
+// compartida con la lectura de comprobantes de WhatsApp.
+const PATRONES_REMITENTE_AUTOMATICO = [
+  /no-?reply@/i,
+  /^donotreply@/i,
+  /^mailer-daemon@/i,
+  /^postmaster@/i,
+  /@accounts\.google\.com$/i,
+];
+
 const SMTP_HOST     = process.env.MAIL_SMTP_HOST || '';
 const SMTP_PORT     = parseInt(process.env.MAIL_SMTP_PORT || '587', 10);
 const SMTP_USER     = process.env.MAIL_SMTP_USER || IMAP_USER;
@@ -173,6 +184,11 @@ async function procesarEmail(uid, envelope, source) {
 
   console.log(`\n[MailScraper] ── Email de ${remitenteNombre} <${remitenteEmail}>`);
   console.log(`[MailScraper]    Asunto: ${asunto}`);
+
+  if (remitenteEmail && PATRONES_REMITENTE_AUTOMATICO.some(p => p.test(remitenteEmail))) {
+    console.log(`[MailScraper]    ⏭ Remitente automático — descartado sin llamar a Gemini`);
+    return true;  // se marca leído, no se gasta cuota ni se responde
+  }
 
   // Parsear MIME para obtener texto y adjuntos
   const parsed = await simpleParser(source);
