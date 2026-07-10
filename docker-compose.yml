@@ -104,7 +104,10 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
     volumes:
       - minio_data:/minio_data:ro
-      - ./backup/rclone.conf:/root/.config/rclone/rclone.conf
+      # Directorio, no el archivo directo: rclone reescribe su config al
+      # refrescar el token OAuth (rename atomico), y eso rompe con
+      # "device or resource busy" si el archivo esta bind-mounteado solo.
+      - ./backup/rclone-config:/root/.config/rclone
       - backup_tmp:/backups/tmp
     depends_on:
       mysql: { condition: service_healthy }

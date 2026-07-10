@@ -10,15 +10,16 @@ en el Google Drive de la cuenta del laboratorio.
 1. Necesitás la cuenta de Gmail del laboratorio ya creada (con verificación
    en 2 pasos activada — la pide `rclone` para el login).
 
-2. **Antes de levantar el servicio por primera vez**, creá el archivo vacío
-   en el servidor (si no existe, Docker monta una carpeta vacía en su lugar
-   y todo se rompe en silencio):
+2. **Antes de levantar el servicio por primera vez**, creá la carpeta en el
+   servidor (se monta el *directorio*, no el archivo directo — si montás el
+   archivo solo, rclone no puede reescribir su config al refrescar el token
+   OAuth y tira "device or resource busy"):
    ```
-   touch backup/rclone.conf
+   mkdir -p backup/rclone-config
    ```
 
-3. En el servidor, corré esto para autorizar el acceso a Drive (el archivo
-   `backup/rclone.conf` del host queda montado ahí adentro, así que lo que
+3. En el servidor, corré esto para autorizar el acceso a Drive (la carpeta
+   `backup/rclone-config` del host queda montada ahí adentro, así que lo que
    `rclone` guarde queda directo en tu carpeta, sin pasos extra):
    ```
    docker compose run --rm backup rclone config
@@ -39,8 +40,8 @@ en el Google Drive de la cuenta del laboratorio.
    - Configure as team drive: `n`
    - Confirmá con `y`
 
-   `backup/rclone.conf` queda con el token de acceso a tu Drive — está en
-   `.gitignore`, nunca se commitea.
+   `backup/rclone-config/rclone.conf` queda con el token de acceso a tu
+   Drive — está en `.gitignore`, nunca se commitea.
 
 4. Levantá el servicio (ya queda corriendo con el cron adentro):
    ```
