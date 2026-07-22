@@ -328,7 +328,27 @@ async function procesarEmail(uid, envelope, source) {
 }
 
 // ─── Poll IMAP ────────────────────────────────────────────────────────────────
+// Evita que dos ciclos corran en simultáneo: si un poll tarda más que
+// POLL_INTERVAL_MS (ej: Gemini reintentando por cuota), el setInterval de más
+// abajo dispararía un segundo pollMail() con una conexión IMAP nueva mientras
+// la anterior sigue abierta — dos conexiones a la vez contra la misma casilla
+// pueden ser la causa de los "Connection not available" observados.
+let _pollEnCurso = false;
+
 async function pollMail() {
+  if (_pollEnCurso) {
+    console.warn('[MailScraper] Poll anterior todavía en curso — se salta este ciclo.');
+    return;
+  }
+  _pollEnCurso = true;
+  try {
+    await _pollMailInterno();
+  } finally {
+    _pollEnCurso = false;
+  }
+}
+
+async function _pollMailInterno() {
   const imap = new ImapFlow({
     host:   IMAP_HOST,
     port:   IMAP_PORT,
@@ -367,11 +387,20 @@ async function pollMail() {
           // perder el pedido.
           resuelto = await procesarEmail(msg.uid, msg.envelope, msg.source);
         } catch (e) {
-          console.error('[MailScraper] Error procesando email:', e.message);
+          console.error(`[MailScraper] Error procesando email uid=${msg.uid}:`, e.message);
           resuelto = false;
         }
+        // El flagAdd va en su propio try/catch: si la conexión IMAP se cae justo
+        // acá (ej: socket timeout), antes esto tiraba fuera del for-await y
+        // abortaba el resto del lote — los emails siguientes (incluido el que
+        // sí importaba) ni se intentaban en este poll ni en ninguno futuro hasta
+        // que por azar cayeran primero en la cola.
         if (resuelto) {
-          await imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], { uid: true });
+          try {
+            await imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], { uid: true });
+          } catch (e) {
+            console.error(`[MailScraper] No se pudo marcar leído uid=${msg.uid} — se reintentará:`, e.message);
+          }
         } else {
           console.warn(`[MailScraper] Email uid=${msg.uid} sin marcar — se reintentará.`);
         }
