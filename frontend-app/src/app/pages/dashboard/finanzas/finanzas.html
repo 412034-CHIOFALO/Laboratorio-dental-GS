@@ -561,24 +561,30 @@
 
           @if (!loadingUsuariosSinAlta && usuariosSinAlta.length > 0) {
             <div class="pendientes-alta">
-              <h3>Pendientes de alta en sueldos</h3>
+              <div class="alertas-head">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <h3>Pendientes de alta en sueldos</h3>
+              </div>
               <p class="sueldos-nota">
                 Se activaron en <strong>Usuarios</strong> antes de que esto quedara automático
                 (o el alta automática falló) — dales de alta acá para que cobren y el bot los reconozca.
               </p>
-              <div class="tabla-wrap">
-                <table class="pedidos-tabla">
+              <div class="alta-tabla-wrap">
+                <table class="alta-tabla">
                   <thead>
                     <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th></th></tr>
                   </thead>
                   <tbody>
                     @for (u of usuariosSinAlta; track u.id) {
                       <tr>
-                        <td>{{ u.nombre }} {{ u.apellido }}</td>
-                        <td class="muted">{{ u.username }}</td>
-                        <td><span class="mini-estado">{{ u.rol.replace('ROLE_', '') }}</span></td>
-                        <td class="num">
-                          <button class="btn-config" (click)="abrirNuevoEmpleado(u)">Dar de alta</button>
+                        <td class="alta-nombre">{{ u.nombre }} {{ u.apellido }}</td>
+                        <td class="alta-username">&#64;{{ u.username }}</td>
+                        <td><span [class]="'badge-rol ' + u.rol.replace('ROLE_','').toLowerCase()">{{ u.rol.replace('ROLE_', '') }}</span></td>
+                        <td class="alta-accion">
+                          <button class="btn-dar-alta" (click)="abrirNuevoEmpleado(u)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Dar de alta
+                          </button>
                         </td>
                       </tr>
                     }

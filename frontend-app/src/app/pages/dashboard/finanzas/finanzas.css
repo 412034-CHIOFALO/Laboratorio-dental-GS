@@ -1307,6 +1307,18 @@
 .btn-pagar:hover:not(:disabled) { opacity: 0.9; }
 .btn-pagar:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.pendientes-alta {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.pendientes-alta h3 { font-size: 0.95rem; font-weight: 700; color: var(--gs-text); margin: 0; }
+
 .sueldos-nota {
   font-size: 0.8rem;
   color: var(--muted, #6b7280);
@@ -1317,6 +1329,38 @@
   margin: 0;
 }
 .sueldos-nota strong { color: var(--text); }
+
+.alta-tabla-wrap { border: 1px solid var(--gs-border); border-radius: 10px; overflow: hidden; }
+.alta-tabla { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; background: var(--gs-card); }
+.alta-tabla thead { background: var(--gs-card-2); }
+.alta-tabla th {
+  padding: 0.65rem 1rem; text-align: left; font-size: 0.72rem; font-weight: 600;
+  color: var(--gs-text-dim, var(--muted)); text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--gs-border);
+}
+.alta-tabla td { padding: 0.65rem 1rem; color: var(--gs-text); border-bottom: 1px solid var(--gs-border); }
+.alta-tabla tbody tr:last-child td { border-bottom: none; }
+.alta-tabla tbody tr:hover td { background: var(--gs-card-2); }
+.alta-nombre { font-weight: 600; }
+.alta-username { color: var(--muted, #6b7280); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; }
+.alta-accion { text-align: right; }
+
+.btn-dar-alta {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: var(--accent, #22c55e); border: 1px solid var(--accent, #22c55e); color: #fff;
+  padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+}
+.btn-dar-alta:hover { opacity: 0.9; }
+
+.badge-rol {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+}
+.badge-rol.admin          { background: var(--gs-purple-soft); color: var(--gs-purple); }
+.badge-rol.tecnico        { background: var(--gs-blue-soft);   color: #60a5fa; }
+.badge-rol.administrativo { background: var(--gs-amber-soft);  color: var(--gs-amber); }
+.badge-rol.odontologo     { background: var(--gs-cyan-soft);   color: var(--gs-cyan); }
 
 /* Modal pago — extras */
 .mov-field-hint {
