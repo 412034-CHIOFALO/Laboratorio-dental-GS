@@ -101,10 +101,26 @@ async function extraerDatosConGemini(cuerpoEmail, remitenteNombre, fechaHoy) {
     '- Fechas relativas ("el viernes", "la semana que viene") → calculá la fecha absoluta desde hoy.\n' +
     '- Si algo no figura, poné null. No inventes datos.';
 
-  const result = await geminiModel.generateContent(prompt);
+  const result = await conTimeout(
+    geminiModel.generateContent(prompt),
+    45_000,
+    'Gemini no respondió en 45s (posible reintento interno por cuota agotada)',
+  );
   let txt = result.response.text().trim()
     .replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
   return JSON.parse(txt);
+}
+
+// Sin este límite, si Gemini se queda reintentando internamente por cuota
+// agotada, la llamada puede tardar varios minutos — y como la conexión IMAP
+// queda abierta e inactiva mientras tanto, termina disparando su propio
+// socketTimeout y tirando abajo TODO el lote de emails del poll, no solo el
+// que estaba esperando a Gemini.
+function conTimeout(promesa, ms, mensaje) {
+  return Promise.race([
+    promesa,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(mensaje)), ms)),
+  ]);
 }
 
 // ─── JWT del bot ──────────────────────────────────────────────────────────────
@@ -209,7 +225,7 @@ async function procesarEmail(uid, envelope, source) {
     // engañoso) y dejamos el email sin leer para reintentar cuando la cuota se
     // restablezca — si no, se pierde el pedido y además gastamos cuota en vano
     // reintentando el mismo email roto en cada poll.
-    const esCuotaOInfra = /429|quota|rate limit|too many requests|50[0-9]/i.test(e.message || '');
+    const esCuotaOInfra = /429|quota|rate limit|too many requests|50[0-9]|timeout/i.test(e.message || '');
     if (esCuotaOInfra) {
       console.error('[MailScraper]    ❌ Gemini sin cuota/infra — se reintentará más tarde:', e.message);
       return false;
