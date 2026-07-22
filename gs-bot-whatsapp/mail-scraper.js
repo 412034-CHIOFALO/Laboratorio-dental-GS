@@ -357,24 +357,38 @@ async function pollMail() {
     return;
   }
   _pollEnCurso = true;
+  let imapRef = null;
   try {
-    await _pollMailInterno();
+    // Deadline duro para el ciclo completo: ya vimos operaciones IMAP (flagAdd,
+    // fetch del siguiente mensaje) quedarse colgadas varios minutos sin tirar
+    // error ni resolver, dejando _pollEnCurso trabado y acumulando "se salta
+    // este ciclo" hasta que el socketTimeout interno de turno recién explotaba.
+    // Acá cortamos por las nuestras a los 90s y forzamos el cierre del socket.
+    await conTimeout(
+      _pollMailInterno((imap) => { imapRef = imap; }),
+      90_000,
+      'El poll no terminó en 90s — probablemente una operación IMAP quedó colgada',
+    );
+  } catch (e) {
+    console.error('[MailScraper] Poll abortado:', e.message);
+    if (imapRef) {
+      try { imapRef.close(); } catch (_) {}  // cierre forzado, sin esperar LOGOUT
+    }
   } finally {
     _pollEnCurso = false;
   }
 }
 
-async function _pollMailInterno() {
+async function _pollMailInterno(onConnect) {
   const imap = new ImapFlow({
     host:   IMAP_HOST,
     port:   IMAP_PORT,
     secure: IMAP_SECURE,
     auth:   { user: IMAP_USER, pass: IMAP_PASSWORD },
     logger: false,
-    // Margen generoso: si Gemini está lento/reintentando (429), no queremos
-    // que la conexión IMAP (que queda abierta mientras tanto) se corte antes.
-    socketTimeout: 5 * 60 * 1000,
+    socketTimeout: 60 * 1000,
   });
+  if (onConnect) onConnect(imap);
 
   // Sin este listener, un error de socket (timeout, conexión cortada) es un
   // 'error' event sin handler → Node lo re-lanza y tira ABAJO TODO EL PROCESO
