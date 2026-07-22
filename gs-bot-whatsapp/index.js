@@ -264,11 +264,14 @@ async function reconciliarChats(limitePorGrupo) {
         }
         chatsRevisados++;
       } catch (e) {
-        console.warn(`[Reconciliación] Error en el grupo "${chat.name}":`, e.message);
+        console.warn(`[Reconciliación] Error en el grupo "${chat.name}":`, e && e.stack || e);
       }
     }
   } catch (e) {
-    console.error('[Reconciliación] Error general:', e.message);
+    // e.message a veces viene truncado/vacío en errores que vienen de adentro
+    // del contexto de Puppeteer (whatsapp-web.js) — logueamos el objeto entero
+    // para poder diagnosticar la próxima vez que pase (pasa siempre al conectar).
+    console.error('[Reconciliación] Error general:', e && e.stack || e);
   }
   console.log(`🔄 Reconciliación completa: ${chatsRevisados} grupo(s), ${mensajesRevisados} mensaje(s) revisado(s).\n`);
   return { chats: chatsRevisados, mensajes: mensajesRevisados };
