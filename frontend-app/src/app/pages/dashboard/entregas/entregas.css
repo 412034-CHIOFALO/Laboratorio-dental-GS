@@ -271,14 +271,12 @@
   border-spacing: 0;
   font-size: 0.85rem;
 }
-.hist-table thead {
+.hist-table th {
   position: sticky;
   top: 0;
   z-index: 1;
   background: var(--gs-card-2);
   border-bottom: 1.5px solid var(--gs-border-md);
-}
-.hist-table th {
   padding: 0.85rem 1rem;
   text-align: left;
   font-weight: 700;

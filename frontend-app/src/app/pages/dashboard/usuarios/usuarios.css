@@ -74,8 +74,8 @@
   width: 100%; border-collapse: separate; border-spacing: 0;
   font-size: 0.875rem;
 }
-.tabla thead { position: sticky; top: 0; z-index: 1; background: var(--gs-card-2); }
 .tabla th {
+  position: sticky; top: 0; z-index: 1; background: var(--gs-card-2);
   text-align: left; padding: 0.85rem 1.25rem;
   font-size: 0.75rem; font-weight: 600;
   color: var(--gs-text-muted); text-transform: uppercase; letter-spacing: 0.5px;
