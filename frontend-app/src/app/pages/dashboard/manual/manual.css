@@ -22,6 +22,15 @@
   margin: 0 0 0.75rem;
 }
 .manual-nav nav { display: flex; flex-direction: column; gap: 2px; }
+.manual-nav-group-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--muted);
+  margin: 0.9rem 0 0.3rem 0.7rem;
+}
+.manual-nav-group-label:first-child { margin-top: 0.2rem; }
 .manual-nav-item {
   text-align: left;
   padding: 0.5rem 0.7rem;
@@ -43,6 +52,18 @@
 /* ── Contenido ── */
 .manual-contenido { overflow-y: auto; padding: 2px 4px 40px; }
 .manual-seccion { max-width: 760px; }
+.manual-grupo-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 0.6rem;
+}
 .manual-seccion h1 { margin: 0 0 0.5rem; font-size: 1.6rem; color: var(--text); }
 .manual-intro { color: var(--text); font-size: 1rem; line-height: 1.55; margin: 0 0 1.5rem; }
 
@@ -54,6 +75,14 @@
 }
 .manual-bloque ul { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.4rem; }
 .manual-bloque li { color: var(--muted); line-height: 1.5; font-size: 0.92rem; }
+.manual-bloque.pasos {
+  background: var(--row-hover, color-mix(in srgb, var(--text) 3%, transparent));
+  border-radius: 10px;
+  padding: 0.9rem 1.1rem;
+}
+.manual-bloque.pasos ol { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.manual-bloque.pasos li { color: var(--text); line-height: 1.5; font-size: 0.92rem; }
+.manual-bloque.pasos li::marker { color: var(--accent); font-weight: 700; }
 .manual-bloque.flujo {
   background: color-mix(in srgb, var(--accent) 7%, transparent);
   border-left: 3px solid var(--accent);
