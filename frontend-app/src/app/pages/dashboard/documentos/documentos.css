@@ -5,7 +5,7 @@
   min-height: 0;
 }
 
-.doc-page { padding: 1.5rem; max-width: 1400px; display: flex; flex-direction: column; gap: 1.25rem; flex: 1 1 auto; min-height: 0; overflow: hidden; box-sizing: border-box; }
+.doc-page { padding: 1.5rem; max-width: 1600px; display: flex; flex-direction: column; gap: 1.25rem; flex: 1 1 auto; min-height: 0; overflow: hidden; box-sizing: border-box; }
 
 /* Header */
 .doc-header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }

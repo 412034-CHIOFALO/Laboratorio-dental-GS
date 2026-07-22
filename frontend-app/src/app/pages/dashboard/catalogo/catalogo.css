@@ -8,7 +8,7 @@
 /* PAGE LAYOUT */
 .cat-page {
   padding: 2rem 2.5rem;
-  max-width: 1200px;
+  max-width: 1600px;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
