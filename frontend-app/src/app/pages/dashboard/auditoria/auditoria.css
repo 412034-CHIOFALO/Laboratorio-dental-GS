@@ -32,7 +32,7 @@ h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
 .tipo-select:focus { border-color: var(--gs-green-border); }
 
 .table-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; border-radius: 10px; border: 1px solid var(--gs-border); }
-.audit-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+.audit-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.82rem; }
 .audit-table thead { position: sticky; top: 0; z-index: 1; background: var(--gs-card-2); }
 .audit-table th { padding: 0.65rem 0.85rem; text-align: left; font-size: 0.72rem; font-weight: 600; color: var(--gs-text-dim); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; border-bottom: 1px solid var(--gs-border); }
 .audit-table td { padding: 0.65rem 0.85rem; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
