@@ -64,6 +64,29 @@ public class GestionSueldoService implements IGestionSueldoService {
 
     @Override
     @Transactional
+    public void devengarDiario() {
+        LocalDate hoy = LocalDate.now();
+        for (ConfiguracionSueldo c : configRepo.findByActivoTrueOrderByEmpleadoNombreAsc()) {
+            LocalDate desde = c.getUltimoDevengoCalculado() != null
+                    ? c.getUltimoDevengoCalculado()
+                    : c.getFechaCreacion().toLocalDate();
+            long dias = java.time.temporal.ChronoUnit.DAYS.between(desde, hoy);
+            if (dias <= 0) continue; // ya está al día (o el reloj del server se movió para atrás)
+
+            BigDecimal tarifaDiaria = c.getMontoBase()
+                    .divide(BigDecimal.valueOf(c.getFrecuencia().diasDeCiclo()), 2, java.math.RoundingMode.HALF_UP);
+            BigDecimal devengo = tarifaDiaria.multiply(BigDecimal.valueOf(dias));
+
+            c.setSaldoDevengado(c.getSaldoDevengado().add(devengo));
+            c.setUltimoDevengoCalculado(hoy);
+            configRepo.save(c);
+            log.info("[Devengo] {} — +{} días × ${} = ${} (saldo devengado ahora: ${})",
+                    c.getEmpleadoNombre(), dias, tarifaDiaria, devengo, c.getSaldoDevengado());
+        }
+    }
+
+    @Override
+    @Transactional
     public EmpleadoSueldoResponse crearEmpleado(CrearEmpleadoRequest req) {
         if (configRepo.findByEmpleadoId(req.getUsuarioId()).isPresent()) {
             throw new com.gs.ms_finanzas.exception.ConflictException("Ese empleado ya está dado de alta en sueldos.");

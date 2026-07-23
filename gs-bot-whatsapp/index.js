@@ -402,11 +402,15 @@ async function manejarMensaje(msg, opciones = {}) {
       }
     }
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    // .message a veces viene truncado en errores que salen de adentro del
+    // contexto de Puppeteer (evaluate sobre WhatsApp Web) — logueamos el
+    // stack completo para poder diagnosticar de verdad qué pasó.
+    console.error('❌ Error procesando mensaje:', err && err.stack || err);
   }
 }
 
-client.on('message', (msg) => manejarMensaje(msg));
+client.on('message', (msg) => manejarMensaje(msg).catch(err =>
+  console.error('❌ Error no capturado en manejarMensaje:', err && err.stack || err)));
 
 // ─── Procesar un pago (comprobante + pie ya emparejados) ─────────────────────
 async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie, opciones = {}) {

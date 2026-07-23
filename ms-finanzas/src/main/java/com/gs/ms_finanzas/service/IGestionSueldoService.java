@@ -197,4 +197,20 @@ public interface IGestionSueldoService {
      * @return la distribución sugerida.
      */
     DistribucionCascadaResponse sugerirCascada(BigDecimal monto, TipoCaja cajaRemanente);
+
+    /**
+     * Devenga automáticamente el sueldo de todos los empleados activos, prorrateado
+     * por día corrido según su {@link com.gs.ms_finanzas.model.FrecuenciaPago}.
+     *
+     * <p>Para cada empleado activo, calcula los días transcurridos desde el último
+     * cálculo ({@code ultimoDevengoCalculado}) — o desde su fecha de alta si es la
+     * primera vez — y le acredita {@code montoBase / frecuencia.diasDeCiclo()} por
+     * cada día. Así un empleado que se dio de alta a mitad de mes ya tiene devengado
+     * proporcional desde ese mismo día, sin esperar a que cierre el ciclo completo.</p>
+     *
+     * <p>Pensado para correr una vez por día (ver el scheduler), pero es idempotente
+     * en el sentido de que nunca vuelve a contar un día ya devengado — se puede
+     * invocar manualmente sin miedo a duplicar devengado.</p>
+     */
+    void devengarDiario();
 }

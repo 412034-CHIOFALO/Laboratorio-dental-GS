@@ -121,6 +121,20 @@ public class GestionSueldoController {
         return ResponseEntity.ok(service.ajustarDevengado(usuarioId, devengado));
     }
 
+    @Operation(summary = "Fuerza el cálculo de devengado diario ahora mismo",
+               description = "Devenga el sueldo prorrateado de todos los empleados activos hasta el día de hoy, sin " +
+                             "esperar al cron diario (00:05). Es idempotente: nunca vuelve a contar un día ya devengado, " +
+                             "así que se puede llamar varias veces sin duplicar nada. Pensado para testing/demos.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Devengado recalculado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @PostMapping("/devengar-ahora")
+    public ResponseEntity<Void> devengarAhora() {
+        service.devengarDiario();
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "Registra un pago de sueldo manual",
                description = "Crea un registro de pago desde la aplicación web. Descuenta del saldo devengado del empleado y aplica la política de manejo de sobrante configurada.")
     @ApiResponses({

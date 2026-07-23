@@ -437,6 +437,24 @@ export class FinanzasComponent implements OnInit {
 
   // ═════════════════════════ SUELDOS ═════════════════════════
 
+  recalculandoDevengado = false;
+
+  /** Fuerza el cálculo de devengado diario ahora (sin esperar al cron de las 00:05). */
+  recalcularDevengado(): void {
+    this.recalculandoDevengado = true;
+    this.sueldosService.devengarAhora().subscribe({
+      next: () => {
+        this.recalculandoDevengado = false;
+        this.notif.exito('Devengado recalculado');
+        this.cargarEmpleados();
+      },
+      error: err => {
+        this.recalculandoDevengado = false;
+        this.notif.errorHttp(err, 'No se pudo recalcular el devengado');
+      },
+    });
+  }
+
   cargarEmpleados(silencioso = false): void {
     if (!silencioso) this.loadingEmpleados = true;
     this.sueldosService.listarEmpleados().subscribe({

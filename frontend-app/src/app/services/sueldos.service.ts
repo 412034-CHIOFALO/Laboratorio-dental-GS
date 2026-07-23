@@ -323,6 +323,17 @@ export class SueldosService {
     return this.http.patch<EmpleadoSueldo>(`${this.base}/empleados/${usuarioId}/devengado`, { devengado: nuevoDevengado });
   }
 
+  /**
+   * Fuerza el cálculo de devengado diario ahora mismo (en vez de esperar al cron
+   * de las 00:05). Idempotente — se puede llamar varias veces sin duplicar nada.
+   */
+  devengarAhora(): Observable<void> {
+    if (environment.useMocks) {
+      return of(undefined).pipe(delay(200));
+    }
+    return this.http.post<void>(`${this.base}/devengar-ahora`, {});
+  }
+
   // ── Comprobantes demo (mock) — algunos del bot, algunos manuales ──
   private seedPagosMock(): PagoSueldoResponse[] {
     const d = (n: number) => { const x = new Date(); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
