@@ -667,6 +667,7 @@
                           <strong>{{ r.receptorNombre }}</strong>
                           <span class="efectivo-monto">{{ formatMoney(r.monto ?? 0) }}</span>
                         </div>
+                        @if (r.emisor) { <div class="muted">Pagó: {{ r.emisor }}</div> }
                         <div class="efectivo-meta">
                           <span class="muted">{{ r.cargadoPorNombre ?? '—' }}</span>
                           <span class="muted"> · {{ r.grupoOrigen ?? '' }}</span>
