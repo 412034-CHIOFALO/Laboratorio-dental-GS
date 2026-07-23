@@ -16,17 +16,15 @@
     </div>
   </div>
 
-  <!-- ── Tabs (los reportes solo los ve ADMIN) ── -->
-  @if (esAdmin) {
-    <div class="doc-tabs">
-      <button class="doc-tab" [class.active]="vista() === 'pedidos'" (click)="cambiarVista('pedidos')">
-        Documentos por pedido
-      </button>
-      <button class="doc-tab" [class.active]="vista() === 'reportes'" (click)="cambiarVista('reportes')">
-        Reportes mensuales
-      </button>
-    </div>
-  }
+  <!-- ── Tabs ── -->
+  <div class="doc-tabs">
+    <button class="doc-tab" [class.active]="vista() === 'pedidos'" (click)="cambiarVista('pedidos')">
+      Documentos por pedido
+    </button>
+    <button class="doc-tab" [class.active]="vista() === 'escaneos'" (click)="cambiarVista('escaneos')">
+      Escaneos 3D
+    </button>
+  </div>
 
   @if (vista() === 'pedidos') {
   <!-- ── Layout principal ── -->
@@ -182,59 +180,9 @@
   </div>
   }
 
-  <!-- ── Vista: Reportes mensuales (solo ADMIN) ── -->
-  @if (esAdmin && vista() === 'reportes') {
-    <section class="reportes-panel">
-      <div class="reportes-head">
-        <div>
-          <h2>Reportes mensuales</h2>
-          <p class="subtitle">Resumen financiero archivado — se genera solo el día 1 de cada mes</p>
-        </div>
-        <button class="btn-gen-reporte" [disabled]="generandoReporte()" (click)="generarReporteActual()">
-          @if (generandoReporte()) {
-            <span class="btn-spinner"></span> Generando…
-          } @else {
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Generar el de este mes
-          }
-        </button>
-      </div>
-
-      @if (errorReportes()) {
-        <div class="panel-msg err">{{ errorReportes() }}</div>
-      }
-
-      @if (cargandoReportes()) {
-        <div class="docs-loading"><div class="spinner-sm"></div><span>Cargando reportes…</span></div>
-      } @else if (reportes().length === 0) {
-        <div class="drop-empty">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.35"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-          <p>Todavía no hay reportes archivados.</p>
-          <span>Se generan solos cada mes, o podés generar el de este mes ahora.</span>
-        </div>
-      } @else {
-        <ul class="reportes-list">
-          @for (r of reportes(); track r.id) {
-            <li class="reporte-item">
-              <div class="ri-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              </div>
-              <div class="ri-info">
-                <span class="ri-periodo">{{ r.periodo }}</span>
-                <span class="ri-meta">
-                  Generado {{ formatFecha(r.generadoEn) }}
-                  <span class="ri-tag" [class.auto]="r.automatico">{{ r.automatico ? 'Automático' : 'Manual' }}</span>
-                </span>
-              </div>
-              <button class="btn-desc-reporte" (click)="descargarReporte(r)" title="Descargar PDF">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                PDF
-              </button>
-            </li>
-          }
-        </ul>
-      }
-    </section>
+  <!-- ── Vista: Escaneos 3D ── -->
+  @if (vista() === 'escaneos') {
+    <app-escaneos></app-escaneos>
   }
 
 </div>

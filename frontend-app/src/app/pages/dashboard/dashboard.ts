@@ -53,13 +53,10 @@ export class DashboardComponent implements OnInit {
 
     { type: 'group', label: 'Archivo' },
     { type: 'item', label: 'Documentos',   icon: 'file',      route: '/dashboard/documentos' },
-    { type: 'item', label: 'Escaneos 3D',  icon: 'cube',      route: '/dashboard/escaneos' },
-    { type: 'item', label: 'Auditoría',    icon: 'shield',    route: '/dashboard/auditoria', roles: ['ROLE_ADMIN'] },
 
     { type: 'group', label: 'Administración' },
     { type: 'item', label: 'Usuarios',     icon: 'users',     route: '/dashboard/usuarios',     roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'] },
-    { type: 'item', label: 'Manual',       icon: 'book',      route: '/dashboard/manual',       tourId: 'nav-manual' },
-    { type: 'item', label: 'Preguntas frecuentes', icon: 'help', route: '/dashboard/faq' },
+    { type: 'item', label: 'Auditoría',    icon: 'shield',    route: '/dashboard/auditoria', roles: ['ROLE_ADMIN'] },
   ];
 
   readonly themeService    = inject(ThemeService);

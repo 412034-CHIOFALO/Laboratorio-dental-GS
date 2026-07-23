@@ -1,8 +1,9 @@
-import { Component, OnInit, inject, DestroyRef } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { forkJoin } from 'rxjs';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
-import { FinanzasService, CuentaCorrienteOdontologoResponse } from '../../../services/finanzas.service';
+import { FinanzasService, CuentaCorrienteOdontologoResponse, ReporteMensualResponse } from '../../../services/finanzas.service';
+import { AuthService } from '../../../services/auth';
 import { iniciarPolling } from '../../../shared/poll.util';
 
 interface BarData  { mes: string; valor: number; }
@@ -23,11 +24,20 @@ const MES_CORTOS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct',
 export class ReportesComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private finanzasService = inject(FinanzasService);
+  private auth = inject(AuthService);
   private destroyRef = inject(DestroyRef);
+
+  readonly esAdmin = this.auth.isAdmin();
 
   loading = true;
   error = '';
   generandoPdf = false;
+
+  // ── Reportes mensuales archivados (solo ADMIN) ───────────────────────────
+  reportesArchivados = signal<ReporteMensualResponse[]>([]);
+  cargandoReportes   = signal(false);
+  errorReportes      = signal('');
+  generandoReporte   = signal(false);
 
   resumen: any = null;
 
@@ -41,6 +51,49 @@ export class ReportesComponent implements OnInit {
   ngOnInit(): void {
     this.cargar();
     iniciarPolling(() => this.cargar(true), this.destroyRef);
+    if (this.esAdmin) this.cargarReportesArchivados();
+  }
+
+  // ── Reportes mensuales archivados ───────────────────────────────────────
+
+  cargarReportesArchivados(): void {
+    this.cargandoReportes.set(true);
+    this.errorReportes.set('');
+    this.finanzasService.listarReportesMensuales().subscribe({
+      next: rs => { this.reportesArchivados.set(rs); this.cargandoReportes.set(false); },
+      error: () => {
+        this.errorReportes.set('No se pudieron cargar los reportes.');
+        this.cargandoReportes.set(false);
+      },
+    });
+  }
+
+  generarReporteActual(): void {
+    const now = new Date();
+    this.generandoReporte.set(true);
+    this.errorReportes.set('');
+    this.finanzasService.generarReporteMensual(now.getFullYear(), now.getMonth() + 1).subscribe({
+      next: () => { this.generandoReporte.set(false); this.cargarReportesArchivados(); },
+      error: () => {
+        this.errorReportes.set('No se pudo generar el reporte de este mes.');
+        this.generandoReporte.set(false);
+      },
+    });
+  }
+
+  descargarReporteArchivado(r: ReporteMensualResponse): void {
+    this.finanzasService.descargarReporteMensual(r.id).subscribe({
+      next: blob => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        setTimeout(() => URL.revokeObjectURL(url), 15000);
+      },
+      error: () => { this.errorReportes.set('No se pudo abrir el reporte.'); },
+    });
+  }
+
+  formatFechaArchivo(iso: string): string {
+    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   private cargar(silencioso = false): void {
