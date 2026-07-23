@@ -134,4 +134,22 @@
       </div>
     </div>
   }
+
+  @if (modalPagoAbierto()) {
+    <div class="modal-overlay" (click)="cerrarModalPago()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>¿De qué caja salió el pago?</h2>
+        <p class="obs">{{ deudaAPagar?.descripcion }} — ${{ deudaAPagar?.monto | number:'1.0-0' }}</p>
+        <div class="modal-acciones">
+          <button class="btn-ghost" (click)="cerrarModalPago()">Cancelar</button>
+          <button class="btn-primary" [disabled]="pagandoId() !== null" (click)="confirmarPago('FISICA')">
+            {{ pagandoId() !== null ? 'Marcando…' : 'Física' }}
+          </button>
+          <button class="btn-primary" [disabled]="pagandoId() !== null" (click)="confirmarPago('BANCARIA')">
+            {{ pagandoId() !== null ? 'Marcando…' : 'Bancaria' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

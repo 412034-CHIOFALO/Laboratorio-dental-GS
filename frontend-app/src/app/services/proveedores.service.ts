@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export type EstadoDeuda = 'PENDIENTE' | 'PAGADO';
+/** Caja de la que sale un pago manual a proveedor (no incluye COMPENSACION: esa es solo para triangulados del bot). */
+export type CajaPagoProveedor = 'FISICA' | 'BANCARIA';
 
 export interface Proveedor {
   id: number;
@@ -97,13 +99,14 @@ export class ProveedoresService {
     return this.http.post<DeudaProveedor>(`${this.base}/deudas`, req);
   }
 
-  /** Marca una deuda como pagada (fecha de pago = hoy). */
-  pagarDeuda(id: number): Observable<DeudaProveedor> {
+  /** Marca una deuda como pagada (fecha de pago = hoy) y registra el egreso en la caja indicada. */
+  pagarDeuda(id: number, caja: CajaPagoProveedor): Observable<DeudaProveedor> {
     if (environment.useMocks) {
       const d = this.mockDeudas().find(x => x.id === id)!;
       return of({ ...d, estado: 'PAGADO' as EstadoDeuda, fechaPago: new Date().toISOString().slice(0, 10) }).pipe(delay(200));
     }
-    return this.http.patch<DeudaProveedor>(`${this.base}/deudas/${id}/pagar`, null);
+    const params = new HttpParams().set('caja', caja);
+    return this.http.patch<DeudaProveedor>(`${this.base}/deudas/${id}/pagar`, null, { params });
   }
 
   // ── Mocks ──

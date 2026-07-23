@@ -2,6 +2,7 @@ package com.gs.ms_finanzas.service;
 
 import com.gs.ms_finanzas.dto.DeudaProveedorRequest;
 import com.gs.ms_finanzas.dto.DeudaProveedorResponse;
+import com.gs.ms_finanzas.model.TipoCaja;
 
 import java.util.List;
 
@@ -57,12 +58,15 @@ public interface IDeudaProveedorService {
     DeudaProveedorResponse registrar(DeudaProveedorRequest request);
 
     /**
-     * Marca una deuda como pagada, registrando la fecha de pago (hoy).
+     * Marca una deuda como pagada, registrando la fecha de pago (hoy) y el
+     * egreso correspondiente en la caja indicada — antes esto solo cambiaba
+     * el estado sin tocar ninguna caja, dejando el pago sin rastro contable.
      *
-     * @param id ID de la deuda a marcar como pagada.
+     * @param id   ID de la deuda a marcar como pagada.
+     * @param caja de dónde salió el pago (Física o Bancaria).
      * @return la deuda actualizada.
      * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si la deuda no existe.
      * @throws com.gs.ms_finanzas.exception.BusinessException si la deuda ya estaba pagada.
      */
-    DeudaProveedorResponse pagar(Long id);
+    DeudaProveedorResponse pagar(Long id, TipoCaja caja);
 }

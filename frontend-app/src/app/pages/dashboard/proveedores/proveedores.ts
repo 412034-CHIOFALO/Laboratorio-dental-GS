@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
-  ProveedoresService, Proveedor, DeudaProveedor, ProveedorRequest, DeudaProveedorRequest,
+  ProveedoresService, Proveedor, DeudaProveedor, ProveedorRequest, DeudaProveedorRequest, CajaPagoProveedor,
 } from '../../../services/proveedores.service';
 import { NotificationService } from '../../../services/notification.service';
 import { iniciarPolling } from '../../../shared/poll.util';
@@ -41,6 +41,10 @@ export class ProveedoresComponent implements OnInit {
   pagandoId         = signal<number | null>(null);
   proveedorDeuda: Proveedor | null = null;
   deudaForm: DeudaProveedorRequest = this.deudaFormVacio();
+
+  // ── Modal "¿de qué caja salió el pago?" (al marcar una deuda como pagada) ──
+  modalPagoAbierto = signal(false);
+  deudaAPagar: DeudaProveedor | null = null;
 
   ngOnInit(): void {
     this.cargar();
@@ -149,12 +153,26 @@ export class ProveedoresComponent implements OnInit {
     });
   }
 
+  /** Abre el modal para elegir de qué caja salió el pago antes de marcarla como pagada. */
   marcarPagada(d: DeudaProveedor): void {
+    this.deudaAPagar = d;
+    this.modalPagoAbierto.set(true);
+  }
+
+  cerrarModalPago(): void {
+    this.modalPagoAbierto.set(false);
+    this.deudaAPagar = null;
+  }
+
+  confirmarPago(caja: CajaPagoProveedor): void {
+    const d = this.deudaAPagar;
+    if (!d) return;
     this.pagandoId.set(d.id);
-    this.prov.pagarDeuda(d.id).subscribe({
+    this.prov.pagarDeuda(d.id, caja).subscribe({
       next: () => {
         this.notif.exito('Deuda marcada como pagada.', 'Listo');
         this.pagandoId.set(null);
+        this.cerrarModalPago();
         this.cargar();
         this.refrescarDeudas(d.proveedorId);
       },

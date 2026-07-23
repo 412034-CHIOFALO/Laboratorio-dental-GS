@@ -6,6 +6,8 @@ import com.gs.ms_finanzas.exception.ResourceNotFoundException;
 import com.gs.ms_finanzas.model.DeudaProveedor;
 import com.gs.ms_finanzas.model.EstadoDeuda;
 import com.gs.ms_finanzas.model.Proveedor;
+import com.gs.ms_finanzas.model.TipoCaja;
+import com.gs.ms_finanzas.repository.CajaMovimientoRepository;
 import com.gs.ms_finanzas.repository.DeudaProveedorRepository;
 import com.gs.ms_finanzas.repository.ProveedorRepository;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ class DeudaProveedorServiceTest {
 
     @Mock private DeudaProveedorRepository deudaRepo;
     @Mock private ProveedorRepository proveedorRepo;
+    @Mock private CajaMovimientoRepository cajaMovimientoRepo;
     @InjectMocks private DeudaProveedorService service;
 
     private Proveedor proveedor() {
@@ -81,7 +84,7 @@ class DeudaProveedorServiceTest {
     @Test
     void pagar_inexistente_404() {
         when(deudaRepo.findById(9L)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.pagar(9L)).isInstanceOf(ResourceNotFoundException.class);
+        assertThatThrownBy(() -> service.pagar(9L, TipoCaja.FISICA)).isInstanceOf(ResourceNotFoundException.class);
     }
 
     @Test
@@ -89,13 +92,21 @@ class DeudaProveedorServiceTest {
         DeudaProveedor pagada = deuda();
         pagada.setEstado(EstadoDeuda.PAGADO);
         when(deudaRepo.findById(1L)).thenReturn(Optional.of(pagada));
-        assertThatThrownBy(() -> service.pagar(1L)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.pagar(1L, TipoCaja.FISICA)).isInstanceOf(BusinessException.class);
     }
 
     @Test
     void pagar_ok() {
         when(deudaRepo.findById(1L)).thenReturn(Optional.of(deuda()));
         when(deudaRepo.save(any())).thenAnswer(i -> i.getArgument(0));
-        assertThat(service.pagar(1L).estado()).isEqualTo(EstadoDeuda.PAGADO);
+        assertThat(service.pagar(1L, TipoCaja.BANCARIA).estado()).isEqualTo(EstadoDeuda.PAGADO);
+    }
+
+    @Test
+    void pagar_ok_registraEgresoDeCaja() {
+        when(deudaRepo.findById(1L)).thenReturn(Optional.of(deuda()));
+        when(deudaRepo.save(any())).thenAnswer(i -> i.getArgument(0));
+        service.pagar(1L, TipoCaja.BANCARIA);
+        org.mockito.Mockito.verify(cajaMovimientoRepo).save(any());
     }
 }
