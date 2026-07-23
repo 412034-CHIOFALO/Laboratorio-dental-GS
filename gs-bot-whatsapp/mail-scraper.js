@@ -360,15 +360,19 @@ async function pollMail() {
   _pollEnCurso = true;
   let imapRef = null;
   try {
-    // Deadline duro para el ciclo completo: ya vimos operaciones IMAP (flagAdd,
-    // fetch del siguiente mensaje) quedarse colgadas varios minutos sin tirar
-    // error ni resolver, dejando _pollEnCurso trabado y acumulando "se salta
-    // este ciclo" hasta que el socketTimeout interno de turno recién explotaba.
-    // Acá cortamos por las nuestras a los 90s y forzamos el cierre del socket.
+    // Deadline duro para el ciclo completo — red de seguridad final por si una
+    // operación IMAP queda colgada de verdad (nunca resuelve ni rechaza). Antes
+    // esto estaba en 90s pensado como presupuesto de TODO el lote, pero un solo
+    // email real (Gemini + crear pedido + subir adjunto + responder por mail)
+    // puede tardar bastante — con varios emails así en la misma cola, los de
+    // más atrás se quedaban sin tiempo aunque nada estuviera realmente colgado.
+    // Cada paso individual (fetch, Gemini, flagAdd) ya tiene su propio timeout
+    // corto más abajo; este de acá es solo el techo global, generoso a
+    // propósito para no interrumpir procesamiento legítimo de varios mensajes.
     await conTimeout(
       _pollMailInterno((imap) => { imapRef = imap; }),
-      90_000,
-      'El poll no terminó en 90s — probablemente una operación IMAP quedó colgada',
+      10 * 60 * 1000,
+      'El poll no terminó en 10 minutos — probablemente una operación IMAP quedó colgada',
     );
   } catch (e) {
     console.error('[MailScraper] Poll abortado:', e.message);
