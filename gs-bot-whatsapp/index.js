@@ -35,6 +35,12 @@ const BACKEND_ENABLED = process.env.BACKEND_ENABLED === 'true';
 const BOT_API_KEY     = process.env.BOT_API_KEY || '';
 const GRUPOS = (process.env.GRUPOS || '')
   .split(',').map(g => g.trim().toLowerCase()).filter(Boolean);
+// Grupos donde TODO mensaje de texto con "Emisor (Receptor) monto" se toma
+// directo como pago en efectivo — sin necesitar la palabra "efectivo" ni foto
+// de comprobante. Repetir "efectivo" en un mensaje que ya está en el grupo
+// "Comprobantes Efectivo" era redundante y confundía a quien lo escribía.
+const GRUPOS_EFECTIVO = (process.env.GRUPOS_EFECTIVO || 'comprobantes efectivo')
+  .split(',').map(g => g.trim().toLowerCase()).filter(Boolean);
 
 // ─── Gemini (IA para leer cualquier billetera + fotos) ───────────────────────
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -380,10 +386,31 @@ async function manejarMensaje(msg, opciones = {}) {
       // más abajo igual que en vivo.
 
     } else if (msg.body) {
-      // ── ¿Es declaración de efectivo? ──────────────────────────────────────
+      // ── Grupo de efectivo: "Emisor (Receptor) monto" alcanza directo — no
+      // hace falta la palabra "efectivo" (ya lo dice el grupo) ni foto. ──
+      if (GRUPOS_EFECTIVO.includes(chat.name.toLowerCase())) {
+        const pieEfectivo = parsearPie(msg.body);
+        if (pieEfectivo.receptor && pieEfectivo.montoManual) {
+          await registrarEfectivo(msg, chat, contacto,
+            { monto: pieEfectivo.montoManual, receptor: pieEfectivo.receptor, emisor: pieEfectivo.emisor },
+            { reconciliacion });
+          if (reconciliacion) marcarProcesado(msg.id._serialized);
+          return;
+        }
+        if (pieEfectivo.receptor && !pieEfectivo.montoManual) {
+          if (!reconciliacion) {
+            await msg.reply('💵 Anotado el receptor, pero me falta el monto. Mandá: *Emisor (Receptor) monto*\nEj: Dr. García (Proveedor X) 85000');
+          }
+          if (reconciliacion) marcarProcesado(msg.id._serialized);
+          return;
+        }
+      }
+
+      // ── ¿Es declaración de efectivo con la palabra clave? (formato viejo,
+      // sigue andando en cualquier grupo por compatibilidad) ──
       const efectivo = parsearEfectivo(msg.body);
       if (efectivo) {
-        await registrarEfectivo(msg, chat, contacto, efectivo, { reconciliacion });
+        await registrarEfectivo(msg, chat, contacto, { ...efectivo, emisor: null }, { reconciliacion });
         if (reconciliacion) marcarProcesado(msg.id._serialized);
         return;
       }
@@ -928,12 +955,13 @@ async function registrarEfectivo(msg, chat, contacto, efectivo, opciones = {}) {
     if (BOT_API_KEY) headers['X-Bot-Api-Key'] = BOT_API_KEY;
     const res = await axios.post(
       `${BACKEND_URL}/api/finanzas/sueldos/pago-efectivo`,
-      { receptorNombre: efectivo.receptor, monto: efectivo.monto, cargadoPorNombre, cargadoPorTelefono, grupoOrigen: chat.name },
+      { receptorNombre: efectivo.receptor, monto: efectivo.monto, emisor: efectivo.emisor || null, cargadoPorNombre, cargadoPorTelefono, grupoOrigen: chat.name },
       { headers, timeout: 10000 }
     );
-    console.log(`[BOT-EFECTIVO] Borrador id=${res.data?.id} creado para "${efectivo.receptor}"`);
+    console.log(`[BOT-EFECTIVO] Borrador id=${res.data?.id} creado para "${efectivo.receptor}"${efectivo.emisor ? ` (pagó: ${efectivo.emisor})` : ''}`);
     await responder(
       `💵 Efectivo anotado como *pendiente de confirmación*\n` +
+      (efectivo.emisor ? `• Pagó: *${efectivo.emisor}*\n` : '') +
       `• Monto: *$${montoFmt}*\n` +
       `• Para: *${efectivo.receptor}*\n` +
       `_El administrativo lo confirma desde el sistema._`

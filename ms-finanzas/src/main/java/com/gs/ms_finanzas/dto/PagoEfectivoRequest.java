@@ -26,6 +26,14 @@ public class PagoEfectivoRequest {
     @Digits(integer = 10, fraction = 2, message = "El monto excede el máximo permitido")
     private BigDecimal monto;
 
+    /**
+     * Quién pagó, si es distinto de quien mandó el mensaje al grupo (ej: un
+     * odontólogo que le pagó en efectivo a un proveedor). Opcional — el pie
+     * "Emisor (Receptor) monto" del grupo de efectivo lo completa solo.
+     */
+    @Size(max = 200)
+    private String emisor;
+
     @Size(max = 150)
     private String cargadoPorNombre;
     @Size(max = 30)

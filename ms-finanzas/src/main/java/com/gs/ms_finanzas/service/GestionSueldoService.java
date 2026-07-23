@@ -489,6 +489,7 @@ public class GestionSueldoService implements IGestionSueldoService {
     public RegistroPagoBotResponse registrarPagoEfectivo(PagoEfectivoRequest req) {
         RegistroPagoBot reg = RegistroPagoBot.builder()
                 .monto(req.getMonto())
+                .emisor(req.getEmisor())
                 .receptorNombre(req.getReceptorNombre())
                 .cargadoPorNombre(req.getCargadoPorNombre())
                 .cargadoPorTelefono(req.getCargadoPorTelefono())

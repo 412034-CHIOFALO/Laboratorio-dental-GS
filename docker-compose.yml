@@ -367,6 +367,7 @@ services:
       BACKEND_ENABLED: ${BOT_BACKEND_ENABLED:-true}
       BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
       GRUPOS: ${BOT_GRUPOS:-Comprobantes Transferencias,Comprobantes Efectivo}
+      GRUPOS_EFECTIVO: ${BOT_GRUPOS_EFECTIVO:-Comprobantes Efectivo}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_ENABLED: ${GEMINI_ENABLED:-false}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
