@@ -106,10 +106,15 @@ export class OdontologosComponent implements OnInit {
     });
   }
 
-  /** Aplica el filtro Activos/Inactivos según el estado calculado. */
+  /**
+   * Aplica el filtro Activos/Inactivos según `activo` (el que cambia el botón
+   * "Desactivar") — antes usaba `inactivoPorTiempo` ("sin pedidos hace N
+   * meses"), que es un indicador de negocio totalmente distinto y hacía que
+   * desactivar a alguien no lo sacara de "Activos" si tenía pedidos recientes.
+   */
   private aplicarFiltroActividad(lista: OdontologoResponse[]): OdontologoResponse[] {
-    if (this.filtroActividad === 'ACTIVOS')   return lista.filter(o => !o.inactivoPorTiempo);
-    if (this.filtroActividad === 'INACTIVOS') return lista.filter(o => o.inactivoPorTiempo);
+    if (this.filtroActividad === 'ACTIVOS')   return lista.filter(o => o.activo);
+    if (this.filtroActividad === 'INACTIVOS') return lista.filter(o => !o.activo);
     return lista;
   }
 
@@ -119,10 +124,10 @@ export class OdontologosComponent implements OnInit {
   }
 
   get countActivos(): number {
-    return this.odontologos.filter(o => !o.inactivoPorTiempo).length;
+    return this.odontologos.filter(o => o.activo).length;
   }
   get countInactivos(): number {
-    return this.odontologos.filter(o => o.inactivoPorTiempo).length;
+    return this.odontologos.filter(o => !o.activo).length;
   }
 
   /** Texto "hace X meses/días" del último pedido. */

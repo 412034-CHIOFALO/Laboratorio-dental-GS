@@ -545,7 +545,7 @@
                 <span class="stat-label">Con saldo</span>
                 <span class="stat-val">{{ empleadosConDeuda }}</span>
               </div>
-              <button class="btn-config" [disabled]="recalculandoDevengado" (click)="recalcularDevengado()"
+              <button class="btn-recalcular" [disabled]="recalculandoDevengado" (click)="recalcularDevengado()"
                       title="El devengado se calcula solo todas las noches a las 00:05 — usá esto para verlo actualizado ahora mismo">
                 {{ recalculandoDevengado ? 'Recalculando...' : '↻ Recalcular devengado' }}
               </button>
