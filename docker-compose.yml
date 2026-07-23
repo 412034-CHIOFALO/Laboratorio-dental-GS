@@ -370,19 +370,6 @@ services:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_ENABLED: ${GEMINI_ENABLED:-false}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
-      # ── Scraper de mails → crea pedidos desde email (IMAP + Gemini). OFF por defecto.
-      MAIL_ENABLED: ${MAIL_ENABLED:-false}
-      MAIL_IMAP_HOST: ${MAIL_IMAP_HOST:-imap.gmail.com}
-      MAIL_IMAP_PORT: ${MAIL_IMAP_PORT:-993}
-      MAIL_IMAP_SECURE: ${MAIL_IMAP_SECURE:-true}
-      MAIL_IMAP_USER: ${MAIL_IMAP_USER:-}
-      MAIL_IMAP_PASSWORD: ${MAIL_IMAP_PASSWORD:-}
-      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
-      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
-      MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-120}
-      # Usuario de servicio para crear pedidos (la pass coincide con ms-auth).
-      BOT_PEDIDOS_USER: ${BOT_PEDIDOS_USER:-bot-pedidos}
-      BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
     # Healthcheck de liveness del servidor HTTP del bot (no de la conexión a
     # WhatsApp). Usa node porque la imagen slim no trae wget/curl.
     healthcheck:
@@ -395,6 +382,39 @@ services:
       api-gateway: { condition: service_healthy }
     volumes:
       - wpp_auth:/app/.wwebjs_auth          # sesión de WhatsApp (QR 1 sola vez)
+    restart: unless-stopped
+    networks: [gs-net]
+
+  # ═════════════════════════ SCRAPER DE MAILS ═══════════════════════════════
+  # Crea pedidos desde emails recibidos (IMAP + Gemini). Servicio separado del
+  # bot de WhatsApp a propósito: un cuelgue de la conexión IMAP no debe poder
+  # afectar la sesión de WhatsApp (mucho más lenta/frágil de recuperar). Si el
+  # proceso se cuelga repetidamente, se reinicia solo (ver MAIL_MAX_FALLOS_CONSECUTIVOS
+  # en mail-scraper.js) y Docker lo levanta de nuevo por `restart: unless-stopped`.
+  gs-mail-scraper:
+    build:
+      context: ./gs-bot-whatsapp
+      dockerfile: Dockerfile.mail-scraper
+    container_name: gs-mail-scraper
+    environment:
+      BACKEND_URL: http://api-gateway:8080
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_IMAP_HOST: ${MAIL_IMAP_HOST:-imap.gmail.com}
+      MAIL_IMAP_PORT: ${MAIL_IMAP_PORT:-993}
+      MAIL_IMAP_SECURE: ${MAIL_IMAP_SECURE:-true}
+      MAIL_IMAP_USER: ${MAIL_IMAP_USER:-}
+      MAIL_IMAP_PASSWORD: ${MAIL_IMAP_PASSWORD:-}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
+      MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-120}
+      MAIL_MAX_FALLOS_CONSECUTIVOS: ${MAIL_MAX_FALLOS_CONSECUTIVOS:-8}
+      # Usuario de servicio para crear pedidos (la pass coincide con ms-auth).
+      BOT_PEDIDOS_USER: ${BOT_PEDIDOS_USER:-bot-pedidos}
+      BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
+    depends_on:
+      api-gateway: { condition: service_healthy }
     restart: unless-stopped
     networks: [gs-net]
 

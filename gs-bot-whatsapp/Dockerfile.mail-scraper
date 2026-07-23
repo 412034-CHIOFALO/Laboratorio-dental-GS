@@ -1,0 +1,15 @@
+# Scraper de mails — Node puro, SIN Chromium/Puppeteer (a diferencia del bot de
+# WhatsApp, este servicio nunca abre un navegador). Comparte el mismo código y
+# package.json que el bot (misma carpeta gs-bot-whatsapp/) pero corre como
+# proceso y contenedor separados — así un cuelgue de IMAP no afecta la sesión
+# de WhatsApp, y viceversa.
+FROM node:20-bookworm-slim
+
+ENV NODE_ENV=production
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY . .
+
+CMD ["node", "mail-scraper.js"]

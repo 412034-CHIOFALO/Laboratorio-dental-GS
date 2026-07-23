@@ -1108,5 +1108,6 @@ function normalizarTelefono(telefono) {
 console.log('🤖 Iniciando bot de WhatsApp GS...');
 client.initialize();
 
-// ─── Scraper de mails (pedidos recibidos por email) ──────────────────────────
-require('./mail-scraper').iniciar();
+// El scraper de mails (pedidos recibidos por email) corre como servicio Docker
+// aparte (gs-mail-scraper, ver Dockerfile.mail-scraper) — así un cuelgue de
+// IMAP no puede afectar esta sesión de WhatsApp, y viceversa.

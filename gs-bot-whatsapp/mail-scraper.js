@@ -14,6 +14,11 @@
  *
  *  Activación: MAIL_ENABLED=true en .env
  *  Intervalo de polling: MAIL_POLL_INTERVAL (segundos, default 120)
+ *
+ *  Corre como servicio Docker propio (gs-mail-scraper), separado del bot de
+ *  WhatsApp: así un cuelgue de IMAP no puede afectar la sesión de WhatsApp (la
+ *  parte más lenta/frágil de recuperar), y `docker compose restart` sobre ESTE
+ *  servicio no toca al bot para nada.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -22,7 +27,9 @@ require('dotenv').config();
 const MAIL_ENABLED = process.env.MAIL_ENABLED === 'true';
 
 if (!MAIL_ENABLED) {
-  module.exports = { iniciar: () => console.log('[MailScraper] Desactivado (MAIL_ENABLED != true).') };
+  const iniciar = () => console.log('[MailScraper] Desactivado (MAIL_ENABLED != true).');
+  module.exports = { iniciar };
+  if (require.main === module) iniciar();
   return;
 }
 
@@ -352,6 +359,15 @@ async function procesarEmail(uid, envelope, source) {
 // pueden ser la causa de los "Connection not available" observados.
 let _pollEnCurso = false;
 
+// Watchdog: si el ciclo completo falla muchas veces seguidas, algo quedó en un
+// estado raro que ningún timeout puntual está arreglando (ej: Gmail limitando
+// temporalmente las conexiones por reconectar demasiado seguido). En vez de
+// insistir para siempre con el mismo proceso posiblemente degradado, salimos
+// con código de error — como este servicio corre con `restart: unless-stopped`
+// en Docker, arranca de nuevo solo, limpio, sin que nadie tenga que mirarlo.
+const MAX_FALLOS_CONSECUTIVOS = parseInt(process.env.MAIL_MAX_FALLOS_CONSECUTIVOS || '8', 10);
+let _fallosConsecutivos = 0;
+
 async function pollMail() {
   if (_pollEnCurso) {
     console.warn('[MailScraper] Poll anterior todavía en curso — se salta este ciclo.');
@@ -374,10 +390,16 @@ async function pollMail() {
       10 * 60 * 1000,
       'El poll no terminó en 10 minutos — probablemente una operación IMAP quedó colgada',
     );
+    _fallosConsecutivos = 0; // el ciclo terminó (haya o no encontrado mails nuevos) → todo bien
   } catch (e) {
     console.error('[MailScraper] Poll abortado:', e.message);
     if (imapRef) {
       try { imapRef.close(); } catch (_) {}  // cierre forzado, sin esperar LOGOUT
+    }
+    _fallosConsecutivos++;
+    if (_fallosConsecutivos >= MAX_FALLOS_CONSECUTIVOS) {
+      console.error(`[MailScraper] ${_fallosConsecutivos} ciclos seguidos abortados — reiniciando el proceso para arrancar de cero.`);
+      process.exit(1);
     }
   } finally {
     _pollEnCurso = false;
@@ -500,3 +522,8 @@ function iniciar() {
 }
 
 module.exports = { iniciar };
+
+// Corre standalone (`node mail-scraper.js`, ver Dockerfile.mail-scraper) — pero
+// si en algún momento vuelve a importarse desde otro módulo (como pasaba antes
+// desde index.js), `require.main !== module` y esta línea no hace nada.
+if (require.main === module) iniciar();
