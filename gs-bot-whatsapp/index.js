@@ -232,7 +232,26 @@ async function reconciliarChats(limitePorGrupo) {
   let chatsRevisados = 0;
   let mensajesRevisados = 0;
   try {
-    const chats = await client.getChats();
+    let chats;
+    try {
+      chats = await client.getChats();
+    } catch (e) {
+      // Bug conocido y recurrente de whatsapp-web.js: cada vez que WhatsApp
+      // actualiza su versión web, client.getChats() puede tirar un error
+      // interno (evalúa código minificado del lado del navegador) hasta que
+      // la librería lo parchea — no es algo que podamos arreglar acá.
+      // Fallback: en vez de listar TODOS los chats, pedimos uno por uno los
+      // grupos que ya conocemos de reconciliaciones anteriores (persistidos
+      // en chatsConBaseline) — es una llamada más chica y no siempre falla
+      // aunque getChats() sí.
+      console.warn('[Reconciliación] getChats() falló (ver stack) — reintentando por ID con los grupos ya conocidos:', e.stack || e);
+      const idsConocidos = [...chatsConBaseline];
+      const resultados = await Promise.all(
+        idsConocidos.map(id => client.getChatById(id).catch(() => null))
+      );
+      chats = resultados.filter(Boolean);
+      if (chats.length === 0) throw e; // sin fallback posible (ningún grupo conocido todavía) → error original
+    }
     const grupos = chats.filter(c => c.isGroup &&
       (GRUPOS.length === 0 || GRUPOS.includes(c.name.toLowerCase())));
 
