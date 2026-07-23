@@ -236,17 +236,14 @@
              [class.gallery-item--wide]="item.layout === 'wide'">
           @if (item.tipo === 'video') {
             <video [src]="'instagram/' + item.archivo" [attr.aria-label]="item.alt"
-                   [muted]="true" [volume]="0"
-                   autoplay loop playsinline preload="metadata"></video>
-            <span class="gallery-video-badge" aria-hidden="true">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-            </span>
+                   autoplay muted controls loop playsinline preload="metadata"></video>
+            <div class="gallery-caption">{{ item.caption }}</div>
           } @else {
             <img [src]="'instagram/' + item.archivo" [alt]="item.alt" loading="lazy">
+            <div class="gallery-overlay">
+              <span>{{ item.caption }}</span>
+            </div>
           }
-          <div class="gallery-overlay">
-            <span>{{ item.caption }}</span>
-          </div>
         </div>
       }
     </div>
@@ -316,44 +313,6 @@
           Matrícula Profesional 1666
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- ── TESTIMONIOS ── -->
-  <section class="testimonios" id="testimonios">
-    <div class="section-header">
-      <span class="section-tag">Lo que dicen los profesionales</span>
-      <h2>Odontólogos que confían en nosotros</h2>
-      <p>Profesionales de Córdoba y del país que eligen GS para sus pacientes, trabajo tras trabajo.</p>
-    </div>
-
-    <div class="testimonios-grid">
-      <figure class="testi-card">
-        <div class="testi-stars">★★★★★</div>
-        <blockquote>Hace años que les mando todos mis trabajos de ortodoncia. Cumplen los tiempos y la prolijidad es impecable.</blockquote>
-        <figcaption class="testi-author">
-          <div class="testi-avatar">MA</div>
-          <div><strong>Dra. M. Acosta</strong><span>Odontóloga · Córdoba</span></div>
-        </figcaption>
-      </figure>
-
-      <figure class="testi-card">
-        <div class="testi-stars">★★★★★</div>
-        <blockquote>La precisión de las placas y el seguimiento de cada pedido hacen la diferencia. Confío en GS para mis pacientes.</blockquote>
-        <figcaption class="testi-author">
-          <div class="testi-avatar">JR</div>
-          <div><strong>Dr. J. Ramírez</strong><span>Ortodoncista · Villa María</span></div>
-        </figcaption>
-      </figure>
-
-      <figure class="testi-card">
-        <div class="testi-stars">★★★★★</div>
-        <blockquote>Trato cercano y trabajos siempre a tiempo. Un laboratorio en el que se puede confiar de verdad.</blockquote>
-        <figcaption class="testi-author">
-          <div class="testi-avatar">LP</div>
-          <div><strong>Dra. L. Peralta</strong><span>Odontóloga · Río Cuarto</span></div>
-        </figcaption>
-      </figure>
     </div>
   </section>
 

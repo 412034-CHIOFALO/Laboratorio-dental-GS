@@ -428,12 +428,13 @@
 .gallery-item--tall { grid-row: span 2; }
 .gallery-item--wide { grid-column: span 2; }
 
-.gallery-video-badge {
-  position: absolute; top: 10px; right: 10px;
-  width: 26px; height: 26px; border-radius: 50%;
-  background: rgba(8,13,24,0.55); color: white;
-  display: flex; align-items: center; justify-content: center;
-  backdrop-filter: blur(2px);
+.gallery-caption {
+  position: absolute; top: 10px; left: 10px; z-index: 1;
+  background: rgba(8,13,24,0.6); color: white;
+  font-size: 0.72rem; font-weight: 600;
+  padding: 5px 10px; border-radius: 20px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 
 .gallery-overlay {
@@ -499,18 +500,18 @@
   border-radius: 50%;
   pointer-events: none;
 }
-.quote-marks { font-size: 4rem; line-height: 1; color: var(--gs-green); font-family: Georgia, serif; margin-bottom: -1rem; }
-.quote-text { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.3; margin-bottom: 1.5rem; color: var(--gs-white); }
+.quote-marks { font-size: 4rem; line-height: 1; color: #4ade80; font-family: Georgia, serif; margin-bottom: -1rem; }
+.quote-text { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.5px; line-height: 1.3; margin-bottom: 1.5rem; color: #ffffff; }
 .quote-author { display: flex; align-items: center; gap: 10px; }
 .quote-avatar {
   width: 36px; height: 36px;
   background: var(--gs-gradient-green); border-radius: 50%;
   display: flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: 700;
-  flex-shrink: 0;
+  flex-shrink: 0; color: #ffffff;
 }
 .quote-author div { display: flex; flex-direction: column; gap: 1px; }
-.quote-author strong { font-size: 0.9rem; color: var(--gs-text); }
-.quote-author span { font-size: 0.78rem; color: var(--gs-text-muted); }
+.quote-author strong { font-size: 0.9rem; color: #ffffff; }
+.quote-author span { font-size: 0.78rem; color: rgba(255,255,255,0.65); }
 
 .nosotros-photo {
   border-radius: 12px; overflow: hidden; position: relative; height: 200px;
@@ -544,9 +545,11 @@
   pointer-events: none;
 }
 .contacto-inner { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 1rem; align-items: center; position: relative; }
-.contacto h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.8px; color: var(--gs-white); }
-.contacto p { color: var(--gs-text-muted); font-size: 0.95rem; }
+.contacto h2 { font-size: 2rem; font-weight: 800; letter-spacing: -0.8px; color: #ffffff; }
+.contacto p { color: rgba(255,255,255,0.72); font-size: 0.95rem; }
 .contacto-actions { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; margin-top: 0.5rem; }
+.contacto .btn-outline { color: #ffffff; border-color: rgba(255,255,255,0.35); }
+.contacto .btn-outline:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.6); color: #ffffff; }
 
 /* FOOTER */
 .footer {
@@ -652,9 +655,8 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   TEMA CLINICO FRESCO + VERDE — LANDING (prueba)
-   Base blanca limpia, acento verde de la marca, titulos sans.
-   Flipa toda la landing redefiniendo los tokens --gs-*. Reversible: borrar.
+   TEMA CLÍNICO FRESCO + VERDE — LANDING
+   Base blanca limpia, acento verde de la marca, títulos sans.
 ═══════════════════════════════════════════════════════════════════ */
 .page {
   --gs-bg:           #ffffff;
@@ -713,45 +715,3 @@
 }
 .strip-item strong { color: var(--gs-green); }
 
-/* ── TESTIMONIOS ── */
-.testimonios {
-  padding: 5rem 5%;
-  background: var(--gs-surface);
-  border-top: 1px solid var(--gs-border);
-}
-.testimonios-grid {
-  display: grid; grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem; max-width: 1100px; margin: 0 auto;
-}
-.testi-card {
-  background: var(--gs-card);
-  border: 1px solid var(--gs-border);
-  border-radius: 14px;
-  padding: 1.75rem;
-  display: flex; flex-direction: column; gap: 1rem;
-  box-shadow: 0 6px 22px rgba(16,40,28,0.06);
-  transition: transform .2s, box-shadow .2s, border-color .2s;
-}
-.testi-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 34px rgba(16,40,28,0.10);
-  border-color: var(--gs-green-border);
-}
-.testi-stars { color: var(--gs-green); font-size: 1rem; letter-spacing: 2px; }
-.testi-card blockquote {
-  margin: 0; font-size: 0.98rem; line-height: 1.65;
-  color: var(--gs-text); font-style: italic; flex: 1;
-}
-.testi-author { display: flex; align-items: center; gap: 12px; }
-.testi-avatar {
-  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
-  background: linear-gradient(135deg, #22c55e, #15803d);
-  color: #fff; font-weight: 700; font-size: 0.95rem;
-  display: flex; align-items: center; justify-content: center;
-}
-.testi-author strong { display: block; font-size: 0.9rem; color: var(--gs-text); }
-.testi-author span { font-size: 0.78rem; color: var(--gs-text-muted); }
-
-@media (max-width: 900px) {
-  .testimonios-grid { grid-template-columns: 1fr; }
-}
