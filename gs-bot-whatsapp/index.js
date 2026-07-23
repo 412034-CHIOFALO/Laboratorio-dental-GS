@@ -153,9 +153,23 @@ function limpiarLocksDeSesionColgados() {
 }
 limpiarLocksDeSesionColgados();
 
+// Sin fijar webVersion, whatsapp-web.js siempre pide a WhatsApp la versión web
+// MÁS NUEVA en cada arranque — así que cualquier cambio que WhatsApp haga en su
+// frontend (algo que pasa seguido y no controlamos) nos rompe de un día para el
+// otro. Fijamos una versión concreta que sabemos que funcionó en este mismo bot
+// antes (el archivo vive en wa-web-pinned/, cacheado de una sesión real previa).
+//
+// Riesgo conocido: WhatsApp puede eventualmente dejar de aceptar conexiones con
+// una versión demasiado vieja y forzar la actualización — si en algún momento
+// el bot no logra ni siquiera mostrar el QR, probá sacar estas dos líneas
+// (vuelve al comportamiento anterior: siempre la última versión).
+const WA_WEB_VERSION_PINNEADA = '2.3000.1040944432';
+
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
+  webVersion: WA_WEB_VERSION_PINNEADA,
+  webVersionCache: { type: 'local', path: './wa-web-pinned' },
   puppeteer: {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
