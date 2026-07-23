@@ -165,15 +165,15 @@
     <div class="sidebar-footer">
       @if (sidebarOpen || isMobile()) {
         <div class="user-info">
-          <div class="user-avatar">{{ username.charAt(0).toUpperCase() }}</div>
+          <div class="user-avatar">{{ avatarLetra }}</div>
           <div class="user-details">
-            <span class="user-name">{{ username }}</span>
-            <span class="user-role">{{ getRolLabel() }}</span>
+            <span class="user-name">{{ nombreCompleto }}</span>
+            <span class="user-role">&#64;{{ username }}</span>
           </div>
         </div>
       }
       @if (!sidebarOpen && !isMobile()) {
-        <div class="user-avatar small">{{ username.charAt(0).toUpperCase() }}</div>
+        <div class="user-avatar small">{{ avatarLetra }}</div>
       }
       <button class="logout-btn" (click)="logout()" title="Cerrar sesión">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -285,18 +285,18 @@
         <!-- ── MENÚ DE PERFIL ── -->
         <div class="profile-wrap">
           <button class="profile-trigger" [class.open]="profileMenuOpen" (click)="toggleProfileMenu($event)" aria-label="Menú de perfil">
-            <span class="profile-avatar">{{ username.charAt(0).toUpperCase() }}</span>
-            <span class="profile-name-sm">{{ username }}</span>
+            <span class="profile-avatar">{{ avatarLetra }}</span>
+            <span class="profile-name-sm">{{ nombreCompleto }}</span>
             <svg class="profile-chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
 
           @if (profileMenuOpen) {
             <div class="profile-menu" (click)="$event.stopPropagation()">
               <div class="profile-menu-head">
-                <span class="profile-avatar lg">{{ username.charAt(0).toUpperCase() }}</span>
+                <span class="profile-avatar lg">{{ avatarLetra }}</span>
                 <div class="profile-menu-id">
-                  <strong>{{ username }}</strong>
-                  <span>{{ getRolLabel() }}</span>
+                  <strong>{{ nombreCompleto }}</strong>
+                  <span>&#64;{{ username }}</span>
                 </div>
               </div>
               <div class="profile-menu-items">

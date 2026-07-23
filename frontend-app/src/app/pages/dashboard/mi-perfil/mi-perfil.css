@@ -95,6 +95,20 @@
 .form-hint.err { color: var(--color-danger); }
 
 .perfil-acciones { margin-top: 1.1rem; display: flex; justify-content: flex-end; }
+.btn-primary {
+  background: var(--grad-primary, var(--accent));
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.3rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-primary:hover:not(:disabled) { opacity: 0.88; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
 @media (max-width: 560px) {
   .perfil-grid { grid-template-columns: 1fr; }
