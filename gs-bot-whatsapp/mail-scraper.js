@@ -416,9 +416,15 @@ async function _pollMailInterno(onConnect) {
       // descarga lenta bloqueaba el fetch de TODO el lote, incluidos los mails
       // triviales que ni necesitan Gemini.
       const envelopes = [];
-      for await (const msg of imap.fetch(uids, { envelope: true }, { uid: true })) {
-        envelopes.push({ uid: msg.uid, envelope: msg.envelope });
-      }
+      await conTimeout(
+        (async () => {
+          for await (const msg of imap.fetch(uids, { envelope: true }, { uid: true })) {
+            envelopes.push({ uid: msg.uid, envelope: msg.envelope });
+          }
+        })(),
+        30_000,
+        'La descarga de remitentes/asuntos no terminó en 30s — la conexión IMAP parece no responder en absoluto',
+      );
 
       for (const { uid, envelope } of envelopes) {
         let resuelto = false;
