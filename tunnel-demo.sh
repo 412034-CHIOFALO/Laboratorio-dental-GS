@@ -22,14 +22,25 @@ echo "  Suscribite en: https://ntfy.sh/$TOPIC"
 echo "════════════════════════════════════════════════════"
 echo ""
 
+if ! command -v cloudflared >/dev/null 2>&1; then
+  echo "❌ 'cloudflared' no está instalado en este server. Instalalo antes de correr esto." >&2
+  exit 1
+fi
+
+YA_AVISADO=0
+
 cloudflared tunnel --url http://localhost:80 2>&1 | while IFS= read -r line; do
   echo "$line"
-  if [[ "$line" == *"trycloudflare.com"* ]]; then
+  if [ "$YA_AVISADO" -eq 0 ] && [[ "$line" == *"trycloudflare.com"* ]]; then
     URL=$(echo "$line" | grep -oE 'https://[a-zA-Z0-9.-]+\.trycloudflare\.com' || true)
     if [ -n "$URL" ]; then
-      curl -s -d "🦷 Demo Laboratorio GS lista: $URL" "https://ntfy.sh/$TOPIC" > /dev/null
       echo ""
-      echo "✅ URL enviada a https://ntfy.sh/$TOPIC → $URL"
+      if curl -sS -d "🦷 Demo Laboratorio GS lista: $URL" "https://ntfy.sh/$TOPIC" > /dev/null; then
+        echo "✅ URL enviada a https://ntfy.sh/$TOPIC → $URL"
+        YA_AVISADO=1
+      else
+        echo "⚠️  No se pudo avisar por ntfy (revisá la conexión a internet del server) — la URL es: $URL"
+      fi
       echo ""
     fi
   fi
