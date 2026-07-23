@@ -420,14 +420,20 @@ async function _pollMailInterno(onConnect) {
           console.error(`[MailScraper] Error procesando email uid=${msg.uid}:`, e.message);
           resuelto = false;
         }
-        // El flagAdd va en su propio try/catch: si la conexión IMAP se cae justo
-        // acá (ej: socket timeout), antes esto tiraba fuera del for-await y
-        // abortaba el resto del lote — los emails siguientes (incluido el que
-        // sí importaba) ni se intentaban en este poll ni en ninguno futuro hasta
-        // que por azar cayeran primero en la cola.
+        // El flagAdd va en su propio try/catch + timeout corto: detectamos que
+        // este comando puede quedarse COLGADO para siempre (nunca resuelve ni
+        // rechaza, ni siquiera cuando el socket ya está en mal estado) en vez
+        // de fallar rápido — por eso antes se comía todo el deadline de 90s del
+        // poll entero. Con este timeout de 15s, si se cuelga lo detectamos
+        // rápido y seguimos con el resto del lote en la misma pasada.
         if (resuelto) {
           try {
-            await imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], { uid: true });
+            await conTimeout(
+              imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], { uid: true }),
+              15_000,
+              `messageFlagsAdd no respondió en 15s para uid=${msg.uid}`,
+            );
+            console.log(`[MailScraper]    ✓ Marcado como leído (uid=${msg.uid}).`);
           } catch (e) {
             console.error(`[MailScraper] No se pudo marcar leído uid=${msg.uid} — se reintentará:`, e.message);
           }
