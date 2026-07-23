@@ -191,7 +191,13 @@ async function enviarRespuesta(to, nombre, asuntoOriginal, pedido, mensajeError)
   }
 }
 
+function esRemitenteAutomatico(remitenteEmail) {
+  return !!remitenteEmail && PATRONES_REMITENTE_AUTOMATICO.some(p => p.test(remitenteEmail));
+}
+
 // ─── Procesamiento de un email ────────────────────────────────────────────────
+// Recibe el `source` ya descargado aparte (ver _pollMailInterno) — acá solo se
+// procesa contenido de emails que YA sabemos que no son de remitentes automáticos.
 async function procesarEmail(uid, envelope, source) {
   const remitenteNombre = envelope.from?.[0]?.name || envelope.from?.[0]?.address || 'Odontólogo';
   const remitenteEmail  = envelope.from?.[0]?.address || null;
@@ -200,11 +206,6 @@ async function procesarEmail(uid, envelope, source) {
 
   console.log(`\n[MailScraper] ── Email de ${remitenteNombre} <${remitenteEmail}>`);
   console.log(`[MailScraper]    Asunto: ${asunto}`);
-
-  if (remitenteEmail && PATRONES_REMITENTE_AUTOMATICO.some(p => p.test(remitenteEmail))) {
-    console.log(`[MailScraper]    ⏭ Remitente automático — descartado sin llamar a Gemini`);
-    return true;  // se marca leído, no se gasta cuota ni se responde
-  }
 
   // Parsear MIME para obtener texto y adjuntos
   const parsed = await simpleParser(source);
@@ -408,17 +409,43 @@ async function _pollMailInterno(onConnect) {
 
       console.log(`[MailScraper] ${uids.length} email(s) nuevo(s)`);
 
-      for await (const msg of imap.fetch(uids, { envelope: true, source: true }, { uid: true })) {
+      // Paso 1: traer solo los envelopes (remitente/asunto) — liviano y rápido,
+      // sin bajar el cuerpo ni los adjuntos todavía. Antes se pedía todo junto
+      // (envelope + source) para el lote entero de una sola vez: si un solo
+      // mensaje tenía un adjunto pesado (ej. un STL de un pedido real), esa
+      // descarga lenta bloqueaba el fetch de TODO el lote, incluidos los mails
+      // triviales que ni necesitan Gemini.
+      const envelopes = [];
+      for await (const msg of imap.fetch(uids, { envelope: true }, { uid: true })) {
+        envelopes.push({ uid: msg.uid, envelope: msg.envelope });
+      }
+
+      for (const { uid, envelope } of envelopes) {
         let resuelto = false;
-        try {
-          // Solo se marca leído si el email quedó resuelto (pedido creado o
-          // descartado por contenido). Si falló por infraestructura (backend
-          // caído), se deja sin leer para reintentarlo en el próximo poll y no
-          // perder el pedido.
-          resuelto = await procesarEmail(msg.uid, msg.envelope, msg.source);
-        } catch (e) {
-          console.error(`[MailScraper] Error procesando email uid=${msg.uid}:`, e.message);
-          resuelto = false;
+        const remitenteEmail = envelope.from?.[0]?.address || null;
+
+        if (esRemitenteAutomatico(remitenteEmail)) {
+          // Se descarta sin bajar el cuerpo/adjuntos — ni falta hace.
+          console.log(`\n[MailScraper] ── Email de ${envelope.from?.[0]?.name || remitenteEmail} <${remitenteEmail}>`);
+          console.log(`[MailScraper]    Asunto: ${envelope.subject || '(sin asunto)'}`);
+          console.log(`[MailScraper]    ⏭ Remitente automático — descartado sin bajar el contenido`);
+          resuelto = true;
+        } else {
+          try {
+            // El source (cuerpo + adjuntos) se baja recién acá, mensaje por
+            // mensaje y con su propio timeout — así un adjunto pesado en UN
+            // mail no puede trabar la descarga de los demás ni comerse todo
+            // el presupuesto del poll.
+            const { source } = await conTimeout(
+              imap.fetchOne(uid, { source: true }, { uid: true }),
+              45_000,
+              `Descarga del contenido no terminó en 45s para uid=${uid} (¿adjunto pesado?)`,
+            );
+            resuelto = await procesarEmail(uid, envelope, source);
+          } catch (e) {
+            console.error(`[MailScraper] Error procesando email uid=${uid}:`, e.message);
+            resuelto = false;
+          }
         }
         // El flagAdd va en su propio try/catch + timeout corto: detectamos que
         // este comando puede quedarse COLGADO para siempre (nunca resuelve ni
@@ -429,16 +456,16 @@ async function _pollMailInterno(onConnect) {
         if (resuelto) {
           try {
             await conTimeout(
-              imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], { uid: true }),
+              imap.messageFlagsAdd({ uid }, ['\\Seen'], { uid: true }),
               15_000,
-              `messageFlagsAdd no respondió en 15s para uid=${msg.uid}`,
+              `messageFlagsAdd no respondió en 15s para uid=${uid}`,
             );
-            console.log(`[MailScraper]    ✓ Marcado como leído (uid=${msg.uid}).`);
+            console.log(`[MailScraper]    ✓ Marcado como leído (uid=${uid}).`);
           } catch (e) {
-            console.error(`[MailScraper] No se pudo marcar leído uid=${msg.uid} — se reintentará:`, e.message);
+            console.error(`[MailScraper] No se pudo marcar leído uid=${uid} — se reintentará:`, e.message);
           }
         } else {
-          console.warn(`[MailScraper] Email uid=${msg.uid} sin marcar — se reintentará.`);
+          console.warn(`[MailScraper] Email uid=${uid} sin marcar — se reintentará.`);
         }
       }
     } finally {
