@@ -706,10 +706,30 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
 }
 
 // ─── Lectura del comprobante (PDF o imagen) ──────────────────────────────────
+/**
+ * msg.downloadMedia() pasa por el mismo camino de Puppeteer (evaluate contra
+ * la página de WhatsApp Web) que getChats()/getChatById() — el mismo bug
+ * recurrente de whatsapp-web.js lo puede hacer fallar de forma intermitente
+ * (no siempre; a veces sí, a veces no). Como acá SÍ vale la pena reintentar
+ * (a diferencia de getChats, esto no involucra recorrer todo el historial),
+ * probamos unas pocas veces con una pausa corta antes de rendirnos.
+ */
+async function descargarMediaConReintentos(msg, intentos = 3) {
+  for (let i = 1; i <= intentos; i++) {
+    try {
+      return await msg.downloadMedia();
+    } catch (e) {
+      if (i === intentos) throw e;
+      console.log(`   (downloadMedia falló, reintento ${i}/${intentos - 1}...)`);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+}
+
 async function leerComprobante(msg) {
   const vacio = { monto: null, confianza: 'baja', idOperacion: null, de: null, para: null, texto: '' };
   try {
-    const media = await msg.downloadMedia();
+    const media = await descargarMediaConReintentos(msg);
     if (!media || !media.data) return vacio;
     const buffer = Buffer.from(media.data, 'base64');
     const esPdf = media.mimetype === 'application/pdf';
