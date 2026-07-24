@@ -560,8 +560,27 @@ html[data-theme="light"] #toast-container > .toast-warning {
   .audit-page, .cat-page, .ent-page, .fin-page, .odo-page, .ped-page,
   .stk-page, .page-content, .bot-view, .prod-page, .prov-view,
   .doc-page, .esc-page {
-    overflow: visible !important;
+    /* overflow-x se mantiene en hidden (no "visible" a secas): si no, una
+       tabla ancha que no entra en la pantalla estira TODA la página de
+       lado a lado en vez de scrollear solo ella — eso es lo que causaba
+       el scroll horizontal roto. Los que sí necesitan scroll horizontal
+       propio (tablas anchas, el tablero Kanban) lo tienen en su propio
+       contenedor interno, que esto no toca. */
+    overflow-y: visible !important;
+    overflow-x: hidden !important;
     min-height: auto !important;
     flex: none !important;
+  }
+
+  /* Los headers de tabla "position: sticky" apuntaban a quedar pegados
+     arriba DENTRO de su contenedor con scroll propio. Ahora que ese
+     contenedor ya no tiene una altura acotada (ver arriba), el sticky se
+     engancha con el scroll de toda la página en su lugar — el header
+     queda flotando en cualquier punto y se superpone con la primera fila
+     de datos. En mobile no vale la pena el header pegajoso (la pantalla
+     ya es corta): lo desactivamos y que scrollee como una tabla normal. */
+  .audit-table th, .tabla thead th, .tabla th, .hist-table th,
+  .table-wrap-scroll thead th, .ped-table th, .stk-table th {
+    position: static !important;
   }
 }
