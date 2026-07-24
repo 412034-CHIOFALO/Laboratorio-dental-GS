@@ -67,19 +67,37 @@ public class SecurityConfig {
      * CORS centralizado en el gateway.
      * Los microservicios individuales también tienen su propio CORS como segunda capa,
      * pero el gateway es el único punto de entrada real desde Angular.
+     *
+     * <p>OJO con la idea de "en prod con nginx no hace falta CORS porque es mismo
+     * origen": eso es cierto desde el punto de vista del NAVEGADOR (nginx sirve el
+     * SPA y proxea /api/ al gateway bajo el mismo host), pero nginx reenvía el
+     * header {@code Origin} tal cual al gateway — y el gateway, si no lo reconoce,
+     * lo rechaza igual con 403 "Invalid CORS request" ANTES de llegar al login.
+     * Por eso el dominio público real (el de nginx/el túnel, no localhost) tiene
+     * que estar en la lista igual, aunque "para el navegador" sea mismo origen.</p>
+     *
+     * <p>Se usan {@code allowedOriginPatterns} (no {@code allowedOrigins}) porque
+     * soporta wildcards — necesario para el túnel de demo (tunnel-demo.sh), que
+     * genera una URL de *.trycloudflare.com distinta en cada corrida. Sin
+     * wildcard, cada vez que se reinicia el túnel habría que tocar el .env y
+     * reiniciar el gateway para poder loguearse desde la URL nueva.</p>
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         // Orígenes configurables vía ALLOWED_ORIGINS (separados por coma), igual que
-        // en los 5 MS. Default = localhost:4200 para dev. En prod (nginx, mismo
-        // origen) no se usa CORS, pero queda correcto si se accede al gateway directo.
+        // en los 5 MS. Default = localhost:4200 para dev.
         String origins = System.getenv("ALLOWED_ORIGINS");
-        List<String> allowed = (origins == null || origins.isBlank())
+        List<String> configurados = (origins == null || origins.isBlank())
             ? List.of("http://localhost:4200")
             : List.of(origins.split("\\s*,\\s*"));
 
+        List<String> patrones = new java.util.ArrayList<>(configurados);
+        // Siempre permitido, sin importar ALLOWED_ORIGINS: es el túnel de demo
+        // que ya viene armado en el repo (tunnel-demo.sh → Cloudflare Quick Tunnel).
+        patrones.add("https://*.trycloudflare.com");
+
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(allowed);
+        config.setAllowedOriginPatterns(patrones);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         config.setAllowCredentials(true);
