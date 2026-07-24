@@ -709,72 +709,62 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
 
 // ─── Lectura del comprobante (PDF o imagen) ──────────────────────────────────
 /**
- * Descarga el adjunto SIN depender del downloadMedia() de whatsapp-web.js.
+ * Descarga el adjunto SIN buscar el mensaje en la base local de WhatsApp Web.
  *
- * El método de la librería encadena 4 pasos y si CUALQUIERA tira, aborta todo
- * devolviendo un error minificado inútil ("r"):
- *   1. window.require('WAWebCollections').Msg.get(id)   → modelo del mensaje
- *   2. msg.downloadMedia({...})                          → "resolver" el media
- *   3. WAWebDownloadManager.downloadAndMaybeDecrypt({})  → bajar + desencriptar
- *   4. WWebJS.arrayBufferToBase64Async()                 → a base64
+ * Por qué existe esto: el downloadMedia() de whatsapp-web.js arranca buscando el
+ * modelo del mensaje con Msg.get(id) / Msg.getMessagesById([id]), y HOY ese paso
+ * revienta contra IndexedDB:
  *
- * El paso 2 usa una API INTERNA de WhatsApp que cambia seguido; cuando cambia,
- * la librería muere ahí aunque el paso 3 —que baja y desencripta directo con
- * directPath/mediaKey del propio mensaje— siga funcionando perfectamente.
+ *     DataError: Failed to execute 'get' on 'IDBObjectStore':
+ *                No key or key range specified
  *
- * Esta versión:
- *   - Tolera que el paso 2 falle y sigue igual al 3 (que es el que baja de verdad).
- *   - Prueba nombres alternativos de módulo por si WhatsApp los renombró.
- *   - Atrapa los errores DENTRO de la página y los devuelve como texto, así en
- *     el log vemos la causa real en vez del "r" minificado.
+ * Como la librería aborta ahí, nunca llega a descargar nada — y el error sale
+ * minificado como "r", que no dice absolutamente nada.
  *
- * Devuelve { data, mimetype, filename, filesize } igual que la librería, o un
- * objeto { _falló: true, diag } con el detalle de dónde y por qué falló.
+ * La clave: NO hace falta buscar el mensaje. Todos los datos necesarios para
+ * bajar y desencriptar el archivo (directPath, mediaKey, filehash...) ya viajan
+ * en el objeto del mensaje del lado de Node (msg._data), porque WhatsApp los
+ * mandó junto con la notificación del mensaje. Así que se los pasamos a la
+ * página ya resueltos y llamamos derecho al downloadManager, salteando por
+ * completo el paso roto.
+ *
+ * Devuelve { data, mimetype, filename, filesize } igual que la librería, o
+ * { _fallo: true, diag } con el detalle de dónde y por qué falló.
  */
 async function descargarMediaDirecto(msg) {
-  return await client.pupPage.evaluate(async (id) => {
-    const diag = { paso: 'inicio' };
-    const req = (nombre) => { try { return window.require(nombre); } catch (e) { return null; } };
+  // Metadatos del media tal como los mandó WhatsApp, tomados del lado de Node.
+  const d = msg._data || {};
+  const meta = {
+    directPath:        d.directPath        ?? msg.directPath,
+    encFilehash:       d.encFilehash       ?? msg.encFilehash,
+    filehash:          d.filehash          ?? msg.filehash,
+    mediaKey:          d.mediaKey          ?? msg.mediaKey,
+    mediaKeyTimestamp: d.mediaKeyTimestamp ?? msg.mediaKeyTimestamp,
+    type:              d.type              ?? msg.type,
+    mimetype:          d.mimetype          ?? msg.mimetype ?? '',
+    filename:          d.filename          ?? msg.filename ?? null,
+    size:              d.size              ?? msg.size     ?? null,
+  };
+
+  if (!meta.directPath || !meta.mediaKey) {
+    return { _fallo: true, diag: { paso: 'metadatos', error: 'el mensaje no trae directPath/mediaKey' } };
+  }
+
+  return await client.pupPage.evaluate(async (m) => {
+    const diag = { paso: 'inicio', tipo: m.type };
     try {
-      // 1) Modelo del mensaje (con fallback al Store clásico)
-      diag.paso = 'colecciones';
-      const Collections = req('WAWebCollections');
-      const MsgCol = (Collections && Collections.Msg)
-        || (window.Store && window.Store.Msg)
-        || null;
-      if (!MsgCol) { diag.error = 'no se pudo obtener la colección Msg'; return { _fallo: true, diag }; }
-
-      diag.paso = 'buscar-mensaje';
-      let m = MsgCol.get(id);
-      if (!m && typeof MsgCol.getMessagesById === 'function') {
-        m = (await MsgCol.getMessagesById([id]))?.messages?.[0];
-      }
-      if (!m) { diag.error = 'mensaje no encontrado en la colección'; return { _fallo: true, diag }; }
-
-      diag.tipo = m.type;
-      diag.mediaStage = m.mediaData && m.mediaData.mediaStage;
-
-      // 2) Intentar "resolver" el media. Si falla NO abortamos: seguimos al
-      //    paso 3, que es el que realmente baja el archivo.
-      if (m.mediaData && m.mediaData.mediaStage !== 'RESOLVED') {
-        diag.paso = 'resolver-media';
-        try {
-          await m.downloadMedia({ downloadEvenIfExpensive: true, rmrReason: 1 });
-          diag.mediaStageDespues = m.mediaData && m.mediaData.mediaStage;
-        } catch (e) {
-          diag.avisoResolver = String((e && (e.message || e.name)) || e);
-        }
-      }
-
-      // 3) Bajar + desencriptar directo con los datos del mensaje
-      diag.paso = 'descargar-desencriptar';
-      const mockQpl = { addAnnotations() { return this; }, addPoint() { return this; } };
-      const DM = req('WAWebDownloadManager');
+      diag.paso = 'download-manager';
+      let DM = null;
+      try { DM = window.require('WAWebDownloadManager'); } catch (e) { diag.errModulo = String(e); }
       const downloadManager = DM && DM.downloadManager;
       if (!downloadManager || typeof downloadManager.downloadAndMaybeDecrypt !== 'function') {
         diag.error = 'WAWebDownloadManager no disponible';
         return { _fallo: true, diag };
       }
+
+      // Bajar + desencriptar directo con los metadatos que ya teníamos.
+      diag.paso = 'descargar-desencriptar';
+      const mockQpl = { addAnnotations() { return this; }, addPoint() { return this; } };
       const buffer = await downloadManager.downloadAndMaybeDecrypt({
         directPath: m.directPath,
         encFilehash: m.encFilehash,
@@ -786,7 +776,6 @@ async function descargarMediaDirecto(msg) {
         downloadQpl: mockQpl,
       });
 
-      // 4) A base64
       diag.paso = 'base64';
       const data = await window.WWebJS.arrayBufferToBase64Async(buffer);
       // mimetype siempre string: leerComprobante hace .startsWith() sobre esto.
@@ -796,7 +785,7 @@ async function descargarMediaDirecto(msg) {
       if (e && e.stack) diag.stack = String(e.stack).slice(0, 300);
       return { _fallo: true, diag };
     }
-  }, msg.id._serialized);
+  }, meta);
 }
 
 /**
