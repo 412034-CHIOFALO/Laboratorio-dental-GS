@@ -16,9 +16,12 @@ public interface DeudaProveedorRepository extends JpaRepository<DeudaProveedor, 
 
     List<DeudaProveedor> findByEstadoOrderByFechaVencimientoAsc(EstadoDeuda estado);
 
-    @Query("SELECT COALESCE(SUM(d.monto), 0) FROM DeudaProveedor d WHERE d.proveedor.id = :proveedorId AND d.estado = 'PENDIENTE'")
+    /** Deudas con saldo (PENDIENTE o PARCIAL) de un proveedor, más viejas primero. */
+    List<DeudaProveedor> findByProveedorIdAndEstadoInOrderByFechaCreacionAsc(Long proveedorId, List<EstadoDeuda> estados);
+
+    @Query("SELECT COALESCE(SUM(d.monto - d.montoPagado), 0) FROM DeudaProveedor d WHERE d.proveedor.id = :proveedorId AND d.estado IN ('PENDIENTE', 'PARCIAL')")
     BigDecimal sumDeudaPendienteByProveedor(Long proveedorId);
 
-    @Query("SELECT COALESCE(SUM(d.monto), 0) FROM DeudaProveedor d WHERE d.estado = 'PENDIENTE'")
+    @Query("SELECT COALESCE(SUM(d.monto - d.montoPagado), 0) FROM DeudaProveedor d WHERE d.estado IN ('PENDIENTE', 'PARCIAL')")
     BigDecimal sumTotalDeudaPendiente();
 }

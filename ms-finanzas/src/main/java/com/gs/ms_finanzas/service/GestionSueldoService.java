@@ -396,35 +396,68 @@ public class GestionSueldoService implements IGestionSueldoService {
                 .findFirst();
     }
 
-    /** Marca comprobantes PENDIENTE del odontólogo como COBRADO (más viejos primero) hasta cubrir el monto. */
+    /**
+     * Imputa el pago a los comprobantes PENDIENTE/PARCIAL del odontólogo (más
+     * viejos primero), igual que {@code registrarPagoCuentaCorriente} — un
+     * pago que no alcanza a cubrir un comprobante completo lo deja en PARCIAL
+     * en vez de no hacer nada. Antes este método requería cubrir el comprobante
+     * entero de una, así que un triangulado por menos del monto total del
+     * comprobante más viejo no descontaba nada de la deuda.
+     */
     private BigDecimal settleDeudaOdontologo(Long odontologoId, BigDecimal monto) {
         BigDecimal restante = monto, settled = BigDecimal.ZERO;
-        List<Comprobante> pend = comprobanteRepo.findByOdontologoIdAndEstadoPago(odontologoId, EstadoPago.PENDIENTE)
+        List<Comprobante> pend = comprobanteRepo
+                .findByOdontologoIdAndEstadoPagoIn(odontologoId, List.of(EstadoPago.PENDIENTE, EstadoPago.PARCIAL))
                 .stream().sorted(Comparator.comparing(Comprobante::getFechaEmision)).toList();
         for (Comprobante c : pend) {
-            if (restante.compareTo(c.getMonto()) < 0) break;  // el modelo no soporta pago parcial de un comprobante
-            c.setEstadoPago(EstadoPago.COBRADO);
-            c.setFechaCobro(LocalDate.now());
+            if (restante.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal saldo = c.getSaldoPendiente();
+            if (saldo.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal aplica = restante.min(saldo);
+
+            c.setMontoPagado(c.getMontoPagado().add(aplica));
+            if (c.getMontoPagado().compareTo(c.getMonto()) >= 0) {
+                c.setEstadoPago(EstadoPago.COBRADO);
+                c.setFechaCobro(LocalDate.now());
+            } else {
+                c.setEstadoPago(EstadoPago.PARCIAL);
+            }
             comprobanteRepo.save(c);
-            restante = restante.subtract(c.getMonto());
-            settled = settled.add(c.getMonto());
+
+            restante = restante.subtract(aplica);
+            settled = settled.add(aplica);
         }
         return settled;
     }
 
-    /** Marca DeudaProveedor PENDIENTE como PAGADO (más viejas primero) hasta cubrir el monto. */
+    /**
+     * Imputa el pago a las deudas PENDIENTE/PARCIAL del proveedor (más viejas
+     * primero). Un pago que no alcanza a cubrir una deuda completa la deja en
+     * PARCIAL en vez de no hacer nada — antes esto requería cubrir la deuda
+     * entera de una sola vez, así que un pago (o triangulado) por menos del
+     * total de la deuda más vieja no descontaba nada.
+     */
     private BigDecimal settleDeudaProveedor(Long proveedorId, BigDecimal monto) {
         BigDecimal restante = monto, settled = BigDecimal.ZERO;
-        List<DeudaProveedor> pend = deudaProveedorRepo.findByProveedorIdOrderByFechaCreacionDesc(proveedorId)
-                .stream().filter(d -> d.getEstado() == EstadoDeuda.PENDIENTE)
-                .sorted(Comparator.comparing(DeudaProveedor::getFechaCreacion)).toList();
+        List<DeudaProveedor> pend = deudaProveedorRepo.findByProveedorIdAndEstadoInOrderByFechaCreacionAsc(
+                proveedorId, List.of(EstadoDeuda.PENDIENTE, EstadoDeuda.PARCIAL));
         for (DeudaProveedor d : pend) {
-            if (restante.compareTo(d.getMonto()) < 0) break;
-            d.setEstado(EstadoDeuda.PAGADO);
-            d.setFechaPago(LocalDate.now());
+            if (restante.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal saldo = d.getSaldoPendiente();
+            if (saldo.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal aplica = restante.min(saldo);
+
+            d.setMontoPagado(d.getMontoPagado().add(aplica));
+            if (d.getMontoPagado().compareTo(d.getMonto()) >= 0) {
+                d.setEstado(EstadoDeuda.PAGADO);
+                d.setFechaPago(LocalDate.now());
+            } else {
+                d.setEstado(EstadoDeuda.PARCIAL);
+            }
             deudaProveedorRepo.save(d);
-            restante = restante.subtract(d.getMonto());
-            settled = settled.add(d.getMonto());
+
+            restante = restante.subtract(aplica);
+            settled = settled.add(aplica);
         }
         return settled;
     }
@@ -539,17 +572,37 @@ public class GestionSueldoService implements IGestionSueldoService {
             return RegistroPagoBotResponse.from(registroRepo.save(reg));
         }
 
-        // 2) Proveedor
+        // 2) Proveedor (directo, o triangulado si el emisor es un odontólogo)
         Optional<Proveedor> proveedor = resolverProveedorOpt(reg.getReceptorNombre());
         if (proveedor.isPresent()) {
             Proveedor p = proveedor.get();
-            BigDecimal settled = settleDeudaProveedor(p.getId(), reg.getMonto());
-            registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
-                    "Efectivo a proveedor: " + p.getNombre(), null);
             reg.setEstado(EstadoRegistroBot.REGISTRADO);
             reg.setTipoReceptor(TipoReceptorBot.PROVEEDOR);
             reg.setReceptorId(p.getId());
             reg.setReceptorResuelto(p.getNombre());
+
+            // ¿El emisor es un odontólogo? → TRIANGULADO: no salió plata de la caja
+            // física del laboratorio, el odontólogo le pagó directo al proveedor.
+            Optional<Comprobante> odo = resolverOdontologoEmisor(reg.getEmisor(), p.getNombre());
+            if (odo.isPresent()) {
+                Comprobante oc = odo.get();
+                BigDecimal settOdo  = settleDeudaOdontologo(oc.getOdontologoId(), reg.getMonto());
+                BigDecimal settProv = settleDeudaProveedor(p.getId(), reg.getMonto());
+                // Caja Compensación: entra del odontólogo y sale al proveedor → neto 0
+                registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                        "Triangulado (efectivo): " + oc.getOdontologoNombre() + " paga a " + p.getNombre(), null);
+                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                        "Triangulado (efectivo): a proveedor " + p.getNombre() + " por cuenta de " + oc.getOdontologoNombre(), null);
+                reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → " + p.getNombre()
+                        + " (odontólogo -$" + settOdo.toBigInteger() + ", proveedor -$" + settProv.toBigInteger() + ")");
+                log.info("[BOT-EFECTIVO] Triangulado: {} → {} por ${}", oc.getOdontologoNombre(), p.getNombre(), reg.getMonto());
+                return RegistroPagoBotResponse.from(registroRepo.save(reg));
+            }
+
+            // Pago directo del laboratorio al proveedor, en efectivo real
+            BigDecimal settled = settleDeudaProveedor(p.getId(), reg.getMonto());
+            registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
+                    "Efectivo a proveedor: " + p.getNombre(), null);
             reg.setMensaje("Efectivo a proveedor: " + p.getNombre()
                     + (settled.signum() > 0 ? " (deuda -$" + settled.toBigInteger() + ")" : ""));
             log.info("[BOT-EFECTIVO] Confirmado: proveedor {} recibió ${}", p.getNombre(), reg.getMonto());

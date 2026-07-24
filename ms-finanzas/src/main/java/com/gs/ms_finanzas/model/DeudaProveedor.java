@@ -54,9 +54,18 @@ public class DeudaProveedor {
     private BigDecimal monto;
 
     /**
+     * Monto ya pagado de esta deuda (soporta pagos parciales/triangulados por
+     * menos del total). El saldo pendiente es {@code monto - montoPagado}.
+     */
+    @Column(name = "monto_pagado", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal montoPagado = BigDecimal.ZERO;
+
+    /**
      * Estado actual de la deuda.
      * <ul>
      *   <li>{@link EstadoDeuda#PENDIENTE} — sin pagar (valor por defecto).</li>
+     *   <li>{@link EstadoDeuda#PARCIAL} — tiene pagos imputados pero resta saldo.</li>
      *   <li>{@link EstadoDeuda#PAGADO} — cancelada.</li>
      * </ul>
      */
@@ -100,5 +109,13 @@ public class DeudaProveedor {
     @PrePersist
     protected void onCreate() {
         this.fechaCreacion = LocalDateTime.now();
+        if (this.montoPagado == null) this.montoPagado = BigDecimal.ZERO;
+    }
+
+    /** Saldo que todavía resta pagar de esta deuda. */
+    @Transient
+    public BigDecimal getSaldoPendiente() {
+        BigDecimal pagado = montoPagado != null ? montoPagado : BigDecimal.ZERO;
+        return monto.subtract(pagado).max(BigDecimal.ZERO);
     }
 }

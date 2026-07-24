@@ -4,7 +4,7 @@ import { Observable, of } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
-export type EstadoDeuda = 'PENDIENTE' | 'PAGADO';
+export type EstadoDeuda = 'PENDIENTE' | 'PARCIAL' | 'PAGADO';
 /** Caja de la que sale un pago manual a proveedor (no incluye COMPENSACION: esa es solo para triangulados del bot). */
 export type CajaPagoProveedor = 'FISICA' | 'BANCARIA';
 
@@ -25,6 +25,8 @@ export interface DeudaProveedor {
   proveedorNombre: string;
   descripcion: string;
   monto: number;
+  montoPagado: number;
+  saldoPendiente: number;
   estado: EstadoDeuda;      // PAGADO = ya saldada (ej: por un triangulado del bot)
   fechaVencimiento: string | null;
   fechaPago: string | null;
@@ -88,6 +90,8 @@ export class ProveedoresService {
         proveedorNombre: this.mockProveedores().find(p => p.id === req.proveedorId)?.nombre ?? '',
         descripcion: req.descripcion,
         monto: req.monto,
+        montoPagado: 0,
+        saldoPendiente: req.monto,
         estado: 'PENDIENTE',
         fechaVencimiento: req.fechaVencimiento ?? null,
         fechaPago: null,
@@ -103,7 +107,7 @@ export class ProveedoresService {
   pagarDeuda(id: number, caja: CajaPagoProveedor): Observable<DeudaProveedor> {
     if (environment.useMocks) {
       const d = this.mockDeudas().find(x => x.id === id)!;
-      return of({ ...d, estado: 'PAGADO' as EstadoDeuda, fechaPago: new Date().toISOString().slice(0, 10) }).pipe(delay(200));
+      return of({ ...d, estado: 'PAGADO' as EstadoDeuda, montoPagado: d.monto, saldoPendiente: 0, fechaPago: new Date().toISOString().slice(0, 10) }).pipe(delay(200));
     }
     const params = new HttpParams().set('caja', caja);
     return this.http.patch<DeudaProveedor>(`${this.base}/deudas/${id}/pagar`, null, { params });
@@ -120,10 +124,10 @@ export class ProveedoresService {
 
   private mockDeudas(): DeudaProveedor[] {
     return [
-      { id: 1, proveedorId: 1, proveedorNombre: 'Dental Import SRL', descripcion: 'Cerámica Vita PM9 — Lote 2025-05', monto: 25000, estado: 'PAGADO', fechaVencimiento: '2026-07-09', fechaPago: '2026-06-10', nroFacturaProveedor: 'A-0001-00045', observaciones: null },
-      { id: 2, proveedorId: 2, proveedorNombre: 'Luciano Giménez', descripcion: 'Fresado tercerizado — Lote 2025-06', monto: 12000, estado: 'PAGADO', fechaVencimiento: '2026-06-30', fechaPago: '2026-06-10', nroFacturaProveedor: null, observaciones: 'Saldada por triangulado (Dra. Laura Sánchez)' },
-      { id: 3, proveedorId: 3, proveedorNombre: 'Protésica del Sur', descripcion: 'Coronas de zirconio x10', monto: 30000, estado: 'PENDIENTE', fechaVencimiento: '2026-07-01', fechaPago: null, nroFacturaProveedor: 'B-0003-00012', observaciones: null },
-      { id: 4, proveedorId: 3, proveedorNombre: 'Protésica del Sur', descripcion: 'Implantes premium x4', monto: 18000, estado: 'PENDIENTE', fechaVencimiento: '2026-07-15', fechaPago: null, nroFacturaProveedor: 'B-0003-00020', observaciones: null },
+      { id: 1, proveedorId: 1, proveedorNombre: 'Dental Import SRL', descripcion: 'Cerámica Vita PM9 — Lote 2025-05', monto: 25000, montoPagado: 25000, saldoPendiente: 0, estado: 'PAGADO', fechaVencimiento: '2026-07-09', fechaPago: '2026-06-10', nroFacturaProveedor: 'A-0001-00045', observaciones: null },
+      { id: 2, proveedorId: 2, proveedorNombre: 'Luciano Giménez', descripcion: 'Fresado tercerizado — Lote 2025-06', monto: 12000, montoPagado: 12000, saldoPendiente: 0, estado: 'PAGADO', fechaVencimiento: '2026-06-30', fechaPago: '2026-06-10', nroFacturaProveedor: null, observaciones: 'Saldada por triangulado (Dra. Laura Sánchez)' },
+      { id: 3, proveedorId: 3, proveedorNombre: 'Protésica del Sur', descripcion: 'Coronas de zirconio x10', monto: 30000, montoPagado: 0, saldoPendiente: 30000, estado: 'PENDIENTE', fechaVencimiento: '2026-07-01', fechaPago: null, nroFacturaProveedor: 'B-0003-00012', observaciones: null },
+      { id: 4, proveedorId: 3, proveedorNombre: 'Protésica del Sur', descripcion: 'Implantes premium x4', monto: 18000, montoPagado: 0, saldoPendiente: 18000, estado: 'PENDIENTE', fechaVencimiento: '2026-07-15', fechaPago: null, nroFacturaProveedor: 'B-0003-00020', observaciones: null },
     ];
   }
 }

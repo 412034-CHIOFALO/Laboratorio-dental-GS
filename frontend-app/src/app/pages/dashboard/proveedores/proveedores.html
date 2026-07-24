@@ -72,13 +72,16 @@
                               {{ d.descripcion }}
                               @if (d.observaciones) { <div class="obs">{{ d.observaciones }}</div> }
                             </td>
-                            <td class="r mono">${{ d.monto | number:'1.0-0' }}</td>
-                            <td><span class="badge" [class.ok]="d.estado==='PAGADO'" [class.pend]="d.estado==='PENDIENTE'">{{ d.estado }}</span></td>
+                            <td class="r mono">
+                              ${{ d.saldoPendiente | number:'1.0-0' }}
+                              @if (d.estado === 'PARCIAL') { <div class="obs">de ${{ d.monto | number:'1.0-0' }}</div> }
+                            </td>
+                            <td><span class="badge" [class.ok]="d.estado==='PAGADO'" [class.pend]="d.estado==='PENDIENTE'" [class.parcial]="d.estado==='PARCIAL'">{{ d.estado }}</span></td>
                             <td class="nowrap">{{ d.fechaVencimiento ? (d.fechaVencimiento | date:'dd/MM/yy') : '—' }}</td>
                             <td class="nowrap">{{ d.fechaPago ? (d.fechaPago | date:'dd/MM/yy') : '—' }}</td>
                             <td class="nowrap">{{ d.nroFacturaProveedor || '—' }}</td>
                             <td class="nowrap">
-                              @if (d.estado === 'PENDIENTE') {
+                              @if (d.estado === 'PENDIENTE' || d.estado === 'PARCIAL') {
                                 <button class="btn-ghost btn-sm" [disabled]="pagandoId() === d.id"
                                         (click)="marcarPagada(d); $event.stopPropagation()">
                                   {{ pagandoId() === d.id ? 'Marcando…' : 'Marcar pagada' }}

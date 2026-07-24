@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { iniciarPolling } from '../../../shared/poll.util';
 import {
@@ -124,6 +124,7 @@ export class FinanzasComponent implements OnInit {
 
   private notif = inject(NotificationService);
   private destroyRef = inject(DestroyRef);
+  private route = inject(ActivatedRoute);
 
   readonly filtros: { valor: FiltroMorosos; label: string }[] = [
     { valor: 'TODOS',   label: 'Todos' },
@@ -312,6 +313,10 @@ export class FinanzasComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    const seccion = this.route.snapshot.queryParamMap.get('seccion') as SeccionFinanzas | null;
+    if (seccion && this.secciones.some(s => s.id === seccion)) {
+      this.seccionActiva = seccion;
+    }
     this.cargarResumen();
     this.cargarMovimientos();
     this.cargarCuentasCorrientes();

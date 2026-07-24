@@ -62,6 +62,13 @@ public class DeudaProveedorService implements IDeudaProveedorService {
         return DeudaProveedorResponse.from(deudaRepo.save(d));
     }
 
+    /**
+     * Marca el SALDO RESTANTE de la deuda como pagado (no el monto original) —
+     * si ya tenía pagos parciales (por ejemplo, un triangulado del bot que
+     * cubrió parte), este botón manual solo cubre lo que falta, y el egreso de
+     * caja es por ese resto, no por el total, para no duplicar contablemente
+     * lo que ya se descontó antes.
+     */
     @Transactional
     public DeudaProveedorResponse pagar(Long id, TipoCaja caja) {
         DeudaProveedor d = deudaRepo.findById(id)
@@ -69,20 +76,24 @@ public class DeudaProveedorService implements IDeudaProveedorService {
         if (d.getEstado() == EstadoDeuda.PAGADO) {
             throw new BusinessException("La deuda ya está marcada como pagada.");
         }
+        java.math.BigDecimal restante = d.getSaldoPendiente();
+        d.setMontoPagado(d.getMonto());
         d.setEstado(EstadoDeuda.PAGADO);
         d.setFechaPago(LocalDate.now());
         DeudaProveedor guardada = deudaRepo.save(d);
 
         // Antes esto solo cambiaba el estado sin registrar ningún egreso de caja
         // — el pago "desaparecía" contablemente. Ahora sí queda el rastro.
-        cajaMovimientoRepo.save(CajaMovimiento.builder()
-            .tipo(TipoMovimientoCaja.EGRESO)
-            .tipoCaja(caja)
-            .monto(d.getMonto())
-            .concepto("Pago a proveedor: " + d.getProveedor().getNombre() + " — " + d.getDescripcion())
-            .referencia(d.getNroFacturaProveedor())
-            .creadoPor("panel")
-            .build());
+        if (restante.signum() > 0) {
+            cajaMovimientoRepo.save(CajaMovimiento.builder()
+                .tipo(TipoMovimientoCaja.EGRESO)
+                .tipoCaja(caja)
+                .monto(restante)
+                .concepto("Pago a proveedor: " + d.getProveedor().getNombre() + " — " + d.getDescripcion())
+                .referencia(d.getNroFacturaProveedor())
+                .creadoPor("panel")
+                .build());
+        }
 
         return DeudaProveedorResponse.from(guardada);
     }
