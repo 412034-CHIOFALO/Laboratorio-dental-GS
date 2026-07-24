@@ -76,36 +76,38 @@
       @if (pedidosRecientes.length === 0) {
         <div class="panel__empty">Aún no hay pedidos cargados.</div>
       } @else {
-        <table class="ped-table">
-          <thead>
-            <tr>
-              <th>Nº</th>
-              <th>Paciente / Odontólogo</th>
-              <th>Trabajo</th>
-              <th>Estado</th>
-              <th>Entrega</th>
-              <th class="th-right">Precio</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (p of pedidosRecientes; track p.id) {
-              @let entrega = diasParaEntrega(p.fechaEntrega);
-              <tr (click)="abrirDetalle(p.id)">
-                <td class="td-id">{{ p.nroPedido }}</td>
-                <td>
-                  <strong>{{ p.paciente }}</strong>
-                  <small>{{ p.odontologoNombre }}</small>
-                </td>
-                <td class="td-trab">{{ p.trabajo }}</td>
-                <td>
-                  <span class="chip" [ngClass]="chipClass(p.estado)">{{ labelEstado(p.estado) }}</span>
-                </td>
-                <td [class.td-vencido]="entrega.vencido">{{ entrega.texto }}</td>
-                <td class="td-precio">{{ formatMoney(p.precioAcordado) }}</td>
+        <div class="ped-table-wrap">
+          <table class="ped-table">
+            <thead>
+              <tr>
+                <th>Nº</th>
+                <th>Paciente / Odontólogo</th>
+                <th>Trabajo</th>
+                <th>Estado</th>
+                <th>Entrega</th>
+                <th class="th-right">Precio</th>
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @for (p of pedidosRecientes; track p.id) {
+                @let entrega = diasParaEntrega(p.fechaEntrega);
+                <tr (click)="abrirDetalle(p.id)">
+                  <td class="td-id">{{ p.nroPedido }}</td>
+                  <td>
+                    <strong>{{ p.paciente }}</strong>
+                    <small>{{ p.odontologoNombre }}</small>
+                  </td>
+                  <td class="td-trab">{{ p.trabajo }}</td>
+                  <td>
+                    <span class="chip" [ngClass]="chipClass(p.estado)">{{ labelEstado(p.estado) }}</span>
+                  </td>
+                  <td [class.td-vencido]="entrega.vencido">{{ entrega.texto }}</td>
+                  <td class="td-precio">{{ formatMoney(p.precioAcordado) }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       }
     </div>
 
