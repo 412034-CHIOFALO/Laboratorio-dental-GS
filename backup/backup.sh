@@ -1,6 +1,13 @@
 #!/bin/bash
 set -uo pipefail
 
+# Defensa por si se corre fuera de cron: si MYSQL_ROOT_PASSWORD no está en el
+# entorno pero sí en el archivo que dejó el entrypoint, lo cargamos. (Desde cron
+# ya lo hace la propia línea del crontab; esto cubre el caso de correrlo a mano.)
+if [ -z "${MYSQL_ROOT_PASSWORD:-}" ] && [ -f /etc/cron-env ]; then
+  . /etc/cron-env
+fi
+
 FECHA=$(date +%Y-%m-%d_%H-%M)
 TMP_DIR="/backups/tmp/$FECHA"
 BASES="gs_auth gs_catalogo gs_pedidos gs_finanzas gs_stock"

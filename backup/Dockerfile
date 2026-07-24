@@ -11,7 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backup.sh /backup.sh
+COPY entrypoint.sh /entrypoint.sh
 COPY crontab /etc/cron.d/backup-cron
-RUN chmod +x /backup.sh && chmod 0644 /etc/cron.d/backup-cron
+RUN chmod +x /backup.sh /entrypoint.sh && chmod 0644 /etc/cron.d/backup-cron
 
-CMD ["cron", "-f"]
+# El entrypoint vuelca el entorno del contenedor a /etc/cron-env (cron no lo
+# hereda) y después arranca cron en foreground.
+CMD ["/entrypoint.sh"]
