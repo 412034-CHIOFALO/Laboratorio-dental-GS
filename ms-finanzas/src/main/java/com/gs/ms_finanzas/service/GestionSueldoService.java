@@ -182,7 +182,9 @@ public class GestionSueldoService implements IGestionSueldoService {
         if (empleado.isPresent()) {
             ConfiguracionSueldo c = empleado.get();
             try {
-                PagoSueldo pago = aplicarPago(c, req.getMonto(), ManejoSobrante.DESCONTAR_PROXIMO,
+                // DEVUELVE_EMPLEADO: lo que exceda lo devengado no queda como
+                // adelanto del próximo sueldo, vuelve a la caja del laboratorio.
+                PagoSueldo pago = aplicarPago(c, req.getMonto(), ManejoSobrante.DEVUELVE_EMPLEADO,
                         req.getFecha(), OrigenPago.BOT_WHATSAPP, req.getNota());
                 pago.setCargadoPorNombre(req.getCargadoPorNombre());
                 pago.setCargadoPorTelefono(req.getCargadoPorTelefono());
@@ -216,12 +218,17 @@ public class GestionSueldoService implements IGestionSueldoService {
                             + " (odontólogo -$" + settOdo.toBigInteger() + ")");
                     log.info("[BOT] Triangulado sueldo: {} pagó a {} por {}",
                             oc.getOdontologoNombre(), c.getEmpleadoNombre(), req.getMonto());
+                    // El triangulado no movió caja real, pero el excedente sí es
+                    // plata concreta que el empleado devuelve → entra por física.
+                    registrarExcedenteEnCaja(pago, TipoCaja.FISICA, req.getIdOperacion());
                 } else {
                     // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
                     registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
                             "Sueldo (transferencia) a " + c.getEmpleadoNombre(), req.getIdOperacion());
                     reg.setMensaje("Sueldo registrado para " + c.getEmpleadoNombre());
                     log.info("[BOT] Sueldo: {} recibió {} (emisor: {})", c.getEmpleadoNombre(), req.getMonto(), req.getEmisor());
+                    // Vuelve a la misma caja de la que salió, así el neto queda bien.
+                    registrarExcedenteEnCaja(pago, TipoCaja.BANCARIA, req.getIdOperacion());
                 }
                 return RegistroPagoBotResponse.from(registroRepo.save(reg));
             } catch (BusinessException e) {
@@ -504,6 +511,28 @@ public class GestionSueldoService implements IGestionSueldoService {
         return settled;
     }
 
+    /**
+     * Cuando un pago de sueldo supera lo devengado, ese excedente NO queda como
+     * adelanto del próximo período: vuelve al laboratorio. Se registra como
+     * INGRESO para que la caja refleje esa plata (el empleado la devuelve).
+     *
+     * <p>Antes el excedente se acumulaba en {@code saldoSobrante} y se descontaba
+     * del sueldo siguiente; ahora la política del bot es {@code DEVUELVE_EMPLEADO},
+     * que sin este movimiento dejaba la plata sin rastro contable.</p>
+     *
+     * @param caja dónde entra el excedente: la misma caja de la que salió el pago
+     *             (así el neto queda correcto), o FISICA en un triangulado, donde
+     *             el pago no movió caja real pero el excedente sí es plata real.
+     */
+    private void registrarExcedenteEnCaja(PagoSueldo pago, TipoCaja caja, String referencia) {
+        BigDecimal exc = pago.getMontoExcedente();
+        if (exc == null || exc.signum() <= 0) return;
+        registrarMovimiento(TipoMovimientoCaja.INGRESO, caja, exc,
+                "Excedente de sueldo devuelto por " + pago.getEmpleadoNombre(), referencia);
+        log.info("[SUELDOS] Excedente de ${} de {} vuelve a la caja {}",
+                exc, pago.getEmpleadoNombre(), caja);
+    }
+
     /** Registra un movimiento de caja (lo usan el triangulado y el pago directo a proveedor). */
     private void registrarMovimiento(TipoMovimientoCaja tipo, TipoCaja caja, BigDecimal monto, String concepto, String ref) {
         cajaMovimientoRepo.save(CajaMovimiento.builder()
@@ -592,7 +621,8 @@ public class GestionSueldoService implements IGestionSueldoService {
         if (empleado.isPresent()) {
             ConfiguracionSueldo c = empleado.get();
             try {
-                PagoSueldo pago = aplicarPago(c, reg.getMonto(), ManejoSobrante.DESCONTAR_PROXIMO,
+                // DEVUELVE_EMPLEADO: el excedente sobre lo devengado vuelve a la caja.
+                PagoSueldo pago = aplicarPago(c, reg.getMonto(), ManejoSobrante.DEVUELVE_EMPLEADO,
                         LocalDate.now(), OrigenPago.BOT_WHATSAPP, "Efectivo confirmado");
                 pago.setCargadoPorNombre(reg.getCargadoPorNombre());
                 pago.setCargadoPorTelefono(reg.getCargadoPorTelefono());
@@ -624,6 +654,8 @@ public class GestionSueldoService implements IGestionSueldoService {
                     reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
                     log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
                 }
+                // En efectivo el excedente siempre vuelve por caja física.
+                registrarExcedenteEnCaja(pago, TipoCaja.FISICA, null);
             } catch (BusinessException e) {
                 reg.setEstado(EstadoRegistroBot.RECHAZADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
