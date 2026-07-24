@@ -251,36 +251,36 @@ function limpiarLocksDeSesionColgados() {
 }
 limpiarLocksDeSesionColgados();
 
-// Fijamos la versión de WhatsApp Web a la MISMA contra la que fue probada la
-// versión instalada de whatsapp-web.js (ver node_modules/whatsapp-web.js/
-// src/util/Constants.js → DefaultOptions.webVersion). Si no la fijamos, el bot
-// carga la página VIVA de web.whatsapp.com, que WhatsApp actualiza seguido; en
+// Fijamos la versión de WhatsApp Web a un HTML CONGELADO servido localmente
+// (wa-web-pinned/), no a la página viva de web.whatsapp.com. Si no la fijamos,
+// el bot carga la versión más nueva que WhatsApp sirva en ese momento; en
 // cuanto sirven un frontend más nuevo que el que la librería entiende, cambia
 // la forma interna del "Store" y todo lo que lo lee vía Puppeteer —getChats()
 // y downloadMedia()— empieza a tirar "Execution context" y el bot recibe los
 // comprobantes pero NO puede leer el monto ni descargar la foto/PDF.
 //
-// El pin anterior fallaba por dos motivos que acá se corrigen:
-//   1. Apuntaba a 2.3000.1040944432, MÁS NUEVA que la que soporta la librería
-//      (por eso igual había mismatch). Ahora usamos exactamente la de la
-//      librería: quedan sincronizadas.
-//   2. Cacheaba un HTML local (wa-web-pinned/, 565 KB versionado a mano) que se
-//      desincronizaba. Ahora se baja congelado del repo de la comunidad
-//      (wppconnect/wa-version) — la misma fuente que usa la librería por
-//      defecto. Requiere salida a raw.githubusercontent.com (la hay).
+// Esta versión concreta (2.3000.1040944432) es la que estaba corriendo la
+// mañana del 2026-07-24, cuando la lectura de comprobantes andaba perfecto —
+// es la ÚNICA con evidencia de que downloadMedia funciona contra el backend
+// actual de WhatsApp. El archivo se capturó de una sesión real y vive en el
+// repo (no depende de que WhatsApp ni ningún CDN lo sigan sirviendo).
 //
-// Al subir de versión whatsapp-web.js en el futuro, actualizar este número al
-// nuevo DefaultOptions.webVersion de la librería (o borrar las dos líneas para
-// volver al default local, aceptando el riesgo de mismatch).
-const WA_WEB_VERSION = '2.3000.1017054665';
+// Nota: NO se usa webVersionCache remoto porque esta versión ya no está en el
+// repo de la comunidad (wppconnect/wa-version) — daría 404 y caería a la
+// página viva, que es justo lo que rompe. Por eso va como caché LOCAL.
+//
+// Si en el futuro WhatsApp deja de aceptar esta versión (el bot no llega a
+// mostrar el QR / "Execution context destroyed" en el arranque), hay que
+// recapturar wa-web-pinned/ de una sesión real reciente y actualizar el número.
+const WA_WEB_VERSION = '2.3000.1040944432';
 
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
   webVersion: WA_WEB_VERSION,
   webVersionCache: {
-    type: 'remote',
-    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html',
+    type: 'local',
+    path: './wa-web-pinned',
   },
   puppeteer: {
     headless: true,
