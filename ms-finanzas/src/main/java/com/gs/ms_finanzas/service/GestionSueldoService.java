@@ -182,9 +182,23 @@ public class GestionSueldoService implements IGestionSueldoService {
         if (empleado.isPresent()) {
             ConfiguracionSueldo c = empleado.get();
             try {
-                // DEVUELVE_EMPLEADO: lo que exceda lo devengado no queda como
-                // adelanto del próximo sueldo, vuelve a la caja del laboratorio.
-                PagoSueldo pago = aplicarPago(c, req.getMonto(), ManejoSobrante.DEVUELVE_EMPLEADO,
+                // ¿El sueldo lo pagó un odontólogo que nos debe? Se resuelve ANTES
+                // de aplicarPago porque el tratamiento del excedente depende de esto:
+                //
+                //   - TRIANGULADO: el odontólogo le paga al empleado directo — nunca
+                //     entra plata a una caja del lab (es un asiento neteado en
+                //     COMPENSACION). No hay adónde "devolver" el excedente, así que
+                //     sigue funcionando como siempre: adelanto contra el próximo
+                //     período (DESCONTAR_PROXIMO). Ej: paga $100k, el empleado debe
+                //     cobrar $70k → $30k quedan a favor, si mañana debe cobrar $40k
+                //     ese día solo se le paga $10k.
+                //   - DIRECTO (transferencia/efectivo real al lab): si excede lo
+                //     devengado, esa plata de más SÍ es caja real y vuelve al lab
+                //     (DEVUELVE_EMPLEADO) en vez de quedar como adelanto.
+                Optional<Comprobante> odo = resolverOdontologoEmisor(req.getEmisor(), c.getEmpleadoNombre());
+                ManejoSobrante manejo = odo.isPresent() ? ManejoSobrante.DESCONTAR_PROXIMO : ManejoSobrante.DEVUELVE_EMPLEADO;
+
+                PagoSueldo pago = aplicarPago(c, req.getMonto(), manejo,
                         req.getFecha(), OrigenPago.BOT_WHATSAPP, req.getNota());
                 pago.setCargadoPorNombre(req.getCargadoPorNombre());
                 pago.setCargadoPorTelefono(req.getCargadoPorTelefono());
@@ -199,13 +213,11 @@ public class GestionSueldoService implements IGestionSueldoService {
                 reg.setReceptorId(c.getEmpleadoId());
                 reg.setReceptorResuelto(c.getEmpleadoNombre());
 
-                // ¿El sueldo lo pagó un odontólogo que nos debe? Entonces es un
-                // TRIANGULADO igual que el de proveedores: pagó una obligación del
-                // lab por nosotros, así que además de saldar el sueldo hay que
-                // descontarle esa plata de su cuenta corriente. Y como no salió
-                // plata real del lab, va a COMPENSACION y no a la caja bancaria.
-                Optional<Comprobante> odo = resolverOdontologoEmisor(req.getEmisor(), c.getEmpleadoNombre());
                 if (odo.isPresent()) {
+                    // TRIANGULADO igual que el de proveedores: pagó una obligación
+                    // del lab por nosotros, así que además de saldar el sueldo hay
+                    // que descontarle esa plata de su cuenta corriente. Y como no
+                    // salió plata real del lab, va a COMPENSACION, no a bancaria.
                     Comprobante oc = odo.get();
                     BigDecimal settOdo = settleDeudaOdontologo(oc.getOdontologoId(), req.getMonto());
                     registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, req.getMonto(),
@@ -218,9 +230,6 @@ public class GestionSueldoService implements IGestionSueldoService {
                             + " (odontólogo -$" + settOdo.toBigInteger() + ")");
                     log.info("[BOT] Triangulado sueldo: {} pagó a {} por {}",
                             oc.getOdontologoNombre(), c.getEmpleadoNombre(), req.getMonto());
-                    // El triangulado no movió caja real, pero el excedente sí es
-                    // plata concreta que el empleado devuelve → entra por física.
-                    registrarExcedenteEnCaja(pago, TipoCaja.FISICA, req.getIdOperacion());
                 } else {
                     // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
                     registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
@@ -512,17 +521,20 @@ public class GestionSueldoService implements IGestionSueldoService {
     }
 
     /**
-     * Cuando un pago de sueldo supera lo devengado, ese excedente NO queda como
-     * adelanto del próximo período: vuelve al laboratorio. Se registra como
-     * INGRESO para que la caja refleje esa plata (el empleado la devuelve).
+     * Solo para pagos DIRECTOS de sueldo (no triangulados): si el pago supera lo
+     * devengado, ese excedente es caja real y NO queda como adelanto del próximo
+     * período — vuelve al laboratorio. Se registra como INGRESO para que la caja
+     * refleje esa plata (el empleado la devuelve), usando {@code ManejoSobrante
+     * .DEVUELVE_EMPLEADO}.
      *
-     * <p>Antes el excedente se acumulaba en {@code saldoSobrante} y se descontaba
-     * del sueldo siguiente; ahora la política del bot es {@code DEVUELVE_EMPLEADO},
-     * que sin este movimiento dejaba la plata sin rastro contable.</p>
+     * <p>En un triangulado (el odontólogo le paga al empleado por cuenta del lab)
+     * NO se llama a este método: nunca entró plata real a ninguna caja del lab
+     * —es un asiento neteado en COMPENSACION— así que no hay adónde devolver el
+     * excedente. Ahí se sigue usando {@code DESCONTAR_PROXIMO}: el excedente queda
+     * como adelanto contra lo que el empleado devengue el próximo período.</p>
      *
-     * @param caja dónde entra el excedente: la misma caja de la que salió el pago
-     *             (así el neto queda correcto), o FISICA en un triangulado, donde
-     *             el pago no movió caja real pero el excedente sí es plata real.
+     * @param caja la misma caja de la que salió el pago, así el neto (egreso -
+     *             excedente) queda correcto.
      */
     private void registrarExcedenteEnCaja(PagoSueldo pago, TipoCaja caja, String referencia) {
         BigDecimal exc = pago.getMontoExcedente();
@@ -621,8 +633,13 @@ public class GestionSueldoService implements IGestionSueldoService {
         if (empleado.isPresent()) {
             ConfiguracionSueldo c = empleado.get();
             try {
-                // DEVUELVE_EMPLEADO: el excedente sobre lo devengado vuelve a la caja.
-                PagoSueldo pago = aplicarPago(c, reg.getMonto(), ManejoSobrante.DEVUELVE_EMPLEADO,
+                // Mismo criterio que en la transferencia (ver comentario largo ahí):
+                // triangulado → DESCONTAR_PROXIMO (no hay caja real adonde devolver
+                // el excedente); pago directo → DEVUELVE_EMPLEADO (sí es caja real).
+                Optional<Comprobante> odoEf = resolverOdontologoEmisor(reg.getEmisor(), c.getEmpleadoNombre());
+                ManejoSobrante manejo = odoEf.isPresent() ? ManejoSobrante.DESCONTAR_PROXIMO : ManejoSobrante.DEVUELVE_EMPLEADO;
+
+                PagoSueldo pago = aplicarPago(c, reg.getMonto(), manejo,
                         LocalDate.now(), OrigenPago.BOT_WHATSAPP, "Efectivo confirmado");
                 pago.setCargadoPorNombre(reg.getCargadoPorNombre());
                 pago.setCargadoPorTelefono(reg.getCargadoPorTelefono());
@@ -633,10 +650,6 @@ public class GestionSueldoService implements IGestionSueldoService {
                 reg.setReceptorId(c.getEmpleadoId());
                 reg.setReceptorResuelto(c.getEmpleadoNombre());
 
-                // Mismo criterio que en la transferencia: si el que pagó el sueldo
-                // es un odontólogo que nos debe, es un triangulado — se le descuenta
-                // de su cuenta corriente y no sale plata de la caja física.
-                Optional<Comprobante> odoEf = resolverOdontologoEmisor(reg.getEmisor(), c.getEmpleadoNombre());
                 if (odoEf.isPresent()) {
                     Comprobante oc = odoEf.get();
                     BigDecimal settOdo = settleDeudaOdontologo(oc.getOdontologoId(), reg.getMonto());
@@ -653,9 +666,10 @@ public class GestionSueldoService implements IGestionSueldoService {
                             "Efectivo confirmado: sueldo a " + c.getEmpleadoNombre(), null);
                     reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
                     log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
+                    // Solo en el pago directo: el triangulado usa DESCONTAR_PROXIMO,
+                    // que no genera movimiento de caja (queda como adelanto interno).
+                    registrarExcedenteEnCaja(pago, TipoCaja.FISICA, null);
                 }
-                // En efectivo el excedente siempre vuelve por caja física.
-                registrarExcedenteEnCaja(pago, TipoCaja.FISICA, null);
             } catch (BusinessException e) {
                 reg.setEstado(EstadoRegistroBot.RECHAZADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
