@@ -6,7 +6,7 @@ import { catchError } from 'rxjs/operators';
 
 import { OdontologosService, OdontologoResponse } from '../../../../services/odontologos.service';
 import { PedidosService, PedidoResponse } from '../../../../services/pedidos.service';
-import { FinanzasService } from '../../../../services/finanzas.service';
+import { FinanzasService, ComprobanteResponse, PagoCuentaCorrienteResponse } from '../../../../services/finanzas.service';
 import { NotificationService } from '../../../../services/notification.service';
 import { AuthService } from '../../../../services/auth';
 import { PagoCuentaCorrienteModalComponent } from '../pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
@@ -52,6 +52,8 @@ export class OdontologoHistorialComponent implements OnInit {
   odontologo: OdontologoResponse | null = null;
   pedidos: PedidoResponse[] = [];
   saldoDeuda = 0;
+  comprobantes: ComprobanteResponse[] = [];
+  historialPagos: PagoCuentaCorrienteResponse[] = [];
 
   tabActiva: Tab = 'resumen';
 
@@ -99,11 +101,19 @@ export class OdontologoHistorialComponent implements OnInit {
       saldo: this.puedeVerFinanzas
         ? this.finanzasService.saldoPorOdontologo(id).pipe(catchError(() => of(0)))
         : of(0),
-    }).subscribe(({ odontologo, pedidos, saldo }) => {
+      comprobantes: this.puedeVerFinanzas
+        ? this.finanzasService.comprobantesPorOdontologo(id).pipe(catchError(() => of([] as ComprobanteResponse[])))
+        : of([] as ComprobanteResponse[]),
+      historialPagos: this.puedeVerFinanzas
+        ? this.finanzasService.historialPagosOdontologo(id).pipe(catchError(() => of([] as PagoCuentaCorrienteResponse[])))
+        : of([] as PagoCuentaCorrienteResponse[]),
+    }).subscribe(({ odontologo, pedidos, saldo, comprobantes, historialPagos }) => {
       this.odontologo = odontologo;
       this.pedidos = pedidos.filter(p => p.odontologoId === id)
                             .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
       this.saldoDeuda = saldo;
+      this.comprobantes = comprobantes;
+      this.historialPagos = historialPagos;
       if (!silencioso) this.loading = false;
     });
   }
@@ -123,8 +133,17 @@ export class OdontologoHistorialComponent implements OnInit {
   onPagoRegistrado(): void {
     this.showModalPago = false;
     if (!this.odontologo) return;
-    this.finanzasService.saldoPorOdontologo(this.odontologo.id).subscribe({
+    const id = this.odontologo.id;
+    this.finanzasService.saldoPorOdontologo(id).subscribe({
       next: saldo => this.saldoDeuda = saldo,
+      error: () => {},
+    });
+    this.finanzasService.comprobantesPorOdontologo(id).subscribe({
+      next: comps => this.comprobantes = comps,
+      error: () => {},
+    });
+    this.finanzasService.historialPagosOdontologo(id).subscribe({
+      next: pagos => this.historialPagos = pagos,
       error: () => {},
     });
   }

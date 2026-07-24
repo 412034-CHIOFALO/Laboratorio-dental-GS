@@ -424,10 +424,17 @@ public class GestionSueldoService implements IGestionSueldoService {
     }
 
     /**
-     * ¿El emisor es un odontólogo con DEUDA PENDIENTE? Solo en ese caso tiene
-     * sentido un triangulado: tiene que haber algo real para saldar. Se buscan
-     * los comprobantes PENDIENTE (que llevan el snapshot del odontólogo) y se
-     * matchea por palabra (apellido) para tolerar "Dr. García" vs "Dr. Martín García".
+     * ¿El emisor es un odontólogo con DEUDA PENDIENTE O PARCIAL? Solo en ese caso
+     * tiene sentido un triangulado: tiene que haber algo real para saldar. Se
+     * buscan los comprobantes en esos dos estados (que llevan el snapshot del
+     * odontólogo) y se matchea por palabra (apellido) para tolerar "Dr. García"
+     * vs "Dr. Martín García".
+     *
+     * <p>Antes solo miraba PENDIENTE, no PARCIAL — eso rompía triangulados
+     * consecutivos del mismo odontólogo: el primero deja el comprobante en
+     * PARCIAL (si no lo cubrió entero), y el segundo dejaba de detectarse como
+     * triangulado porque ya no encontraba nada en PENDIENTE, cayendo al flujo de
+     * pago directo sin descontar nada de la deuda.</p>
      *
      * <p>Sirve para los dos tipos de receptor: proveedor (el odontólogo le paga
      * una compra del lab) y empleado (el odontólogo le paga el sueldo). En ambos
@@ -443,7 +450,7 @@ public class GestionSueldoService implements IGestionSueldoService {
         String[] palabras = emisor.trim().toLowerCase().split("\\s+");
         String prov = receptorNombre == null ? "" : receptorNombre.trim().toLowerCase();
         return comprobanteRepo.findAll().stream()
-                .filter(c -> c.getEstadoPago() == EstadoPago.PENDIENTE)
+                .filter(c -> c.getEstadoPago() == EstadoPago.PENDIENTE || c.getEstadoPago() == EstadoPago.PARCIAL)
                 .filter(c -> {
                     String nom = c.getOdontologoNombre() == null ? "" : c.getOdontologoNombre().toLowerCase();
                     // Misma entidad que el proveedor receptor → no es triangulado.
