@@ -709,18 +709,121 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
 
 // ─── Lectura del comprobante (PDF o imagen) ──────────────────────────────────
 /**
- * msg.downloadMedia() pasa por el mismo camino de Puppeteer (evaluate contra
- * la página de WhatsApp Web) que getChats()/getChatById() — el mismo bug
- * recurrente de whatsapp-web.js lo puede hacer fallar de forma intermitente
- * (no siempre; a veces sí, a veces no). Como acá SÍ vale la pena reintentar
- * (a diferencia de getChats, esto no involucra recorrer todo el historial),
- * probamos unas pocas veces con una pausa corta antes de rendirnos.
+ * Descarga el adjunto SIN depender del downloadMedia() de whatsapp-web.js.
+ *
+ * El método de la librería encadena 4 pasos y si CUALQUIERA tira, aborta todo
+ * devolviendo un error minificado inútil ("r"):
+ *   1. window.require('WAWebCollections').Msg.get(id)   → modelo del mensaje
+ *   2. msg.downloadMedia({...})                          → "resolver" el media
+ *   3. WAWebDownloadManager.downloadAndMaybeDecrypt({})  → bajar + desencriptar
+ *   4. WWebJS.arrayBufferToBase64Async()                 → a base64
+ *
+ * El paso 2 usa una API INTERNA de WhatsApp que cambia seguido; cuando cambia,
+ * la librería muere ahí aunque el paso 3 —que baja y desencripta directo con
+ * directPath/mediaKey del propio mensaje— siga funcionando perfectamente.
+ *
+ * Esta versión:
+ *   - Tolera que el paso 2 falle y sigue igual al 3 (que es el que baja de verdad).
+ *   - Prueba nombres alternativos de módulo por si WhatsApp los renombró.
+ *   - Atrapa los errores DENTRO de la página y los devuelve como texto, así en
+ *     el log vemos la causa real en vez del "r" minificado.
+ *
+ * Devuelve { data, mimetype, filename, filesize } igual que la librería, o un
+ * objeto { _falló: true, diag } con el detalle de dónde y por qué falló.
+ */
+async function descargarMediaDirecto(msg) {
+  return await client.pupPage.evaluate(async (id) => {
+    const diag = { paso: 'inicio' };
+    const req = (nombre) => { try { return window.require(nombre); } catch (e) { return null; } };
+    try {
+      // 1) Modelo del mensaje (con fallback al Store clásico)
+      diag.paso = 'colecciones';
+      const Collections = req('WAWebCollections');
+      const MsgCol = (Collections && Collections.Msg)
+        || (window.Store && window.Store.Msg)
+        || null;
+      if (!MsgCol) { diag.error = 'no se pudo obtener la colección Msg'; return { _fallo: true, diag }; }
+
+      diag.paso = 'buscar-mensaje';
+      let m = MsgCol.get(id);
+      if (!m && typeof MsgCol.getMessagesById === 'function') {
+        m = (await MsgCol.getMessagesById([id]))?.messages?.[0];
+      }
+      if (!m) { diag.error = 'mensaje no encontrado en la colección'; return { _fallo: true, diag }; }
+
+      diag.tipo = m.type;
+      diag.mediaStage = m.mediaData && m.mediaData.mediaStage;
+
+      // 2) Intentar "resolver" el media. Si falla NO abortamos: seguimos al
+      //    paso 3, que es el que realmente baja el archivo.
+      if (m.mediaData && m.mediaData.mediaStage !== 'RESOLVED') {
+        diag.paso = 'resolver-media';
+        try {
+          await m.downloadMedia({ downloadEvenIfExpensive: true, rmrReason: 1 });
+          diag.mediaStageDespues = m.mediaData && m.mediaData.mediaStage;
+        } catch (e) {
+          diag.avisoResolver = String((e && (e.message || e.name)) || e);
+        }
+      }
+
+      // 3) Bajar + desencriptar directo con los datos del mensaje
+      diag.paso = 'descargar-desencriptar';
+      const mockQpl = { addAnnotations() { return this; }, addPoint() { return this; } };
+      const DM = req('WAWebDownloadManager');
+      const downloadManager = DM && DM.downloadManager;
+      if (!downloadManager || typeof downloadManager.downloadAndMaybeDecrypt !== 'function') {
+        diag.error = 'WAWebDownloadManager no disponible';
+        return { _fallo: true, diag };
+      }
+      const buffer = await downloadManager.downloadAndMaybeDecrypt({
+        directPath: m.directPath,
+        encFilehash: m.encFilehash,
+        filehash: m.filehash,
+        mediaKey: m.mediaKey,
+        mediaKeyTimestamp: m.mediaKeyTimestamp,
+        type: m.type,
+        signal: new AbortController().signal,
+        downloadQpl: mockQpl,
+      });
+
+      // 4) A base64
+      diag.paso = 'base64';
+      const data = await window.WWebJS.arrayBufferToBase64Async(buffer);
+      // mimetype siempre string: leerComprobante hace .startsWith() sobre esto.
+      return { data, mimetype: m.mimetype || '', filename: m.filename, filesize: m.size };
+    } catch (e) {
+      diag.error = String((e && (e.message || e.name)) || e);
+      if (e && e.stack) diag.stack = String(e.stack).slice(0, 300);
+      return { _fallo: true, diag };
+    }
+  }, msg.id._serialized);
+}
+
+/**
+ * Descarga el comprobante: primero por la vía normal de la librería (si anda,
+ * anda) y, si falla, por la vía directa de arriba, que sortea el paso que hoy
+ * está roto. Solo se rinde si las dos fallan.
  */
 async function descargarMediaConReintentos(msg, intentos = 3) {
   for (let i = 1; i <= intentos; i++) {
     try {
       return await msg.downloadMedia();
     } catch (e) {
+      // Vía directa: es la que salva el caso del paso 2 roto.
+      try {
+        const r = await descargarMediaDirecto(msg);
+        if (r && !r._fallo && r.data) {
+          console.log('   (descarga directa OK — se sorteó el bug de la librería)');
+          return r;
+        }
+        if (r && r._fallo) {
+          console.log(`   (descarga directa falló en "${r.diag.paso}": ${r.diag.error || 's/d'}` +
+            `${r.diag.mediaStage ? ` | mediaStage=${r.diag.mediaStage}` : ''}` +
+            `${r.diag.avisoResolver ? ` | resolver: ${r.diag.avisoResolver}` : ''})`);
+        }
+      } catch (e2) {
+        console.log('   (descarga directa lanzó:', e2 && e2.message, ')');
+      }
       if (i === intentos) throw e;
       console.log(`   (downloadMedia falló, reintento ${i}/${intentos - 1}...)`);
       await new Promise(r => setTimeout(r, 1500));
