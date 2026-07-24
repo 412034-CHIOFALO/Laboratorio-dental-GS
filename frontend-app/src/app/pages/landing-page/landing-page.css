@@ -446,8 +446,6 @@
 }
 .gallery-item:hover img,
 .gallery-item:hover video { transform: scale(1.05); }
-.gallery-item--tall { grid-row: span 2; }
-.gallery-item--wide { grid-column: span 2; }
 
 .gallery-caption {
   position: absolute; top: 10px; left: 10px; z-index: 1;
@@ -596,20 +594,18 @@
 
 @media (max-width: 900px) {
   .nosotros { grid-template-columns: 1fr; gap: 3rem; }
-  .gallery-grid {
-    grid-template-columns: repeat(2, 1fr);
-    grid-template-rows: auto;
-    height: auto;
-  }
-  .gallery-item { height: 200px; }
-  .gallery-item--tall { grid-row: span 1; height: 200px; }
-  .gallery-item--wide { grid-column: span 2; height: 220px; }
+  /* Side-by-side queda apretado antes de llegar a mobile — se apila. */
+  .trabajos-split { flex-direction: column; }
+  .trabajos-split .section-header { text-align: center; max-width: 480px; }
+  .trabajos-split .section-tag { margin: 0 auto 0.9rem; }
 }
 
 @media (max-width: 768px) {
   .nav-links { display: none; }
-  .btn-wa span, .btn-wa svg + * { display: none; }
-  .btn-wa { padding: 0.45rem 0.65rem; }
+  /* En la barra compacta de mobile no entra ni shrinkeado: se pisaba con
+     "Acceder". Se saca del todo de acá — sigue disponible en el menú
+     hamburguesa (.mobile-nav-actions), donde sí hay lugar. */
+  .nav-actions .btn-wa { display: none; }
   .hamburger { display: flex; }
   .nav-overlay { display: block; }
   .mobile-nav { display: flex; }
@@ -640,14 +636,7 @@
   .servicios-grid { grid-template-columns: 1fr; }
   .servicios, .trabajos, .nosotros, .contacto { padding: 3.5rem 5%; }
 
-  .gallery-grid {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-  }
-  .gallery-item { height: 200px; }
-  .gallery-item--tall, .gallery-item--wide {
-    grid-row: span 1; grid-column: span 1; height: 200px;
-  }
+  .gallery-item { width: 220px; }
   .gallery-overlay { opacity: 1; }
 
   .contacto-actions { flex-direction: column; align-items: stretch; }
