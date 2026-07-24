@@ -275,6 +275,26 @@ const client = new Client({
   },
 });
 
+// Watchdog de arranque: a veces el cliente se cuelga en silencio entre
+// 'authenticated' y 'ready' (sin tirar ningún error) — la inyección de
+// WWebJS en la página de WhatsApp Web queda a medio terminar y ahí se
+// queda para siempre. Sin esto, el bot quedaba "Iniciando..." de por vida
+// sin ninguna forma de detectarlo ni recuperarse solo.
+const READY_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutos desde initialize()
+let readyWatchdog = null;
+
+function armarWatchdogReady() {
+  if (readyWatchdog) clearTimeout(readyWatchdog);
+  readyWatchdog = setTimeout(() => {
+    console.error(`💥 El bot no llegó a "listo" en ${READY_TIMEOUT_MS / 1000}s desde que arrancó — quedó colgado a mitad de la conexión con WhatsApp Web. Reiniciando (lo levanta Docker con una sesión de Chromium limpia).`);
+    process.exit(1);
+  }, READY_TIMEOUT_MS);
+}
+
+function desarmarWatchdogReady() {
+  if (readyWatchdog) { clearTimeout(readyWatchdog); readyWatchdog = null; }
+}
+
 client.on('qr', async (qr) => {
   console.log('\n┌──────────────────────────────────────────────────────┐');
   console.log('│  Escaneá el QR (terminal) o desde la pantalla web:   │');
@@ -286,9 +306,18 @@ client.on('qr', async (qr) => {
   estadoBot.conectado = false;
   estadoBot.motivo = 'Esperando vinculación — escaneá el QR';
   estadoBot.ultimaActualizacion = new Date().toISOString();
+  // Esperar que alguien escanee el QR puede tardar lo que tarde — no es un
+  // cuelgue, así que no cuenta contra el watchdog.
+  desarmarWatchdogReady();
 });
 
-client.on('authenticated', () => console.log('🔐 Autenticado — sesión guardada.'));
+client.on('authenticated', () => {
+  console.log('🔐 Autenticado — sesión guardada.');
+  // De acá en más es todo automático (inyección de WWebJS + carga del
+  // Store de WhatsApp Web) — si no llega a "listo" en el plazo, es que se
+  // colgó de verdad.
+  armarWatchdogReady();
+});
 client.on('auth_failure', (m) => {
   console.error('❌ Falló la autenticación:', m);
   estadoBot.conectado = false;
@@ -302,10 +331,12 @@ client.on('disconnected', async (r) => {
   estadoBot.motivo = 'Desconectado: ' + String(r);
   estadoBot.ultimaActualizacion = new Date().toISOString();
   // Reintenta: si se perdió la sesión, vuelve a disparar 'qr' (nuevo QR para la pantalla)
+  armarWatchdogReady();
   try { await client.initialize(); } catch (e) { console.error('No se pudo reiniciar:', e.message); }
 });
 
 client.on('ready', async () => {
+  desarmarWatchdogReady();
   estadoBot.conectado = true;
   estadoBot.qrDataUrl = null;
   estadoBot.motivo = GRUPOS.length
@@ -1143,6 +1174,7 @@ http.createServer((req, res) => {
         try {
           console.log('🔄 Regenerando QR por solicitud de la UI...');
           await client.logout();
+          armarWatchdogReady();
           await client.initialize();
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true, mensaje: 'Cerrando sesión y regenerando QR...' }));
@@ -1264,6 +1296,7 @@ function normalizarTelefono(telefono) {
 // porque solo actúa sobre ESE fallo específico.
 
 console.log('🤖 Iniciando bot de WhatsApp GS...');
+armarWatchdogReady();
 client.initialize().catch((e) => {
   console.error('❌ No se pudo inicializar el cliente de WhatsApp:', e && e.stack || e);
   process.exit(1);
