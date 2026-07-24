@@ -1,7 +1,10 @@
 package com.gs.ms_pedidos.client;
 
+import com.gs.ms_pedidos.client.dto.ActualizarMontoRequestDTO;
 import com.gs.ms_pedidos.client.dto.ComprobanteRequestDTO;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -20,4 +23,13 @@ public interface FinanzasClient {
 
     @PostMapping("/api/finanzas/comprobantes")
     Object emitirComprobante(@RequestBody ComprobanteRequestDTO request);
+
+    /**
+     * Sincroniza el monto del comprobante cuando se corrige el precio de un
+     * pedido ya entregado (ver {@code PedidoService.actualizar}). Si el pedido
+     * no tiene comprobante todavía, ms-finanzas no hace nada.
+     */
+    @PatchMapping("/api/finanzas/comprobantes/pedido/{pedidoId}/monto")
+    void actualizarMontoComprobante(@PathVariable("pedidoId") Long pedidoId,
+                                     @RequestBody ActualizarMontoRequestDTO request);
 }

@@ -1,6 +1,7 @@
 package com.gs.ms_pedidos.service;
 
 import com.gs.ms_pedidos.client.FinanzasClient;
+import com.gs.ms_pedidos.client.dto.ActualizarMontoRequestDTO;
 import com.gs.ms_pedidos.client.dto.ComprobanteRequestDTO;
 import com.gs.ms_pedidos.model.Pedido;
 import lombok.RequiredArgsConstructor;
@@ -59,6 +60,32 @@ public class EmisionComprobanteService {
                     pedido.getNroPedido(), monto, pedido.getOdontologoNombre());
         } catch (Exception e) {
             log.warn("[COMPROBANTE] No se pudo generar el comprobante del pedido {}: {} (reintentable)",
+                    pedido.getNroPedido(), e.getMessage());
+        }
+    }
+
+    /**
+     * Sincroniza el monto del comprobante cuando se edita "monto a facturar" de
+     * un pedido YA entregado (ver PedidoService.actualizar). Sin esto, corregir
+     * el precio después de la entrega no tenía ningún efecto en la deuda real:
+     * el comprobante en ms-finanzas quedaba congelado con el monto original de
+     * la entrega para siempre, y el saldo pendiente del odontólogo nunca reflejaba
+     * la corrección.
+     *
+     * <p>No hace nada si el pedido no tiene comprobante todavía (no está
+     * entregado, o la emisión original falló) — no hay nada que sincronizar.
+     * Best-effort: si ms-finanzas no responde, no bloquea la edición del pedido.</p>
+     */
+    public void sincronizarMontoSiCorresponde(Pedido pedido, BigDecimal nuevoMonto) {
+        if (!pedido.isComprobanteGenerado() || nuevoMonto == null || nuevoMonto.signum() <= 0) {
+            return;
+        }
+        try {
+            finanzasClient.actualizarMontoComprobante(pedido.getId(), new ActualizarMontoRequestDTO(nuevoMonto));
+            log.info("[COMPROBANTE] Pedido {} — monto de facturación corregido a ${}",
+                    pedido.getNroPedido(), nuevoMonto);
+        } catch (Exception e) {
+            log.warn("[COMPROBANTE] No se pudo sincronizar el nuevo monto del pedido {}: {} (reintentable)",
                     pedido.getNroPedido(), e.getMessage());
         }
     }

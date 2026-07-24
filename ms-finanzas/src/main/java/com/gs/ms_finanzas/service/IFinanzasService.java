@@ -81,6 +81,17 @@ public interface IFinanzasService {
     ComprobanteResponse registrarCobro(Long id);
 
     /**
+     * Sincroniza el monto del comprobante de un pedido cuando se corrige su
+     * precio DESPUÉS de entregado. No hace nada si el pedido todavía no tiene
+     * comprobante emitido.
+     *
+     * @param pedidoId ID del pedido en ms-pedidos.
+     * @param nuevoMonto el nuevo monto a facturar.
+     * @throws com.gs.ms_finanzas.exception.BusinessException si el nuevo monto es menor a lo ya cobrado.
+     */
+    void actualizarMontoPorPedido(Long pedidoId, java.math.BigDecimal nuevoMonto);
+
+    /**
      * Genera el ranking de odontólogos con deuda pendiente, ordenado de mayor a menor deuda.
      *
      * <p>Solo incluye odontólogos con al menos un comprobante en estado {@code PENDIENTE}.

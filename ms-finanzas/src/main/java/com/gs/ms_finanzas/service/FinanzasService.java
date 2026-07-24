@@ -29,6 +29,20 @@ import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Implementación de {@link IFinanzasService} para la gestión de comprobantes y cuentas corrientes.
+ *
+ * <p>Un comprobante representa la deuda de un odontólogo por un trabajo entregado.
+ * El ciclo de vida del comprobante es:</p>
+ * <pre>
+ *   PENDIENTE → PARCIAL (pago parcial) → COBRADO (pago total)
+ *            ↘ VENCIDO (si supera la fecha de vencimiento sin pagarse)
+ * </pre>
+ *
+ * <p>Los pagos se imputan con la política FIFO (más antiguo primero) a través de
+ * {@link #registrarPagoCuentaCorriente(Long, com.gs.ms_finanzas.dto.PagoCuentaCorrienteRequest)}.
+ * El dinero resultante se registra en la caja correspondiente al medio de pago.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -92,6 +106,41 @@ public class FinanzasService implements IFinanzasService {
         c.setMontoPagado(c.getMonto());
         c.setFechaCobro(LocalDate.now());
         return ComprobanteResponse.from(repository.save(c));
+    }
+
+    /**
+     * Sincroniza el monto del comprobante cuando se corrige el precio de un
+     * pedido YA entregado (ms-pedidos → PedidoService.actualizar). Sin esto, el
+     * comprobante queda congelado con el monto de la entrega original: editar
+     * "monto a facturar" después nunca se reflejaba en el saldo pendiente del
+     * odontólogo, porque esa edición solo tocaba el Pedido, nunca la deuda real.
+     *
+     * <p>No permite bajar el monto por debajo de lo ya cobrado (no tiene sentido
+     * contable — habría que usar un reintegro, no editar el comprobante).</p>
+     *
+     * <p>Best-effort desde el punto de vista de quien llama: si no hay comprobante
+     * para ese pedido (todavía no se entregó, o falló la emisión original), no es
+     * un error — simplemente no hay nada que sincronizar todavía.</p>
+     */
+    @Override
+    @Transactional
+    public void actualizarMontoPorPedido(Long pedidoId, java.math.BigDecimal nuevoMonto) {
+        repository.findByPedidoId(pedidoId).ifPresent(c -> {
+            if (nuevoMonto.compareTo(c.getMontoPagado()) < 0) {
+                throw new BusinessException(
+                    "El nuevo monto ($" + nuevoMonto + ") es menor a lo ya cobrado ($" + c.getMontoPagado() +
+                    "). Si hay que devolver plata, registrá un reintegro en vez de editar el comprobante.");
+            }
+            c.setMonto(nuevoMonto);
+            // Si el ajuste hace que lo ya pagado cubra el nuevo monto entero, se salda solo.
+            if (c.getMontoPagado().compareTo(nuevoMonto) >= 0 && c.getEstadoPago() != EstadoPago.COBRADO) {
+                c.setEstadoPago(EstadoPago.COBRADO);
+                c.setFechaCobro(LocalDate.now());
+            } else if (c.getMontoPagado().signum() > 0 && c.getEstadoPago() == EstadoPago.PENDIENTE) {
+                c.setEstadoPago(EstadoPago.PARCIAL);
+            }
+            repository.save(c);
+        });
     }
 
     /**

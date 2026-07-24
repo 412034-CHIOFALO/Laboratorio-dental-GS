@@ -19,6 +19,21 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+/**
+ * Implementación de {@link IPedidoService} para la gestión del ciclo de vida de pedidos.
+ *
+ * <p>Orquesta las operaciones principales:</p>
+ * <ul>
+ *   <li>Creación de pedidos con numeración automática ({@code PED-YYYYMMDD-NNNN}).</li>
+ *   <li>Transiciones de estado en el tablero Kanban.</li>
+ *   <li>Descuento automático de stock al entrar en producción (via {@link ConsumoStockService}).</li>
+ *   <li>Notificación WhatsApp al odontólogo cuando el pedido queda LISTO.</li>
+ *   <li>Emisión de comprobante de deuda en ms-finanzas al marcar como ENTREGADO.</li>
+ * </ul>
+ *
+ * <p>Todas las lecturas son {@code readOnly = true}; las escrituras tienen su propia
+ * anotación {@code @Transactional}.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -148,6 +163,14 @@ public class PedidoService implements IPedidoService {
 
         Odontologo odontologo = resolverOdontologo(request);
 
+        // Si el pedido ya tiene comprobante emitido (se entregó) y el precio
+        // cambia acá, hay que avisarle a ms-finanzas para que el saldo pendiente
+        // del odontólogo refleje el monto corregido — ver sincronizarMontoSiCorresponde.
+        boolean precioCambio = pedido.isComprobanteGenerado()
+                && request.getPrecioAcordado() != null
+                && request.getPrecioAcordado().compareTo(
+                        pedido.getPrecioAcordado() != null ? pedido.getPrecioAcordado() : java.math.BigDecimal.ZERO) != 0;
+
         pedido.setOdontologoId(odontologo.getId());
         pedido.setOdontologoNombre(odontologo.getNombre());
         pedido.setPaciente(request.getPaciente());
@@ -159,6 +182,10 @@ public class PedidoService implements IPedidoService {
         pedido.setPrioridad(request.getPrioridad());
         pedido.setPrecioAcordado(request.getPrecioAcordado());
         pedido.setObservaciones(request.getObservaciones());
+
+        if (precioCambio) {
+            emisionComprobanteService.sincronizarMontoSiCorresponde(pedido, request.getPrecioAcordado());
+        }
 
         return toResponse(pedidoRepository.save(pedido));
     }
