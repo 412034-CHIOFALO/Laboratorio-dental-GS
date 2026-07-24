@@ -1251,22 +1251,17 @@ function normalizarTelefono(telefono) {
   return '54' + digitos + '@c.us';
 }
 
-// Puppeteer a veces revienta con errores de protocolo (contexto de ejecución
-// destruido porque la página de WhatsApp Web se recargó/redirigió a mitad de
-// la inicialización) que no siempre se pueden atrapar con un try/catch
-// alrededor de client.initialize() — quedan como excepción no manejada y
-// tiran abajo todo el proceso de Node de forma abrupta. Con esto al menos
-// queda un log claro de qué pasó antes de salir; el "restart: unless-stopped"
-// del docker-compose se encarga de levantar el contenedor de nuevo, con un
-// Chromium totalmente limpio.
-process.on('uncaughtException', (err) => {
-  console.error('💥 Excepción no manejada — el proceso va a reiniciar (lo levanta Docker):', err && err.stack || err);
-  process.exit(1);
-});
-process.on('unhandledRejection', (err) => {
-  console.error('💥 Promesa rechazada sin manejar — el proceso va a reiniciar (lo levanta Docker):', err && err.stack || err);
-  process.exit(1);
-});
+// OJO: hubo acá manejadores globales de uncaughtException/unhandledRejection
+// que mataban el proceso entero (process.exit) ante CUALQUIER excepción no
+// atrapada en cualquier parte del código — no solo en el arranque. Puppeteer
+// tira errores internos esporádicos como parte de su funcionamiento normal
+// (fuera de nuestras propias promesas, ej. durante el manejo interno de la
+// página de WhatsApp Web), y esos handlers terminaban reiniciando el bot en
+// bucle apenas llegaba cualquier mensaje — el bot quedaba "Iniciando" para
+// siempre y no procesaba nada. Se sacaron. El error real que motivó
+// agregarlos (client.initialize() fallando en el arranque) ya está cubierto
+// puntualmente más abajo con el .catch() de la propia llamada, que es seguro
+// porque solo actúa sobre ESE fallo específico.
 
 console.log('🤖 Iniciando bot de WhatsApp GS...');
 client.initialize().catch((e) => {
