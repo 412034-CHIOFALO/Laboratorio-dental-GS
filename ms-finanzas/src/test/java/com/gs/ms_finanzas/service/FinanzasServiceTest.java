@@ -91,12 +91,47 @@ class FinanzasServiceTest {
 
     @Test
     void emitir_generaNroYGuarda() {
-        when(repository.count()).thenReturn(0L);
+        when(repository.findByPedidoId(any())).thenReturn(Optional.empty());
         when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
         ComprobanteRequest r = new ComprobanteRequest();
+        r.setPedidoId(1L);
         r.setOdontologoId(7L); r.setOdontologoNombre("Garcia");
         r.setMonto(new BigDecimal("10000")); r.setTrabajo("Corona");
         assertThat(service.emitir(r)).isNotNull();
+    }
+
+    /**
+     * La numeración sigue al último comprobante DEL MES, no a count(): si se
+     * borró alguno, count() retrocede y regenera un número ya usado (UNIQUE),
+     * la inserción falla y el pedido queda entregado sin deuda emitida.
+     */
+    @Test
+    void emitir_numeraSiguiendoAlUltimoDelMes_noAlConteo() {
+        when(repository.findByPedidoId(any())).thenReturn(Optional.empty());
+        when(repository.maxNroComprobanteConPrefijo(any())).thenReturn("COMP-202607-0009");
+        when(repository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        ComprobanteRequest r = new ComprobanteRequest();
+        r.setPedidoId(1L);
+        r.setOdontologoId(7L); r.setOdontologoNombre("Garcia");
+        r.setMonto(new BigDecimal("10000")); r.setTrabajo("Corona");
+
+        assertThat(service.emitir(r).nroComprobante()).endsWith("-0010");
+    }
+
+    /** Reemitir el mismo pedido devuelve el comprobante existente, no duplica la deuda. */
+    @Test
+    void emitir_pedidoYaFacturado_devuelveElExistenteSinDuplicar() {
+        Comprobante existente = comp(EstadoPago.PENDIENTE);
+        when(repository.findByPedidoId(42L)).thenReturn(Optional.of(existente));
+
+        ComprobanteRequest r = new ComprobanteRequest();
+        r.setPedidoId(42L);
+        r.setOdontologoId(7L); r.setOdontologoNombre("Garcia");
+        r.setMonto(new BigDecimal("10000")); r.setTrabajo("Corona");
+
+        assertThat(service.emitir(r).nroComprobante()).isEqualTo(existente.getNroComprobante());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(any());
     }
 
     @Test

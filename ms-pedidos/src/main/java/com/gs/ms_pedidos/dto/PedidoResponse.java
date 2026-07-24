@@ -35,7 +35,15 @@ public record PedidoResponse(
         /** Días hábiles transcurridos desde la creación hasta hoy (o hasta la entrega). */
         int diasHabilesTranscurridos,
         /** True si supera el umbral configurado de días hábiles sin entregar. */
-        boolean atrasado
+        boolean atrasado,
+        /**
+         * True si la deuda del pedido ya se emitió en ms-finanzas. Un pedido
+         * ENTREGADO con esto en false significa que la emisión falló (best-effort):
+         * el trabajo se entregó pero NO se le facturó al odontólogo, así que su
+         * saldo pendiente no lo refleja. Se expone para que la UI pueda avisarlo
+         * en vez de dejarlo pasar en silencio.
+         */
+        boolean comprobanteGenerado
 ) {
     public static PedidoResponse from(Pedido p, int diasLimiteAtraso) {
         // Si ya está entregado/cancelado, calculamos hasta la entrega/cancelación
@@ -61,7 +69,7 @@ public record PedidoResponse(
                 p.getPrecioAcordado(), p.getObservaciones(),
                 p.getFechaEntregaReal(), p.getRetiradoPor(), p.getObservacionesEntrega(),
                 p.getFechaCreacion(), p.getFechaUltimaModificacion(),
-                dias, estaAtrasado
+                dias, estaAtrasado, p.isComprobanteGenerado()
         );
     }
 

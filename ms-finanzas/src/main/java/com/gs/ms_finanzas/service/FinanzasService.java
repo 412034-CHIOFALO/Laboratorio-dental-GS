@@ -28,6 +28,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Implementación de {@link IFinanzasService} para la gestión de comprobantes y cuentas corrientes.
@@ -79,6 +80,16 @@ public class FinanzasService implements IFinanzasService {
     @Override
     @Transactional
     public ComprobanteResponse emitir(ComprobanteRequest request) {
+        // Idempotente por pedido: si ya se emitió la deuda de este pedido, se
+        // devuelve la existente en vez de crear otra. ms-pedidos emite en modo
+        // best-effort y puede reintentar (ej: si la primera vez falló DESPUÉS de
+        // guardar); sin esta guarda, el reintento duplicaba la deuda del
+        // odontólogo, que es el peor error posible de este flujo.
+        Optional<Comprobante> yaEmitido = repository.findByPedidoId(request.getPedidoId());
+        if (yaEmitido.isPresent()) {
+            return ComprobanteResponse.from(yaEmitido.get());
+        }
+
         Comprobante c = Comprobante.builder()
                 .nroComprobante(generarNroComprobante())
                 .pedidoId(request.getPedidoId())
@@ -289,9 +300,32 @@ public class FinanzasService implements IFinanzasService {
         return porMonto.ordinal() >= porTiempo.ordinal() ? porMonto : porTiempo;
     }
 
+    /**
+     * Numera el comprobante siguiendo al último emitido ESTE MES, no contando
+     * filas de toda la tabla.
+     *
+     * <p>Antes usaba {@code repository.count() + 1}, que se rompe apenas se borra
+     * un comprobante: el contador retrocede y vuelve a generar un número que ya
+     * existe. Como {@code nro_comprobante} es UNIQUE, esa inserción falla, y el
+     * error se lo tragaba el best-effort de ms-pedidos → el pedido quedaba
+     * ENTREGADO pero SIN deuda emitida, y el saldo del odontólogo nunca
+     * cambiaba.</p>
+     */
     private String generarNroComprobante() {
         String fecha = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
-        long count = repository.count() + 1;
-        return String.format("COMP-%s-%04d", fecha, count);
+        String prefijo = String.format("COMP-%s-", fecha);
+        String ultimo = repository.maxNroComprobanteConPrefijo(prefijo);
+
+        long siguiente = 1;
+        if (ultimo != null && ultimo.length() > prefijo.length()) {
+            try {
+                siguiente = Long.parseLong(ultimo.substring(prefijo.length())) + 1;
+            } catch (NumberFormatException e) {
+                // Número con formato inesperado (cargado a mano, migración vieja):
+                // se cae al conteo total para no bloquear la emisión.
+                siguiente = repository.count() + 1;
+            }
+        }
+        return String.format("%s%04d", prefijo, siguiente);
     }
 }

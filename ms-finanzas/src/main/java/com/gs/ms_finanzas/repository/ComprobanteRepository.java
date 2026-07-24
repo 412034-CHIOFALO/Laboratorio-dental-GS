@@ -16,6 +16,16 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
     /** Usado para sincronizar el monto del comprobante si se corrige el precio del pedido ya entregado. */
     Optional<Comprobante> findByPedidoId(Long pedidoId);
 
+    /**
+     * Último número de comprobante emitido con un prefijo dado (ej: "COMP-202607-").
+     * Como el sufijo va rellenado con ceros a 4 dígitos, el MAX() lexicográfico
+     * coincide con el numérico. Se usa para numerar sin depender de count(), que
+     * se desfasa apenas se borra un comprobante y regenera un número ya usado
+     * (nro_comprobante es UNIQUE → la inserción fallaba).
+     */
+    @Query("SELECT MAX(c.nroComprobante) FROM Comprobante c WHERE c.nroComprobante LIKE CONCAT(:prefijo, '%')")
+    String maxNroComprobanteConPrefijo(@org.springframework.data.repository.query.Param("prefijo") String prefijo);
+
     List<Comprobante> findByOdontologoId(Long odontologoId);
 
     List<Comprobante> findByEstadoPago(EstadoPago estadoPago);
