@@ -10,16 +10,22 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * Agrega un par de odontólogos claramente marcados como "de prueba" para poder
- * probar el flujo de pedidos en producción sin usar clientes reales. A
- * diferencia de {@link DevDataInitializer} (solo dev, y además solo corre si
- * la tabla está vacía), este corre en TODOS los ambientes y es idempotente
- * por nombre — no toca ni duplica los odontólogos reales ya cargados por uso
+ * Agrega un par de odontólogos "de práctica" para poder probar el flujo de
+ * pedidos en producción sin usar clientes reales. Se ven como cualquier otro
+ * odontólogo cargado (nombre y clínica realistas, sin "Prueba"/"Test" en el
+ * nombre) para no ensuciar la vista con datos que se noten como ficticios.
+ *
+ * A diferencia de {@link DevDataInitializer} (solo dev, y solo corre si la
+ * tabla está vacía), este corre en TODOS los ambientes y es idempotente por
+ * nombre — no toca ni duplica los odontólogos reales ya cargados por uso
  * normal del sistema.
  *
  * <p>Sin DNI/CUIT (son opcionales) para no arriesgar un choque de unicidad
- * contra datos reales. Se identifican como "de prueba" en el nombre y la
- * clínica para no confundirlos con clientes reales en los listados.</p>
+ * contra datos reales.</p>
+ *
+ * <p>Migración: la primera versión de este seed usaba "Dr. Prueba Uno" /
+ * "Dra. Prueba Dos" — si ya están cargados con esos nombres, se actualizan
+ * in-place a los nuevos datos en vez de crear duplicados.</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -28,36 +34,56 @@ public class OdontologosPruebaInitializer implements CommandLineRunner {
 
     private final OdontologoRepository repository;
 
+    private record Datos(String nombreViejo, String nombre, String telefono, String email,
+                          String matricula, String clinica) {}
+
     @Override
     public void run(String... args) {
-        List<Odontologo> base = List.of(
-            Odontologo.builder()
-                .nombre("Dr. Prueba Uno")
-                .telefono("351-000-0001")
-                .email("prueba1@laboratoriogs.test")
-                .matricula("MP-TEST-001")
-                .clinica("Consultorio de Prueba 1")
-                .build(),
-            Odontologo.builder()
-                .nombre("Dra. Prueba Dos")
-                .telefono("351-000-0002")
-                .email("prueba2@laboratoriogs.test")
-                .matricula("MP-TEST-002")
-                .clinica("Consultorio de Prueba 2")
-                .build()
+        List<Datos> base = List.of(
+            new Datos("Dr. Prueba Uno", "Dr. Roberto Fernández",
+                "351-455-2210", "roberto.fernandez@odontologia.com.ar",
+                "MP 51234", "Consultorio Fernández"),
+            new Datos("Dra. Prueba Dos", "Dra. Valentina Torres",
+                "351-478-3392", "valentina.torres@clinicadental.com.ar",
+                "MP 52890", "Clínica Dental Torres")
         );
 
-        List<Odontologo> faltantes = base.stream()
-            .filter(o -> repository.findByActivoTrueAndNombreIgnoreCase(o.getNombre()).isEmpty())
-            .toList();
+        int actualizados = 0;
+        int creados = 0;
 
-        if (faltantes.isEmpty()) {
-            log.info("[GS-PEDIDOS] Odontólogos de prueba ya presentes — nada que agregar.");
-            return;
+        for (Datos d : base) {
+            var existenteNuevo = repository.findByActivoTrueAndNombreIgnoreCase(d.nombre());
+            if (existenteNuevo.isPresent()) {
+                continue; // ya está con el nombre definitivo, nada que hacer
+            }
+
+            var existenteViejo = repository.findByActivoTrueAndNombreIgnoreCase(d.nombreViejo());
+            if (existenteViejo.isPresent()) {
+                Odontologo o = existenteViejo.get();
+                o.setNombre(d.nombre());
+                o.setTelefono(d.telefono());
+                o.setEmail(d.email());
+                o.setMatricula(d.matricula());
+                o.setClinica(d.clinica());
+                repository.save(o);
+                actualizados++;
+                continue;
+            }
+
+            repository.save(Odontologo.builder()
+                .nombre(d.nombre())
+                .telefono(d.telefono())
+                .email(d.email())
+                .matricula(d.matricula())
+                .clinica(d.clinica())
+                .build());
+            creados++;
         }
 
-        repository.saveAll(faltantes);
-        log.info("[GS-PEDIDOS] {} odontólogo(s) de prueba agregado(s): {}",
-            faltantes.size(), faltantes.stream().map(Odontologo::getNombre).toList());
+        if (actualizados == 0 && creados == 0) {
+            log.info("[GS-PEDIDOS] Odontólogos de práctica ya presentes — nada que hacer.");
+        } else {
+            log.info("[GS-PEDIDOS] Odontólogos de práctica: {} actualizado(s), {} creado(s).", actualizados, creados);
+        }
     }
 }

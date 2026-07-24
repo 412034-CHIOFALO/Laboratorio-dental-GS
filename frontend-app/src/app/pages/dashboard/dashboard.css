@@ -181,6 +181,12 @@
   gap: 1px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Sin esto, cuando la lista de items no tiene más para scrollear (o el
+     gesto de scroll llega al tope/final), el navegador "encadena" el mismo
+     gesto hacia el contenido de atrás en vez de pararlo ahí — se sentía
+     como si el sidebar dejara pasar el scroll y se moviera la página
+     detrás suyo. */
+  overscroll-behavior: contain;
 }
 
 .nav-item {
@@ -676,13 +682,17 @@
     width: var(--sidebar-w);
     transform: translateX(-100%);
     box-shadow: 4px 0 32px rgba(0,0,0,0.5);
+    overscroll-behavior: contain;
   }
 
   .sidebar.mobile-open { transform: translateX(0); }
   .mobile-overlay { display: block; }
-  /* Con el sidebar mobile abierto, el contenido de atrás (que tiene su propio
-     scroll interno, no la página) no debe seguir scrolleando debajo del overlay. */
-  .app-shell.mobile-menu-open .main-content { overflow: hidden; }
+  /* Con el sidebar mobile abierto, el contenido de atrás no debe seguir
+     scrolleando debajo del overlay. overflow:hidden solo no alcanza en iOS
+     Safari — un gesto de scroll que arranca en el sidebar y se queda sin
+     más para scrollear ahí puede seguir moviendo lo de atrás igual;
+     overscroll-behavior corta esa "propagación" del gesto. */
+  .app-shell.mobile-menu-open .main-content { overflow: hidden; overscroll-behavior: none; }
   .close-mobile-btn { display: flex; }
   .collapse-btn { display: none; }
   .mobile-topbar { display: flex; }
