@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { ThemeService } from '../../services/theme.service';
 
 interface ItemGaleria {
   tipo: 'foto' | 'video';
@@ -30,6 +31,7 @@ const GALERIA_INSTAGRAM: ItemGaleria[] = [
 })
 export class LandingPage {
   readonly galeria = GALERIA_INSTAGRAM;
+  readonly themeService = inject(ThemeService);
   mobileMenuOpen = false;
 
   toggleMenu() {

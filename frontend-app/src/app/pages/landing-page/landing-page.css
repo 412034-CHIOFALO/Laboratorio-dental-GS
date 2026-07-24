@@ -655,10 +655,11 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   TEMA CLÍNICO FRESCO + VERDE — LANDING
-   Base blanca limpia, acento verde de la marca, títulos sans.
+   TEMA — oscuro por default (toma los --gs-* de :root en styles.css),
+   claro solo cuando [data-theme="light"] (toggle del navbar).
 ═══════════════════════════════════════════════════════════════════ */
-.page {
+:host-context([data-theme="light"]) .page,
+[data-theme="light"] .page {
   --gs-bg:           #ffffff;
   --gs-surface:      #f1f7f3;   /* verde muy clarito para secciones */
   --gs-card:         #ffffff;
@@ -676,42 +677,64 @@
   background: #ffffff;
 }
 
-.navbar { background: rgba(255,255,255,0.85); border-bottom: 1px solid var(--gs-border); }
+:host-context([data-theme="light"]) .navbar,
+[data-theme="light"] .navbar { background: rgba(255,255,255,0.85); border-bottom: 1px solid var(--gs-border); }
 
-/* Icono de marca en verde solido (no emerald->cyan) */
+/* Icono de marca en verde solido (no emerald->cyan) — igual en los dos temas */
 .brand-icon { background: linear-gradient(135deg, #22c55e, #15803d); }
 
-/* Sin glow techy; un wash verde muy sutil */
-.hero::after { display: none; }
-.hero { background: radial-gradient(900px 520px at 88% -12%, rgba(22,163,74,0.06), transparent 60%); }
+/* Claro: sin glow techy, un wash verde muy sutil. Oscuro: mantiene el halo original. */
+:host-context([data-theme="light"]) .hero::after,
+[data-theme="light"] .hero::after { display: none; }
+:host-context([data-theme="light"]) .hero,
+[data-theme="light"] .hero { background: radial-gradient(900px 520px at 88% -12%, rgba(22,163,74,0.06), transparent 60%); }
 
-/* Acento solido (sin gradiente arcoiris) */
-.title-highlight,
-.brand-name,
-.stat-number {
+/* Acento solido (sin gradiente arcoiris) — solo en claro */
+:host-context([data-theme="light"]) .title-highlight,
+:host-context([data-theme="light"]) .brand-name,
+:host-context([data-theme="light"]) .stat-number,
+[data-theme="light"] .title-highlight,
+[data-theme="light"] .brand-name,
+[data-theme="light"] .stat-number {
   background: none !important;
   -webkit-text-fill-color: currentColor !important;
 }
-.title-highlight { color: #16a34a; }
-.brand-name      { color: #0e1a16; }
-.stat-number     { color: #16a34a; }
+:host-context([data-theme="light"]) .title-highlight, [data-theme="light"] .title-highlight { color: #16a34a; }
+:host-context([data-theme="light"]) .brand-name,      [data-theme="light"] .brand-name      { color: #0e1a16; }
+:host-context([data-theme="light"]) .stat-number,     [data-theme="light"] .stat-number     { color: #16a34a; }
 
-/* Fotos: sombra suave clara */
-.photo-main {
+/* Fotos: sombra suave clara (en oscuro ya tienen sombra propia definida arriba) */
+:host-context([data-theme="light"]) .photo-main,
+[data-theme="light"] .photo-main {
   box-shadow: 0 22px 50px rgba(16,40,28,0.13), 0 0 0 1px rgba(22,163,74,0.12);
 }
-.photo-badge {
+:host-context([data-theme="light"]) .photo-badge,
+[data-theme="light"] .photo-badge {
   background: rgba(255,255,255,0.93);
   color: #16202b;
   border: 1px solid var(--gs-border-md);
 }
 
-/* Estructura: la tira de confianza ya no "flota" */
-.stats-strip {
+/* Estructura: en claro la tira de confianza ya no "flota" */
+:host-context([data-theme="light"]) .stats-strip,
+[data-theme="light"] .stats-strip {
   background: var(--gs-card);
   border-top: 1px solid var(--gs-border);
   border-bottom: 1px solid var(--gs-border);
   box-shadow: 0 1px 0 var(--gs-border);
 }
-.strip-item strong { color: var(--gs-green); }
+:host-context([data-theme="light"]) .strip-item strong,
+[data-theme="light"] .strip-item strong { color: var(--gs-green); }
+
+/* ── Botón de tema (sol/luna) en el navbar ── */
+.theme-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; flex-shrink: 0;
+  background: var(--gs-card-2); border: 1px solid var(--gs-border-md);
+  border-radius: 8px; color: var(--gs-text-muted); cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-toggle:hover { color: var(--gs-text); border-color: var(--gs-green-border); }
+.mobile-nav-actions .theme-toggle { width: 100%; height: 44px; border-radius: 10px; gap: 8px; }
 
