@@ -15,4 +15,6 @@ public interface TipoTrabajoRepository extends JpaRepository<TipoTrabajo, Long> 
     List<TipoTrabajo> findByCategoriaAndActivoTrue(Categoria categoria);
 
     List<TipoTrabajo> findByNombreContainingIgnoreCaseAndActivoTrue(String nombre);
+
+    java.util.Optional<TipoTrabajo> findByNombreIgnoreCase(String nombre);
 }

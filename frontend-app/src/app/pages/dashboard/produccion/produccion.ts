@@ -1,7 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse, EstadoPedido as EstadoPedidoBackend } from '../../../services/pedidos.service';
 import { NotificationService } from '../../../services/notification.service';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 /** Solo los 4 estados que el Kanban maneja (RECIBIDO → LISTO). */
 export type EstadoKanban = 'RECIBIDO' | 'EN_PROCESO' | 'CONTROL' | 'LISTO';
@@ -36,6 +37,7 @@ interface Columna {
 export class ProduccionComponent implements OnInit {
 
   private notif = inject(NotificationService);
+  private destroyRef = inject(DestroyRef);
 
   pedidos: PedidoKanban[] = [];
   tecnicoFiltro = 'TODOS';
@@ -62,6 +64,7 @@ export class ProduccionComponent implements OnInit {
 
   ngOnInit() {
     this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
   // Mapea PedidoResponse del backend al modelo local del Kanban
@@ -85,19 +88,22 @@ export class ProduccionComponent implements OnInit {
         || estado === 'CONTROL'  || estado === 'LISTO';
   }
 
-  private cargar() {
-    this.loading = true;
-    this.error = '';
+  private cargar(silencioso = false) {
+    // No pisar el tablero mientras se está arrastrando una tarjeta.
+    if (silencioso && this.draggingPedido) return;
+    if (!silencioso) { this.loading = true; this.error = ''; }
     this.pedidosService.listarTodos().subscribe({
       next: data => {
         this.pedidos = data
           .filter(p => this.esKanbanEstado(p.estado))
           .map(p => this.mapear(p));
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
-        this.error = 'No se pudo cargar el tablero. Verificá que ms-pedidos esté corriendo.';
-        this.loading = false;
+        if (!silencioso) {
+          this.error = 'No se pudo cargar el tablero. Verificá que ms-pedidos esté corriendo.';
+          this.loading = false;
+        }
         console.error('Error al cargar kanban:', err);
       }
     });

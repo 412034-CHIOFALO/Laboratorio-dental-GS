@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
@@ -9,6 +9,8 @@ import {
 } from '../../../services/finanzas.service';
 import { NotificationService } from '../../../services/notification.service';
 import { PagoCuentaCorrienteModalComponent } from './pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
+import { AuthService } from '../../../services/auth';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 @Component({
   selector: 'app-odontologos',
@@ -55,27 +57,37 @@ export class OdontologosComponent implements OnInit {
 
   private notif = inject(NotificationService);
   private finanzas = inject(FinanzasService);
+  private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
+
+  /** Técnicos no ven deuda/cuenta corriente — solo ADMIN y ADMINISTRATIVO manejan plata. */
+  get puedeVerFinanzas(): boolean {
+    return this.auth.puedeVerFinanzas();
+  }
 
   constructor(private service: OdontologosService) {}
 
   ngOnInit(): void {
     this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
   // ── CARGA / FILTROS ──────────────────────────────────────────
 
-  private cargar(): void {
-    this.loading = true;
-    this.error = '';
+  private cargar(silencioso = false): void {
+    if (silencioso && (this.showModal || this.confirmDesactivarId != null)) return;
+    if (!silencioso) { this.loading = true; this.error = ''; }
     this.service.buscar().subscribe({
       next: data => {
         this.odontologos = data.sort((a, b) => a.nombre.localeCompare(b.nombre));
         this.filtrar();
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
-        this.error = 'No se pudieron cargar los odontólogos. ¿ms-pedidos está corriendo?';
-        this.loading = false;
+        if (!silencioso) {
+          this.error = 'No se pudieron cargar los odontólogos. ¿ms-pedidos está corriendo?';
+          this.loading = false;
+        }
         console.error(err);
       },
     });
@@ -94,10 +106,15 @@ export class OdontologosComponent implements OnInit {
     });
   }
 
-  /** Aplica el filtro Activos/Inactivos según el estado calculado. */
+  /**
+   * Aplica el filtro Activos/Inactivos según `activo` (el que cambia el botón
+   * "Desactivar") — antes usaba `inactivoPorTiempo` ("sin pedidos hace N
+   * meses"), que es un indicador de negocio totalmente distinto y hacía que
+   * desactivar a alguien no lo sacara de "Activos" si tenía pedidos recientes.
+   */
   private aplicarFiltroActividad(lista: OdontologoResponse[]): OdontologoResponse[] {
-    if (this.filtroActividad === 'ACTIVOS')   return lista.filter(o => !o.inactivoPorTiempo);
-    if (this.filtroActividad === 'INACTIVOS') return lista.filter(o => o.inactivoPorTiempo);
+    if (this.filtroActividad === 'ACTIVOS')   return lista.filter(o => o.activo);
+    if (this.filtroActividad === 'INACTIVOS') return lista.filter(o => !o.activo);
     return lista;
   }
 
@@ -107,10 +124,10 @@ export class OdontologosComponent implements OnInit {
   }
 
   get countActivos(): number {
-    return this.odontologos.filter(o => !o.inactivoPorTiempo).length;
+    return this.odontologos.filter(o => o.activo).length;
   }
   get countInactivos(): number {
-    return this.odontologos.filter(o => o.inactivoPorTiempo).length;
+    return this.odontologos.filter(o => !o.activo).length;
   }
 
   /** Texto "hace X meses/días" del último pedido. */
@@ -239,7 +256,7 @@ export class OdontologosComponent implements OnInit {
 
   abrirDetalle(o: OdontologoResponse): void {
     this.detalleAbierto = o;
-    this.cargarCuentaCorriente(o.id);
+    if (this.puedeVerFinanzas) this.cargarCuentaCorriente(o.id);
   }
 
   cerrarDetalle(): void {

@@ -24,6 +24,22 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Implementación de {@link IGestionSueldoService} para la gestión de sueldos del personal del laboratorio.
+ *
+ * <p>El sistema de sueldos funciona con devengo diario:</p>
+ * <ol>
+ *   <li>Cada empleado tiene una {@link com.gs.ms_finanzas.model.ConfiguracionSueldo} con
+ *       un monto base y una frecuencia de cobro ({@link com.gs.ms_finanzas.model.FrecuenciaPago}).</li>
+ *   <li>El scheduler {@link DevengoScheduler} ejecuta {@link #devengarDiario()} cada noche,
+ *       acumulando en {@code saldoDevengado} la parte proporcional del día.</li>
+ *   <li>Al registrar un pago, el monto se descuenta del {@code saldoDevengado}.
+ *       El sobrante o faltante se gestiona según la política {@link com.gs.ms_finanzas.model.ManejoSobrante}.</li>
+ * </ol>
+ *
+ * <p>También procesa comprobantes de transferencia enviados por el bot de WhatsApp
+ * ({@link #registrarPagoAutomatico}), resolviendo si el receptor es empleado o proveedor.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -59,6 +75,61 @@ public class GestionSueldoService implements IGestionSueldoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Empleado", usuarioId));
         c.setFrecuencia(req.getFrecuencia());
         c.setMontoBase(req.getMontoBase());
+        return EmpleadoSueldoResponse.from(configRepo.save(c));
+    }
+
+    @Override
+    @Transactional
+    public void devengarDiario() {
+        LocalDate hoy = LocalDate.now();
+        for (ConfiguracionSueldo c : configRepo.findByActivoTrueOrderByEmpleadoNombreAsc()) {
+            LocalDate desde = c.getUltimoDevengoCalculado() != null
+                    ? c.getUltimoDevengoCalculado()
+                    : c.getFechaCreacion().toLocalDate();
+            long dias = java.time.temporal.ChronoUnit.DAYS.between(desde, hoy);
+            if (dias <= 0) continue; // ya está al día (o el reloj del server se movió para atrás)
+
+            BigDecimal tarifaDiaria = c.getMontoBase()
+                    .divide(BigDecimal.valueOf(c.getFrecuencia().diasDeCiclo()), 2, java.math.RoundingMode.HALF_UP);
+            BigDecimal devengo = tarifaDiaria.multiply(BigDecimal.valueOf(dias));
+
+            // El devengo nuevo primero paga el adelanto pendiente (saldoSobrante,
+            // de un ManejoSobrante.DESCONTAR_PROXIMO anterior) antes de sumar a lo
+            // que se le debe. Sin esto saldoSobrante se acumulaba para siempre sin
+            // efecto: el empleado seguía "debiéndosele" el total devengado como si
+            // nunca hubiera cobrado el adelanto.
+            BigDecimal sobrante = c.getSaldoSobrante();
+            if (sobrante.signum() > 0) {
+                BigDecimal consumido = devengo.min(sobrante);
+                c.setSaldoSobrante(sobrante.subtract(consumido));
+                devengo = devengo.subtract(consumido);
+                log.info("[Devengo] {} — ${} del devengo de hoy se descontó del adelanto pendiente (queda ${} de adelanto)",
+                        c.getEmpleadoNombre(), consumido, c.getSaldoSobrante());
+            }
+
+            c.setSaldoDevengado(c.getSaldoDevengado().add(devengo));
+            c.setUltimoDevengoCalculado(hoy);
+            configRepo.save(c);
+            log.info("[Devengo] {} — +{} días × ${} = ${} devengado neto (saldo devengado ahora: ${})",
+                    c.getEmpleadoNombre(), dias, tarifaDiaria, devengo, c.getSaldoDevengado());
+        }
+    }
+
+    @Override
+    @Transactional
+    public EmpleadoSueldoResponse crearEmpleado(CrearEmpleadoRequest req) {
+        if (configRepo.findByEmpleadoId(req.getUsuarioId()).isPresent()) {
+            throw new com.gs.ms_finanzas.exception.ConflictException("Ese empleado ya está dado de alta en sueldos.");
+        }
+        ConfiguracionSueldo c = ConfiguracionSueldo.builder()
+                .empleadoId(req.getUsuarioId())
+                .empleadoNombre(req.getNombre())
+                .rol(req.getRol())
+                .telefono(req.getTelefono())
+                .activo(true)
+                .frecuencia(req.getFrecuencia())
+                .montoBase(req.getMontoBase())
+                .build();
         return EmpleadoSueldoResponse.from(configRepo.save(c));
     }
 
@@ -125,7 +196,23 @@ public class GestionSueldoService implements IGestionSueldoService {
         if (empleado.isPresent()) {
             ConfiguracionSueldo c = empleado.get();
             try {
-                PagoSueldo pago = aplicarPago(c, req.getMonto(), ManejoSobrante.DESCONTAR_PROXIMO,
+                // ¿El sueldo lo pagó un odontólogo que nos debe? Se resuelve ANTES
+                // de aplicarPago porque el tratamiento del excedente depende de esto:
+                //
+                //   - TRIANGULADO: el odontólogo le paga al empleado directo — nunca
+                //     entra plata a una caja del lab (es un asiento neteado en
+                //     COMPENSACION). No hay adónde "devolver" el excedente, así que
+                //     sigue funcionando como siempre: adelanto contra el próximo
+                //     período (DESCONTAR_PROXIMO). Ej: paga $100k, el empleado debe
+                //     cobrar $70k → $30k quedan a favor, si mañana debe cobrar $40k
+                //     ese día solo se le paga $10k.
+                //   - DIRECTO (transferencia/efectivo real al lab): si excede lo
+                //     devengado, esa plata de más SÍ es caja real y vuelve al lab
+                //     (DEVUELVE_EMPLEADO) en vez de quedar como adelanto.
+                Optional<Comprobante> odo = resolverOdontologoEmisor(req.getEmisor(), c.getEmpleadoNombre());
+                ManejoSobrante manejo = odo.isPresent() ? ManejoSobrante.DESCONTAR_PROXIMO : ManejoSobrante.DEVUELVE_EMPLEADO;
+
+                PagoSueldo pago = aplicarPago(c, req.getMonto(), manejo,
                         req.getFecha(), OrigenPago.BOT_WHATSAPP, req.getNota());
                 pago.setCargadoPorNombre(req.getCargadoPorNombre());
                 pago.setCargadoPorTelefono(req.getCargadoPorTelefono());
@@ -134,16 +221,38 @@ public class GestionSueldoService implements IGestionSueldoService {
                 pago.setIdOperacion(req.getIdOperacion());
                 pago.setComprobanteUrl(comprobanteRef);
                 pagoRepo.save(pago);
-                // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
-                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
-                        "Sueldo (transferencia) a " + c.getEmpleadoNombre(), req.getIdOperacion());
 
                 reg.setEstado(EstadoRegistroBot.REGISTRADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
                 reg.setReceptorId(c.getEmpleadoId());
                 reg.setReceptorResuelto(c.getEmpleadoNombre());
-                reg.setMensaje("Sueldo registrado para " + c.getEmpleadoNombre());
-                log.info("[BOT] Sueldo: {} recibió {} (emisor: {})", c.getEmpleadoNombre(), req.getMonto(), req.getEmisor());
+
+                if (odo.isPresent()) {
+                    // TRIANGULADO igual que el de proveedores: pagó una obligación
+                    // del lab por nosotros, así que además de saldar el sueldo hay
+                    // que descontarle esa plata de su cuenta corriente. Y como no
+                    // salió plata real del lab, va a COMPENSACION, no a bancaria.
+                    Comprobante oc = odo.get();
+                    BigDecimal settOdo = settleDeudaOdontologo(oc.getOdontologoId(), req.getMonto());
+                    registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, req.getMonto(),
+                            "Triangulado: " + oc.getOdontologoNombre() + " paga el sueldo de " + c.getEmpleadoNombre(),
+                            req.getIdOperacion());
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, req.getMonto(),
+                            "Triangulado: sueldo a " + c.getEmpleadoNombre() + " por cuenta de " + oc.getOdontologoNombre(),
+                            req.getIdOperacion());
+                    reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → sueldo de " + c.getEmpleadoNombre()
+                            + " (odontólogo -$" + settOdo.toBigInteger() + ")");
+                    log.info("[BOT] Triangulado sueldo: {} pagó a {} por {}",
+                            oc.getOdontologoNombre(), c.getEmpleadoNombre(), req.getMonto());
+                } else {
+                    // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
+                            "Sueldo (transferencia) a " + c.getEmpleadoNombre(), req.getIdOperacion());
+                    reg.setMensaje("Sueldo registrado para " + c.getEmpleadoNombre());
+                    log.info("[BOT] Sueldo: {} recibió {} (emisor: {})", c.getEmpleadoNombre(), req.getMonto(), req.getEmisor());
+                    // Vuelve a la misma caja de la que salió, así el neto queda bien.
+                    registrarExcedenteEnCaja(pago, TipoCaja.BANCARIA, req.getIdOperacion());
+                }
                 return RegistroPagoBotResponse.from(registroRepo.save(reg));
             } catch (BusinessException e) {
                 // ej: empleado inactivo → se rechaza pero queda registrado
@@ -287,41 +396,75 @@ public class GestionSueldoService implements IGestionSueldoService {
                     .findFirst();
         }
         if (req.getReceptorNombre() != null && !req.getReceptorNombre().isBlank()) {
-            String q = req.getReceptorNombre().trim().toLowerCase();
             List<ConfiguracionSueldo> matches = configRepo.findAllByOrderByEmpleadoNombreAsc().stream()
-                    .filter(x -> x.getEmpleadoNombre() != null && x.getEmpleadoNombre().toLowerCase().contains(q))
+                    .filter(x -> coincideNombre(x.getEmpleadoNombre(), req.getReceptorNombre()))
                     .toList();
             if (matches.size() == 1) return Optional.of(matches.get(0));
         }
         return Optional.empty();
     }
 
-    /** Resuelve al proveedor por nombre (match parcial, case-insensitive). */
+    /** Resuelve al proveedor por nombre (match parcial, case-insensitive, sin acentos). */
     private Optional<Proveedor> resolverProveedorOpt(String nombre) {
         if (nombre == null || nombre.isBlank()) return Optional.empty();
-        String q = nombre.trim().toLowerCase();
         return proveedorRepo.findByActivoTrue().stream()
-                .filter(p -> p.getNombre() != null && p.getNombre().toLowerCase().contains(q))
+                .filter(p -> coincideNombre(p.getNombre(), nombre))
                 .findFirst();
     }
 
     /**
-     * ¿El emisor es un odontólogo con DEUDA PENDIENTE? Solo en ese caso tiene
-     * sentido un triangulado: tiene que haber algo real para saldar. Se buscan
-     * los comprobantes PENDIENTE (que llevan el snapshot del odontólogo) y se
-     * matchea por palabra (apellido) para tolerar "Dr. García" vs "Dr. Martín García".
-     *
-     * <p>Se excluye explícitamente al propio proveedor receptor: si una misma
-     * persona/empresa es a la vez proveedor del lab y odontólogo cliente, no se
-     * la triangula "contra sí misma" — en ese caso se trata como pago directo al
-     * proveedor.</p>
+     * Normaliza un nombre para comparar: sin acentos, minúsculas, espacios colapsados.
      */
-    private Optional<Comprobante> resolverOdontologoEmisor(String emisor, String proveedorNombre) {
+    private static String normalizarNombre(String s) {
+        if (s == null) return "";
+        String sinAcentos = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return sinAcentos.toLowerCase().trim().replaceAll("\\s+", " ");
+    }
+
+    /**
+     * ¿Todas las palabras de la query aparecen en el nombre guardado? Compara
+     * normalizado (sin acentos, case-insensitive) y no depende del orden ni de
+     * que las palabras estén pegadas — así "pablo gabrenas" matchea contra
+     * "Pablo Martín Gabrenas".
+     */
+    private static boolean coincideNombre(String nombreGuardado, String query) {
+        String nombreNorm = normalizarNombre(nombreGuardado);
+        if (nombreNorm.isEmpty()) return false;
+        for (String palabra : normalizarNombre(query).split(" ")) {
+            if (!palabra.isBlank() && !nombreNorm.contains(palabra)) return false;
+        }
+        return true;
+    }
+
+    /**
+     * ¿El emisor es un odontólogo con DEUDA PENDIENTE O PARCIAL? Solo en ese caso
+     * tiene sentido un triangulado: tiene que haber algo real para saldar. Se
+     * buscan los comprobantes en esos dos estados (que llevan el snapshot del
+     * odontólogo) y se matchea por palabra (apellido) para tolerar "Dr. García"
+     * vs "Dr. Martín García".
+     *
+     * <p>Antes solo miraba PENDIENTE, no PARCIAL — eso rompía triangulados
+     * consecutivos del mismo odontólogo: el primero deja el comprobante en
+     * PARCIAL (si no lo cubrió entero), y el segundo dejaba de detectarse como
+     * triangulado porque ya no encontraba nada en PENDIENTE, cayendo al flujo de
+     * pago directo sin descontar nada de la deuda.</p>
+     *
+     * <p>Sirve para los dos tipos de receptor: proveedor (el odontólogo le paga
+     * una compra del lab) y empleado (el odontólogo le paga el sueldo). En ambos
+     * casos el odontólogo cubrió una obligación del laboratorio, así que hay que
+     * descontarla de su cuenta corriente.</p>
+     *
+     * <p>Se excluye explícitamente al propio receptor: si una misma persona es a
+     * la vez receptor (proveedor/empleado) y odontólogo cliente, no se la
+     * triangula "contra sí misma" — en ese caso se trata como pago directo.</p>
+     */
+    private Optional<Comprobante> resolverOdontologoEmisor(String emisor, String receptorNombre) {
         if (emisor == null || emisor.isBlank()) return Optional.empty();
         String[] palabras = emisor.trim().toLowerCase().split("\\s+");
-        String prov = proveedorNombre == null ? "" : proveedorNombre.trim().toLowerCase();
+        String prov = receptorNombre == null ? "" : receptorNombre.trim().toLowerCase();
         return comprobanteRepo.findAll().stream()
-                .filter(c -> c.getEstadoPago() == EstadoPago.PENDIENTE)
+                .filter(c -> c.getEstadoPago() == EstadoPago.PENDIENTE || c.getEstadoPago() == EstadoPago.PARCIAL)
                 .filter(c -> {
                     String nom = c.getOdontologoNombre() == null ? "" : c.getOdontologoNombre().toLowerCase();
                     // Misma entidad que el proveedor receptor → no es triangulado.
@@ -332,37 +475,95 @@ public class GestionSueldoService implements IGestionSueldoService {
                 .findFirst();
     }
 
-    /** Marca comprobantes PENDIENTE del odontólogo como COBRADO (más viejos primero) hasta cubrir el monto. */
+    /**
+     * Imputa el pago a los comprobantes PENDIENTE/PARCIAL del odontólogo (más
+     * viejos primero), igual que {@code registrarPagoCuentaCorriente} — un
+     * pago que no alcanza a cubrir un comprobante completo lo deja en PARCIAL
+     * en vez de no hacer nada. Antes este método requería cubrir el comprobante
+     * entero de una, así que un triangulado por menos del monto total del
+     * comprobante más viejo no descontaba nada de la deuda.
+     */
     private BigDecimal settleDeudaOdontologo(Long odontologoId, BigDecimal monto) {
         BigDecimal restante = monto, settled = BigDecimal.ZERO;
-        List<Comprobante> pend = comprobanteRepo.findByOdontologoIdAndEstadoPago(odontologoId, EstadoPago.PENDIENTE)
+        List<Comprobante> pend = comprobanteRepo
+                .findByOdontologoIdAndEstadoPagoIn(odontologoId, List.of(EstadoPago.PENDIENTE, EstadoPago.PARCIAL))
                 .stream().sorted(Comparator.comparing(Comprobante::getFechaEmision)).toList();
         for (Comprobante c : pend) {
-            if (restante.compareTo(c.getMonto()) < 0) break;  // el modelo no soporta pago parcial de un comprobante
-            c.setEstadoPago(EstadoPago.COBRADO);
-            c.setFechaCobro(LocalDate.now());
+            if (restante.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal saldo = c.getSaldoPendiente();
+            if (saldo.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal aplica = restante.min(saldo);
+
+            c.setMontoPagado(c.getMontoPagado().add(aplica));
+            if (c.getMontoPagado().compareTo(c.getMonto()) >= 0) {
+                c.setEstadoPago(EstadoPago.COBRADO);
+                c.setFechaCobro(LocalDate.now());
+            } else {
+                c.setEstadoPago(EstadoPago.PARCIAL);
+            }
             comprobanteRepo.save(c);
-            restante = restante.subtract(c.getMonto());
-            settled = settled.add(c.getMonto());
+
+            restante = restante.subtract(aplica);
+            settled = settled.add(aplica);
         }
         return settled;
     }
 
-    /** Marca DeudaProveedor PENDIENTE como PAGADO (más viejas primero) hasta cubrir el monto. */
+    /**
+     * Imputa el pago a las deudas PENDIENTE/PARCIAL del proveedor (más viejas
+     * primero). Un pago que no alcanza a cubrir una deuda completa la deja en
+     * PARCIAL en vez de no hacer nada — antes esto requería cubrir la deuda
+     * entera de una sola vez, así que un pago (o triangulado) por menos del
+     * total de la deuda más vieja no descontaba nada.
+     */
     private BigDecimal settleDeudaProveedor(Long proveedorId, BigDecimal monto) {
         BigDecimal restante = monto, settled = BigDecimal.ZERO;
-        List<DeudaProveedor> pend = deudaProveedorRepo.findByProveedorIdOrderByFechaCreacionDesc(proveedorId)
-                .stream().filter(d -> d.getEstado() == EstadoDeuda.PENDIENTE)
-                .sorted(Comparator.comparing(DeudaProveedor::getFechaCreacion)).toList();
+        List<DeudaProveedor> pend = deudaProveedorRepo.findByProveedorIdAndEstadoInOrderByFechaCreacionAsc(
+                proveedorId, List.of(EstadoDeuda.PENDIENTE, EstadoDeuda.PARCIAL));
         for (DeudaProveedor d : pend) {
-            if (restante.compareTo(d.getMonto()) < 0) break;
-            d.setEstado(EstadoDeuda.PAGADO);
-            d.setFechaPago(LocalDate.now());
+            if (restante.compareTo(BigDecimal.ZERO) <= 0) break;
+            BigDecimal saldo = d.getSaldoPendiente();
+            if (saldo.compareTo(BigDecimal.ZERO) <= 0) continue;
+            BigDecimal aplica = restante.min(saldo);
+
+            d.setMontoPagado(d.getMontoPagado().add(aplica));
+            if (d.getMontoPagado().compareTo(d.getMonto()) >= 0) {
+                d.setEstado(EstadoDeuda.PAGADO);
+                d.setFechaPago(LocalDate.now());
+            } else {
+                d.setEstado(EstadoDeuda.PARCIAL);
+            }
             deudaProveedorRepo.save(d);
-            restante = restante.subtract(d.getMonto());
-            settled = settled.add(d.getMonto());
+
+            restante = restante.subtract(aplica);
+            settled = settled.add(aplica);
         }
         return settled;
+    }
+
+    /**
+     * Solo para pagos DIRECTOS de sueldo (no triangulados): si el pago supera lo
+     * devengado, ese excedente es caja real y NO queda como adelanto del próximo
+     * período — vuelve al laboratorio. Se registra como INGRESO para que la caja
+     * refleje esa plata (el empleado la devuelve), usando {@code ManejoSobrante
+     * .DEVUELVE_EMPLEADO}.
+     *
+     * <p>En un triangulado (el odontólogo le paga al empleado por cuenta del lab)
+     * NO se llama a este método: nunca entró plata real a ninguna caja del lab
+     * —es un asiento neteado en COMPENSACION— así que no hay adónde devolver el
+     * excedente. Ahí se sigue usando {@code DESCONTAR_PROXIMO}: el excedente queda
+     * como adelanto contra lo que el empleado devengue el próximo período.</p>
+     *
+     * @param caja la misma caja de la que salió el pago, así el neto (egreso -
+     *             excedente) queda correcto.
+     */
+    private void registrarExcedenteEnCaja(PagoSueldo pago, TipoCaja caja, String referencia) {
+        BigDecimal exc = pago.getMontoExcedente();
+        if (exc == null || exc.signum() <= 0) return;
+        registrarMovimiento(TipoMovimientoCaja.INGRESO, caja, exc,
+                "Excedente de sueldo devuelto por " + pago.getEmpleadoNombre(), referencia);
+        log.info("[SUELDOS] Excedente de ${} de {} vuelve a la caja {}",
+                exc, pago.getEmpleadoNombre(), caja);
     }
 
     /** Registra un movimiento de caja (lo usan el triangulado y el pago directo a proveedor). */
@@ -425,6 +626,7 @@ public class GestionSueldoService implements IGestionSueldoService {
     public RegistroPagoBotResponse registrarPagoEfectivo(PagoEfectivoRequest req) {
         RegistroPagoBot reg = RegistroPagoBot.builder()
                 .monto(req.getMonto())
+                .emisor(req.getEmisor())
                 .receptorNombre(req.getReceptorNombre())
                 .cargadoPorNombre(req.getCargadoPorNombre())
                 .cargadoPorTelefono(req.getCargadoPorTelefono())
@@ -452,20 +654,43 @@ public class GestionSueldoService implements IGestionSueldoService {
         if (empleado.isPresent()) {
             ConfiguracionSueldo c = empleado.get();
             try {
-                PagoSueldo pago = aplicarPago(c, reg.getMonto(), ManejoSobrante.DESCONTAR_PROXIMO,
+                // Mismo criterio que en la transferencia (ver comentario largo ahí):
+                // triangulado → DESCONTAR_PROXIMO (no hay caja real adonde devolver
+                // el excedente); pago directo → DEVUELVE_EMPLEADO (sí es caja real).
+                Optional<Comprobante> odoEf = resolverOdontologoEmisor(reg.getEmisor(), c.getEmpleadoNombre());
+                ManejoSobrante manejo = odoEf.isPresent() ? ManejoSobrante.DESCONTAR_PROXIMO : ManejoSobrante.DEVUELVE_EMPLEADO;
+
+                PagoSueldo pago = aplicarPago(c, reg.getMonto(), manejo,
                         LocalDate.now(), OrigenPago.BOT_WHATSAPP, "Efectivo confirmado");
                 pago.setCargadoPorNombre(reg.getCargadoPorNombre());
                 pago.setCargadoPorTelefono(reg.getCargadoPorTelefono());
                 pago.setGrupoOrigen(reg.getGrupoOrigen());
                 pagoRepo.save(pago);
-                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
-                        "Efectivo confirmado: sueldo a " + c.getEmpleadoNombre(), null);
                 reg.setEstado(EstadoRegistroBot.REGISTRADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
                 reg.setReceptorId(c.getEmpleadoId());
                 reg.setReceptorResuelto(c.getEmpleadoNombre());
-                reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
-                log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
+
+                if (odoEf.isPresent()) {
+                    Comprobante oc = odoEf.get();
+                    BigDecimal settOdo = settleDeudaOdontologo(oc.getOdontologoId(), reg.getMonto());
+                    registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                            "Triangulado (efectivo): " + oc.getOdontologoNombre() + " paga el sueldo de " + c.getEmpleadoNombre(), null);
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                            "Triangulado (efectivo): sueldo a " + c.getEmpleadoNombre() + " por cuenta de " + oc.getOdontologoNombre(), null);
+                    reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → sueldo de " + c.getEmpleadoNombre()
+                            + " (odontólogo -$" + settOdo.toBigInteger() + ")");
+                    log.info("[BOT-EFECTIVO] Triangulado sueldo: {} pagó a {} por ${}",
+                            oc.getOdontologoNombre(), c.getEmpleadoNombre(), reg.getMonto());
+                } else {
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
+                            "Efectivo confirmado: sueldo a " + c.getEmpleadoNombre(), null);
+                    reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
+                    log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
+                    // Solo en el pago directo: el triangulado usa DESCONTAR_PROXIMO,
+                    // que no genera movimiento de caja (queda como adelanto interno).
+                    registrarExcedenteEnCaja(pago, TipoCaja.FISICA, null);
+                }
             } catch (BusinessException e) {
                 reg.setEstado(EstadoRegistroBot.RECHAZADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
@@ -474,17 +699,37 @@ public class GestionSueldoService implements IGestionSueldoService {
             return RegistroPagoBotResponse.from(registroRepo.save(reg));
         }
 
-        // 2) Proveedor
+        // 2) Proveedor (directo, o triangulado si el emisor es un odontólogo)
         Optional<Proveedor> proveedor = resolverProveedorOpt(reg.getReceptorNombre());
         if (proveedor.isPresent()) {
             Proveedor p = proveedor.get();
-            BigDecimal settled = settleDeudaProveedor(p.getId(), reg.getMonto());
-            registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
-                    "Efectivo a proveedor: " + p.getNombre(), null);
             reg.setEstado(EstadoRegistroBot.REGISTRADO);
             reg.setTipoReceptor(TipoReceptorBot.PROVEEDOR);
             reg.setReceptorId(p.getId());
             reg.setReceptorResuelto(p.getNombre());
+
+            // ¿El emisor es un odontólogo? → TRIANGULADO: no salió plata de la caja
+            // física del laboratorio, el odontólogo le pagó directo al proveedor.
+            Optional<Comprobante> odo = resolverOdontologoEmisor(reg.getEmisor(), p.getNombre());
+            if (odo.isPresent()) {
+                Comprobante oc = odo.get();
+                BigDecimal settOdo  = settleDeudaOdontologo(oc.getOdontologoId(), reg.getMonto());
+                BigDecimal settProv = settleDeudaProveedor(p.getId(), reg.getMonto());
+                // Caja Compensación: entra del odontólogo y sale al proveedor → neto 0
+                registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                        "Triangulado (efectivo): " + oc.getOdontologoNombre() + " paga a " + p.getNombre(), null);
+                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                        "Triangulado (efectivo): a proveedor " + p.getNombre() + " por cuenta de " + oc.getOdontologoNombre(), null);
+                reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → " + p.getNombre()
+                        + " (odontólogo -$" + settOdo.toBigInteger() + ", proveedor -$" + settProv.toBigInteger() + ")");
+                log.info("[BOT-EFECTIVO] Triangulado: {} → {} por ${}", oc.getOdontologoNombre(), p.getNombre(), reg.getMonto());
+                return RegistroPagoBotResponse.from(registroRepo.save(reg));
+            }
+
+            // Pago directo del laboratorio al proveedor, en efectivo real
+            BigDecimal settled = settleDeudaProveedor(p.getId(), reg.getMonto());
+            registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
+                    "Efectivo a proveedor: " + p.getNombre(), null);
             reg.setMensaje("Efectivo a proveedor: " + p.getNombre()
                     + (settled.signum() > 0 ? " (deuda -$" + settled.toBigInteger() + ")" : ""));
             log.info("[BOT-EFECTIVO] Confirmado: proveedor {} recibió ${}", p.getNombre(), reg.getMonto());
@@ -541,9 +786,8 @@ public class GestionSueldoService implements IGestionSueldoService {
     /** Match por nombre para la confirmación de efectivo (igual que el rama-nombre de resolverEmpleadoOpt). */
     private Optional<ConfiguracionSueldo> resolverEmpleadoPorNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) return Optional.empty();
-        String q = nombre.trim().toLowerCase();
         List<ConfiguracionSueldo> matches = configRepo.findAllByOrderByEmpleadoNombreAsc().stream()
-                .filter(x -> x.getEmpleadoNombre() != null && x.getEmpleadoNombre().toLowerCase().contains(q))
+                .filter(x -> coincideNombre(x.getEmpleadoNombre(), nombre))
                 .toList();
         return matches.size() == 1 ? Optional.of(matches.get(0)) : Optional.empty();
     }

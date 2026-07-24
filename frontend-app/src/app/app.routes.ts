@@ -19,17 +19,20 @@ import { OdontologoHistorialComponent } from './pages/dashboard/odontologos/hist
 import { BotRegistrosComponent } from './pages/dashboard/bot-registros/bot-registros';
 import { ProveedoresComponent } from './pages/dashboard/proveedores/proveedores';
 import { ManualComponent } from './pages/dashboard/manual/manual';
+import { FaqComponent } from './pages/dashboard/faq/faq';
 import { MiPerfilComponent } from './pages/dashboard/mi-perfil/mi-perfil';
 import { ErrorPageComponent } from './pages/error/error-page';
-import { authGuard } from './guards/auth.guard';
+import { TerminosComponent } from './pages/terminos/terminos';
+import { authGuard, termsGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
   { path: '', component: LandingPage },
   { path: 'login', component: LoginComponent },
+  { path: 'terminos', component: TerminosComponent, canActivate: [authGuard] },
   {
     path: 'dashboard',
     component: DashboardComponent,
-    canActivate: [authGuard],
+    canActivate: [termsGuard],
     children: [
       { path: '',            component: DashboardHomeComponent },
       { path: 'pedidos',     component: PedidosComponent },
@@ -49,6 +52,7 @@ export const routes: Routes = [
       { path: 'usuarios',       component: UsuariosComponent },
       { path: 'mi-perfil',      component: MiPerfilComponent },
       { path: 'manual',         component: ManualComponent },
+      { path: 'faq',            component: FaqComponent },
     ]
   },
   // Páginas de error

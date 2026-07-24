@@ -4,9 +4,13 @@ import com.gs.ms_finanzas.dto.DeudaProveedorRequest;
 import com.gs.ms_finanzas.dto.DeudaProveedorResponse;
 import com.gs.ms_finanzas.exception.BusinessException;
 import com.gs.ms_finanzas.exception.ResourceNotFoundException;
+import com.gs.ms_finanzas.model.CajaMovimiento;
 import com.gs.ms_finanzas.model.DeudaProveedor;
 import com.gs.ms_finanzas.model.EstadoDeuda;
 import com.gs.ms_finanzas.model.Proveedor;
+import com.gs.ms_finanzas.model.TipoCaja;
+import com.gs.ms_finanzas.model.TipoMovimientoCaja;
+import com.gs.ms_finanzas.repository.CajaMovimientoRepository;
 import com.gs.ms_finanzas.repository.DeudaProveedorRepository;
 import com.gs.ms_finanzas.repository.ProveedorRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +27,7 @@ public class DeudaProveedorService implements IDeudaProveedorService {
 
     private final DeudaProveedorRepository deudaRepo;
     private final ProveedorRepository proveedorRepo;
+    private final CajaMovimientoRepository cajaMovimientoRepo;
 
     public List<DeudaProveedorResponse> listarPorProveedor(Long proveedorId) {
         return deudaRepo.findByProveedorIdOrderByFechaCreacionDesc(proveedorId).stream()
@@ -57,15 +62,39 @@ public class DeudaProveedorService implements IDeudaProveedorService {
         return DeudaProveedorResponse.from(deudaRepo.save(d));
     }
 
+    /**
+     * Marca el SALDO RESTANTE de la deuda como pagado (no el monto original) —
+     * si ya tenía pagos parciales (por ejemplo, un triangulado del bot que
+     * cubrió parte), este botón manual solo cubre lo que falta, y el egreso de
+     * caja es por ese resto, no por el total, para no duplicar contablemente
+     * lo que ya se descontó antes.
+     */
     @Transactional
-    public DeudaProveedorResponse pagar(Long id) {
+    public DeudaProveedorResponse pagar(Long id, TipoCaja caja) {
         DeudaProveedor d = deudaRepo.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("DeudaProveedor", id));
         if (d.getEstado() == EstadoDeuda.PAGADO) {
             throw new BusinessException("La deuda ya está marcada como pagada.");
         }
+        java.math.BigDecimal restante = d.getSaldoPendiente();
+        d.setMontoPagado(d.getMonto());
         d.setEstado(EstadoDeuda.PAGADO);
         d.setFechaPago(LocalDate.now());
-        return DeudaProveedorResponse.from(deudaRepo.save(d));
+        DeudaProveedor guardada = deudaRepo.save(d);
+
+        // Antes esto solo cambiaba el estado sin registrar ningún egreso de caja
+        // — el pago "desaparecía" contablemente. Ahora sí queda el rastro.
+        if (restante.signum() > 0) {
+            cajaMovimientoRepo.save(CajaMovimiento.builder()
+                .tipo(TipoMovimientoCaja.EGRESO)
+                .tipoCaja(caja)
+                .monto(restante)
+                .concepto("Pago a proveedor: " + d.getProveedor().getNombre() + " — " + d.getDescripcion())
+                .referencia(d.getNroFacturaProveedor())
+                .creadoPor("panel")
+                .build());
+        }
+
+        return DeudaProveedorResponse.from(guardada);
     }
 }

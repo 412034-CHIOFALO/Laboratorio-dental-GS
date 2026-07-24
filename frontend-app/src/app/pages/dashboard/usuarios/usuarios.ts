@@ -1,10 +1,16 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { NgClass } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Subject, interval } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { AuthService } from '../../../services/auth';
+import { NotificationService } from '../../../services/notification.service';
 import { environment } from '../../../../environments/environment';
 import { MOCK_USUARIOS, MockUsuario, clonar } from '../../../services/mock-data';
+
+/** Cada cuánto se refresca la lista en segundo plano (ms). Ver nota en ngOnInit. */
+const POLL_MS = 6000;
 
 @Component({
   selector: 'app-usuarios',
@@ -13,7 +19,8 @@ import { MOCK_USUARIOS, MockUsuario, clonar } from '../../../services/mock-data'
   templateUrl: './usuarios.html',
   styleUrls: ['./usuarios.css']
 })
-export class UsuariosComponent implements OnInit {
+export class UsuariosComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
   private gatewayUrl = environment.gatewayUrl;
 
   usuarios: MockUsuario[] = [];
@@ -43,33 +50,63 @@ export class UsuariosComponent implements OnInit {
   private mockStore: MockUsuario[] = clonar(MOCK_USUARIOS);
   private nextMockId = 100;
 
-  constructor(private http: HttpClient, private authService: AuthService) {}
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService,
+    private notif: NotificationService,
+  ) {}
 
-  ngOnInit() { this.cargarUsuarios(); }
+  /** Crear un usuario nuevo es exclusivo de ADMIN. */
+  get puedeCrear(): boolean {
+    return this.authService.isAdmin();
+  }
+
+  /** Dar de alta (activar) una cuenta pendiente es exclusivo de ADMINISTRATIVO — a
+   * propósito no puede ser el mismo ADMIN que la creó (separación de poderes). */
+  get puedeActivar(): boolean {
+    return this.authService.isAdministrativo();
+  }
+
+  ngOnInit() {
+    this.cargarUsuarios();
+    // Refresco silencioso en segundo plano: con dos pestañas abiertas (ej. un
+    // ADMIN crea, un ADMINISTRATIVO activa), sin esto cada una queda mostrando
+    // datos viejos hasta que alguien recarga a mano.
+    interval(POLL_MS).pipe(takeUntil(this.destroy$)).subscribe(() => this.cargarUsuarios(true));
+  }
+
+  ngOnDestroy() {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   private headers(): HttpHeaders {
     return new HttpHeaders({ Authorization: `Bearer ${this.authService.getToken()}` });
   }
 
-  cargarUsuarios() {
-    this.loading = true;
-    this.error   = '';
+  /** @param silencioso true en los refrescos de fondo: no muestra el spinner ni pisa errores previos. */
+  cargarUsuarios(silencioso = false) {
+    if (!silencioso) { this.loading = true; this.error = ''; }
 
     if (environment.useMocks) {
-      setTimeout(() => { this.usuarios = clonar(this.mockStore); this.loading = false; }, 200);
+      setTimeout(() => { this.usuarios = clonar(this.mockStore); if (!silencioso) this.loading = false; }, 200);
       return;
     }
 
     this.http.get<MockUsuario[]>(`${this.gatewayUrl}/api/auth/usuarios`, { headers: this.headers() })
       .subscribe({
-        next: (data) => { this.usuarios = data; this.loading = false; },
-        error: () => { this.error = 'No se pudo cargar la lista de usuarios.'; this.loading = false; }
+        next: (data) => { this.usuarios = data; if (!silencioso) this.loading = false; },
+        error: () => { if (!silencioso) { this.error = 'No se pudo cargar la lista de usuarios.'; this.loading = false; } }
       });
   }
 
   // ── Crear ────────────────────────────────────────────────────
 
   abrirModal() {
+    if (!this.puedeCrear) {
+      this.notif.alerta('Crear usuarios es exclusivo de un Administrador.', 'Sin permisos');
+      return;
+    }
     this.form = { nombre: '', apellido: '', username: '', password: '', rol: '' };
     this.saveError = ''; this.saveSuccess = '';
     this.showModal = true;
@@ -110,6 +147,10 @@ export class UsuariosComponent implements OnInit {
   // ── Activar / Desactivar ─────────────────────────────────────
 
   activar(id: number) {
+    if (!this.puedeActivar) {
+      this.notif.alerta('Dar de alta un usuario requiere rol Administrativo — no puede ser el mismo Admin que lo creó.', 'Sin permisos');
+      return;
+    }
     this.cambiarEstado(id, true);
   }
 

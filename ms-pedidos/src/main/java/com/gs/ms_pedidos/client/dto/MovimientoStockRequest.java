@@ -10,6 +10,7 @@ package com.gs.ms_pedidos.client.dto;
  */
 public record MovimientoStockRequest(
         Long materialId,
+        String materialNombre,
         String tipo,
         Double cantidad,
         String motivo,

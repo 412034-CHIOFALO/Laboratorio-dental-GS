@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { forkJoin, of } from 'rxjs';
@@ -6,10 +6,12 @@ import { catchError } from 'rxjs/operators';
 
 import { OdontologosService, OdontologoResponse } from '../../../../services/odontologos.service';
 import { PedidosService, PedidoResponse } from '../../../../services/pedidos.service';
-import { FinanzasService } from '../../../../services/finanzas.service';
+import { FinanzasService, ComprobanteResponse, PagoCuentaCorrienteResponse } from '../../../../services/finanzas.service';
 import { NotificationService } from '../../../../services/notification.service';
+import { AuthService } from '../../../../services/auth';
 import { PagoCuentaCorrienteModalComponent } from '../pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 import { PedidoDetalleModalComponent } from '../../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
+import { iniciarPolling } from '../../../../shared/poll.util';
 
 type Tab = 'resumen' | 'pedidos' | 'finanzas' | 'escaneres' | 'documentos';
 
@@ -36,6 +38,13 @@ export class OdontologoHistorialComponent implements OnInit {
   private pedidosService = inject(PedidosService);
   private finanzasService = inject(FinanzasService);
   private notif = inject(NotificationService);
+  private auth = inject(AuthService);
+  private destroyRef = inject(DestroyRef);
+
+  /** Técnicos no ven deuda/facturación — solo ADMIN y ADMINISTRATIVO manejan plata. */
+  get puedeVerFinanzas(): boolean {
+    return this.auth.puedeVerFinanzas();
+  }
 
   loading = true;
   errorCarga = '';
@@ -43,6 +52,8 @@ export class OdontologoHistorialComponent implements OnInit {
   odontologo: OdontologoResponse | null = null;
   pedidos: PedidoResponse[] = [];
   saldoDeuda = 0;
+  comprobantes: ComprobanteResponse[] = [];
+  historialPagos: PagoCuentaCorrienteResponse[] = [];
 
   tabActiva: Tab = 'resumen';
 
@@ -53,13 +64,15 @@ export class OdontologoHistorialComponent implements OnInit {
   detalleAbiertoId: number | null = null;
 
   // ─── Tabs disponibles (los últimos 2 son placeholders por ahora) ────
-  readonly tabs: { id: Tab; label: string; count?: () => number }[] = [
-    { id: 'resumen',    label: 'Resumen' },
-    { id: 'pedidos',    label: 'Pedidos', count: () => this.pedidos.length },
-    { id: 'finanzas',   label: 'Finanzas' },
-    { id: 'escaneres',  label: 'Escáneres 3D' },
-    { id: 'documentos', label: 'Documentos' },
-  ];
+  get tabs(): { id: Tab; label: string; count?: () => number }[] {
+    return [
+      { id: 'resumen',    label: 'Resumen' },
+      { id: 'pedidos',    label: 'Pedidos', count: () => this.pedidos.length },
+      ...(this.puedeVerFinanzas ? [{ id: 'finanzas' as Tab, label: 'Finanzas' }] : []),
+      { id: 'escaneres',  label: 'Escáneres 3D' },
+      { id: 'documentos', label: 'Documentos' },
+    ];
+  }
 
   ngOnInit(): void {
     const id = Number(this.route.snapshot.paramMap.get('id'));
@@ -69,29 +82,39 @@ export class OdontologoHistorialComponent implements OnInit {
       return;
     }
     this.cargar(id);
+    iniciarPolling(() => this.cargar(id, true), this.destroyRef);
   }
 
-  private cargar(id: number): void {
-    this.loading = true;
+  private cargar(id: number, silencioso = false): void {
+    if (silencioso && this.showModalPago) return; // no pisar mientras hay un pago en curso
+    if (!silencioso) this.loading = true;
     forkJoin({
       odontologo: this.odontologosService.buscarPorId(id).pipe(
         catchError(err => {
-          this.notif.errorHttp(err, 'No se pudo cargar el odontólogo');
+          if (!silencioso) this.notif.errorHttp(err, 'No se pudo cargar el odontólogo');
           return of(null);
         })
       ),
       pedidos: this.pedidosService.listarTodos().pipe(
         catchError(() => of([] as PedidoResponse[]))
       ),
-      saldo: this.finanzasService.saldoPorOdontologo(id).pipe(
-        catchError(() => of(0))
-      ),
-    }).subscribe(({ odontologo, pedidos, saldo }) => {
+      saldo: this.puedeVerFinanzas
+        ? this.finanzasService.saldoPorOdontologo(id).pipe(catchError(() => of(0)))
+        : of(0),
+      comprobantes: this.puedeVerFinanzas
+        ? this.finanzasService.comprobantesPorOdontologo(id).pipe(catchError(() => of([] as ComprobanteResponse[])))
+        : of([] as ComprobanteResponse[]),
+      historialPagos: this.puedeVerFinanzas
+        ? this.finanzasService.historialPagosOdontologo(id).pipe(catchError(() => of([] as PagoCuentaCorrienteResponse[])))
+        : of([] as PagoCuentaCorrienteResponse[]),
+    }).subscribe(({ odontologo, pedidos, saldo, comprobantes, historialPagos }) => {
       this.odontologo = odontologo;
       this.pedidos = pedidos.filter(p => p.odontologoId === id)
                             .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime());
       this.saldoDeuda = saldo;
-      this.loading = false;
+      this.comprobantes = comprobantes;
+      this.historialPagos = historialPagos;
+      if (!silencioso) this.loading = false;
     });
   }
 
@@ -110,8 +133,17 @@ export class OdontologoHistorialComponent implements OnInit {
   onPagoRegistrado(): void {
     this.showModalPago = false;
     if (!this.odontologo) return;
-    this.finanzasService.saldoPorOdontologo(this.odontologo.id).subscribe({
+    const id = this.odontologo.id;
+    this.finanzasService.saldoPorOdontologo(id).subscribe({
       next: saldo => this.saldoDeuda = saldo,
+      error: () => {},
+    });
+    this.finanzasService.comprobantesPorOdontologo(id).subscribe({
+      next: comps => this.comprobantes = comps,
+      error: () => {},
+    });
+    this.finanzasService.historialPagosOdontologo(id).subscribe({
+      next: pagos => this.historialPagos = pagos,
       error: () => {},
     });
   }

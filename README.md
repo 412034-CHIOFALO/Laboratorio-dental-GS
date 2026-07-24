@@ -186,16 +186,30 @@ cd frontend-app       && ng serve --open
 
 ### Modo 3 — Stack completo con Docker (un solo comando)
 
-El modo más parecido a producción: levanta **los 11 containers** (MySQL, MinIO,
-discovery, ms-auth, los 4 ms de negocio, gateway, frontend nginx y el bot) con
-MySQL real. Funciona sobre un **clone limpio sin pasos manuales** — el keystore
-JWT se genera en el build y los `application-prod.properties` están versionados.
+El modo más parecido a producción: levanta **14 containers** (MySQL, MinIO,
+Adminer, backup automático, discovery, ms-auth, los 4 ms de negocio, gateway,
+frontend nginx, el bot de WhatsApp y el scraper de mails) con MySQL real.
+Funciona sobre un **clone limpio sin pasos manuales** — el keystore JWT se
+genera en el build y los `application-prod.properties` están versionados.
 
 ```bash
 docker compose up -d --build      # primer arranque: compila e inicia todo
 docker compose logs -f gs-bot     # mostrar el QR para vincular el WhatsApp del bot
 docker compose ps                 # ver el estado (healthy) de cada container
 ```
+
+**Para rebuildear solo lo que cambió** (mucho más rápido que todo de nuevo):
+
+```bash
+docker compose build <servicio>       # ej: gs-bot, gs-frontend, ms-finanzas
+docker compose up -d <servicio>
+```
+
+`gs-bot` (sesión de WhatsApp) y `gs-mail-scraper` (pedidos por email) son
+servicios **separados a propósito** — un cuelgue de la conexión IMAP no puede
+afectar la sesión de WhatsApp (mucho más lenta de recuperar), y viceversa. Si
+`gs-mail-scraper` falla varios ciclos seguidos se reinicia solo (ver
+`MAIL_MAX_FALLOS_CONSECUTIVOS` en `.env.example`).
 
 Accesos desde el host:
 
@@ -235,11 +249,16 @@ TRABAJO PRACTICO INTEGRADOR/
 │
 ├── frontend-app/             Angular 20 PWA
 │   └── src/app/pages/dashboard/     Páginas del SaaS
-├── gs-bot-whatsapp/          Bot de WhatsApp (Node + Gemini + scraper de mails)
+├── gs-bot-whatsapp/          Sesión de WhatsApp (Node + Gemini) y scraper de mails
+│   ├── index.js                    Bot: lee comprobantes del grupo, responde por WhatsApp
+│   ├── mail-scraper.js             Scraper de mails: corre como servicio Docker aparte
+│   ├── Dockerfile                  Imagen del bot (con Chromium/Puppeteer)
+│   └── Dockerfile.mail-scraper     Imagen del scraper (sin Chromium, mucho más liviana)
 │
-├── docker-compose.yml        Stack completo (MySQL + MinIO + ms + frontend + bot)
+├── docker-compose.yml        Stack completo (14 containers: DB, MinIO, ms, frontend, bot, scraper)
 ├── start-dev.ps1             Arranque local sin Docker (H2, keystore auto)
-├── test-e2e.ps1              Suite de pruebas E2E contra el stack vivo
+├── test-e2e.ps1              Suite de pruebas E2E — OJO: crea datos reales (ver Troubleshooting)
+├── tunnel-demo.sh            Expone el stack a internet para demos (Cloudflare Quick Tunnel + aviso por ntfy)
 ├── .env.example              Plantilla de variables de entorno
 └── README.md                 Este archivo
 ```
@@ -290,7 +309,7 @@ com.gs.ms_<nombre>/
 
 ### Infraestructura
 
-- [x] Dockerfiles de los 9 servicios + `docker-compose.yml` (stack completo)
+- [x] Dockerfiles de los 10 servicios propios + `docker-compose.yml` (stack completo, 14 containers)
 - [x] Fresh-clone + `docker compose up` funciona out-of-the-box (keystore auto-generado, prod-properties versionados)
 - [x] CI con GitHub Actions (build + tests de los 5 ms + frontend + bot)
 - [x] Javadoc generable (`mvnw javadoc:javadoc`)
@@ -373,6 +392,41 @@ Tipos: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `style`.
 | Eureka muestra `UNKNOWN` para un ms | El ms arrancó antes que discovery | Reiniciá solo ese ms |
 | Script `.ps1` no ejecuta | ExecutionPolicy bloqueado | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` |
 | `keytool: command not found` | Java no está en PATH | Agregá `%JAVA_HOME%\bin` al PATH |
+
+### `test-e2e.ps1` — qué hace y cuándo correrlo
+
+Es una suite de smoke tests en PowerShell que pega contra el gateway **real**
+(`http://localhost:8080` por defecto) y valida que los endpoints principales
+respondan como se espera: login, rutas protegidas, endpoints del bot con/sin
+API key, etc.
+
+**Importante — no es de solo lectura.** Además de chequeos `GET`, el script
+también hace `POST /api/odontologos` (crea un odontólogo real), `POST` contra
+los endpoints del bot (`pago-automatico`, `pago-efectivo`, crea registros
+reales) y `PUT /api/stock/configuracion` (modifica configuración real). Pensado
+para correr contra el **Modo 2 (dev, H2 en memoria)**, donde no importa
+ensuciar los datos — si se corre contra el stack de Docker con MySQL real
+(que es persistente), esos datos de prueba quedan ahí de verdad.
+
+```powershell
+.\test-e2e.ps1                                    # contra localhost:8080
+.\test-e2e.ps1 -GatewayUrl http://mi-server:8080  # contra otro host
+```
+
+### `tunnel-demo.sh` — exponer el stack para una demo
+
+Expone el stack corriendo en un server (pensado para Linux/el server de
+despliegue, no Windows) a internet mediante un **Cloudflare Quick Tunnel**
+(`cloudflared`), sin necesidad de abrir puertos ni configurar DNS. Al conseguir
+la URL pública, avisa por [ntfy.sh](https://ntfy.sh) a un topic elegido.
+
+```bash
+./tunnel-demo.sh mi-topic-secreto   # suscribite antes en https://ntfy.sh/mi-topic-secreto
+```
+
+`Ctrl+C` corta el túnel — la URL deja de funcionar al instante, no queda nada
+expuesto después. Requiere `cloudflared` instalado en el server. Pensado para
+demos puntuales (ej. la defensa de tesis), no para exposición permanente.
 
 ### Keystore de ms-auth
 

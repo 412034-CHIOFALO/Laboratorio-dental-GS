@@ -67,17 +67,20 @@
   @if (!loading && filtrados.length > 0) {
     <div class="odo-grid">
       @for (o of filtrados; track o.id) {
-        <div class="odo-card" [class.es-inactivo]="o.inactivoPorTiempo" (click)="abrirDetalle(o)">
+        <div class="odo-card" [class.es-inactivo]="!o.activo" (click)="abrirDetalle(o)">
           <div class="odo-card-header">
             <div class="odo-avatar">{{ iniciales(o.nombre) }}</div>
             <div class="odo-id">
               <h3>{{ o.nombre }}</h3>
               @if (o.matricula) { <span class="odo-matricula">{{ o.matricula }}</span> }
             </div>
-            <span class="estado-actividad" [class.inactivo]="o.inactivoPorTiempo"
-                  [title]="ultimoPedidoLabel(o)">
-              {{ o.inactivoPorTiempo ? 'Inactivo' : 'Activo' }}
+            <span class="estado-actividad" [class.inactivo]="!o.activo"
+                  [title]="o.activo ? ultimoPedidoLabel(o) : 'Desactivado'">
+              {{ o.activo ? 'Activo' : 'Inactivo' }}
             </span>
+            @if (o.activo && o.inactivoPorTiempo) {
+              <span class="badge-sin-pedidos" [title]="ultimoPedidoLabel(o)">Sin pedidos hace tiempo</span>
+            }
           </div>
           <div class="odo-info">
             @if (o.clinica) {
@@ -248,6 +251,7 @@
         </div>
 
         <!-- ── Cuenta corriente ── -->
+        @if (puedeVerFinanzas) {
         <div class="cc-seccion">
           <div class="cc-head">
             <div>
@@ -294,6 +298,7 @@
             </div>
           }
         </div>
+        }
       </div>
 
       <div class="modal-footer detalle-footer">

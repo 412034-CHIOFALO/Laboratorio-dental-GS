@@ -11,7 +11,8 @@ public record UsuarioResponse(
     String telefono,
     Rol rol,
     boolean enabled,
-    boolean pendienteAprobacion
+    boolean pendienteAprobacion,
+    boolean terminosAceptados
 ) {
     public static UsuarioResponse from(Usuario u) {
         return new UsuarioResponse(
@@ -22,7 +23,8 @@ public record UsuarioResponse(
             u.getTelefono(),
             u.getRol(),
             u.isEnabled(),
-            u.isPendienteAprobacion()
+            u.isPendienteAprobacion(),
+            u.isTerminosAceptados()
         );
     }
 }

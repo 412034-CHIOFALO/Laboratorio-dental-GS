@@ -94,6 +94,27 @@ services:
     depends_on:
       mysql: { condition: service_healthy }
 
+  # Backup diario (3 AM) de las 5 bases + archivos de MinIO a Google Drive.
+  # Ver backup/README.md para la configuracion inicial de rclone (una vez).
+  backup:
+    build: ./backup
+    container_name: gs-backup
+    init: true   # crond como PID 1 sin esto tira "setpgid: Operation not permitted"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
+    volumes:
+      - minio_data:/minio_data:ro
+      # Directorio, no el archivo directo: rclone reescribe su config al
+      # refrescar el token OAuth (rename atomico), y eso rompe con
+      # "device or resource busy" si el archivo esta bind-mounteado solo.
+      - ./backup/rclone-config:/root/.config/rclone
+      - backup_tmp:/backups/tmp
+    depends_on:
+      mysql: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    restart: unless-stopped
+    networks: [gs-net]
+
   # ═════════════════════════ DISCOVERY ════════════════════════════════════
 
   discovery-server:
@@ -103,6 +124,9 @@ services:
     container_name: gs-discovery
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
     ports:
       - "127.0.0.1:8761:8761"
     healthcheck:
@@ -123,6 +147,9 @@ services:
     container_name: gs-auth
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: gs_auth
@@ -165,6 +192,9 @@ services:
     container_name: gs-catalogo
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_catalogo
       DB_USERNAME: root
@@ -191,6 +221,9 @@ services:
     container_name: gs-pedidos
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_pedidos
       DB_USERNAME: root
@@ -228,6 +261,9 @@ services:
     container_name: gs-finanzas
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_finanzas
       DB_USERNAME: root
@@ -263,6 +299,9 @@ services:
     container_name: gs-stock
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_stock
       DB_USERNAME: root
@@ -294,6 +333,9 @@ services:
     container_name: gs-gateway
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
       ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:4200
@@ -342,26 +384,16 @@ services:
       dockerfile: Dockerfile
     container_name: gs-bot
     environment:
+      TZ: America/Argentina/Cordoba
       BACKEND_URL: http://api-gateway:8080
       BACKEND_ENABLED: ${BOT_BACKEND_ENABLED:-true}
       BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
       GRUPOS: ${BOT_GRUPOS:-Comprobantes Transferencias,Comprobantes Efectivo}
+      GRUPOS_EFECTIVO: ${BOT_GRUPOS_EFECTIVO:-Comprobantes Efectivo}
+      GRUPOS_JIDS: ${BOT_GRUPOS_JIDS:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_ENABLED: ${GEMINI_ENABLED:-false}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
-      # ── Scraper de mails → crea pedidos desde email (IMAP + Gemini). OFF por defecto.
-      MAIL_ENABLED: ${MAIL_ENABLED:-false}
-      MAIL_IMAP_HOST: ${MAIL_IMAP_HOST:-imap.gmail.com}
-      MAIL_IMAP_PORT: ${MAIL_IMAP_PORT:-993}
-      MAIL_IMAP_SECURE: ${MAIL_IMAP_SECURE:-true}
-      MAIL_IMAP_USER: ${MAIL_IMAP_USER:-}
-      MAIL_IMAP_PASSWORD: ${MAIL_IMAP_PASSWORD:-}
-      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
-      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
-      MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-120}
-      # Usuario de servicio para crear pedidos (la pass coincide con ms-auth).
-      BOT_PEDIDOS_USER: ${BOT_PEDIDOS_USER:-bot-pedidos}
-      BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
     # Healthcheck de liveness del servidor HTTP del bot (no de la conexión a
     # WhatsApp). Usa node porque la imagen slim no trae wget/curl.
     healthcheck:
@@ -374,6 +406,40 @@ services:
       api-gateway: { condition: service_healthy }
     volumes:
       - wpp_auth:/app/.wwebjs_auth          # sesión de WhatsApp (QR 1 sola vez)
+    restart: unless-stopped
+    networks: [gs-net]
+
+  # ═════════════════════════ SCRAPER DE MAILS ═══════════════════════════════
+  # Crea pedidos desde emails recibidos (IMAP + Gemini). Servicio separado del
+  # bot de WhatsApp a propósito: un cuelgue de la conexión IMAP no debe poder
+  # afectar la sesión de WhatsApp (mucho más lenta/frágil de recuperar). Si el
+  # proceso se cuelga repetidamente, se reinicia solo (ver MAIL_MAX_FALLOS_CONSECUTIVOS
+  # en mail-scraper.js) y Docker lo levanta de nuevo por `restart: unless-stopped`.
+  gs-mail-scraper:
+    build:
+      context: ./gs-bot-whatsapp
+      dockerfile: Dockerfile.mail-scraper
+    container_name: gs-mail-scraper
+    environment:
+      TZ: America/Argentina/Cordoba
+      BACKEND_URL: http://api-gateway:8080
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_IMAP_HOST: ${MAIL_IMAP_HOST:-imap.gmail.com}
+      MAIL_IMAP_PORT: ${MAIL_IMAP_PORT:-993}
+      MAIL_IMAP_SECURE: ${MAIL_IMAP_SECURE:-true}
+      MAIL_IMAP_USER: ${MAIL_IMAP_USER:-}
+      MAIL_IMAP_PASSWORD: ${MAIL_IMAP_PASSWORD:-}
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-smtp.gmail.com}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
+      MAIL_POLL_INTERVAL: ${MAIL_POLL_INTERVAL:-120}
+      MAIL_MAX_FALLOS_CONSECUTIVOS: ${MAIL_MAX_FALLOS_CONSECUTIVOS:-8}
+      # Usuario de servicio para crear pedidos (la pass coincide con ms-auth).
+      BOT_PEDIDOS_USER: ${BOT_PEDIDOS_USER:-bot-pedidos}
+      BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
+    depends_on:
+      api-gateway: { condition: service_healthy }
     restart: unless-stopped
     networks: [gs-net]
 
@@ -394,3 +460,5 @@ volumes:
     name: gs_wpp_auth
   ms_auth_keys:
     name: gs_auth_keys
+  backup_tmp:
+    name: gs_backup_tmp

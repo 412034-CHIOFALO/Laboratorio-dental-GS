@@ -109,7 +109,7 @@ $jwt = $null
 
 try {
     $loginResp = Invoke-WebRequest -Method POST `
-        -Uri "$GatewayUrl/ms-auth/api/auth/login" `
+        -Uri "$GatewayUrl/api/auth/login" `
         -Body $loginBody `
         -ContentType "application/json" `
         -UseBasicParsing `
@@ -131,7 +131,7 @@ try {
 
 # Intentar login con credenciales inválidas (debe dar 401)
 Test-Endpoint "Login credenciales inválidas" -Method POST `
-    -Url "$GatewayUrl/ms-auth/api/auth/login" `
+    -Url "$GatewayUrl/api/auth/login" `
     -Body '{"username":"admin","password":"wrong"}' `
     -ExpectedCodes 401 -Tag "seguridad"
 

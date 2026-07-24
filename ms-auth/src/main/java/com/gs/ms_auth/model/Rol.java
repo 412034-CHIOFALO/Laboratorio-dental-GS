@@ -8,9 +8,9 @@ package com.gs.ms_auth.model;
  * como cadena simple sin prefijo.
  * </p>
  * <ul>
- *   <li>{@link #ADMIN} — administrador del sistema; puede crear y aprobar usuarios, ver auditoría y acceder a H2 console.</li>
+ *   <li>{@link #ADMIN} — administrador del sistema; crea usuarios (pero no los activa), ve auditoría y accede a H2 console.</li>
  *   <li>{@link #TECNICO} — personal técnico con acceso a funciones operativas del laboratorio.</li>
- *   <li>{@link #ADMINISTRATIVO} — personal administrativo con acceso a gestión documental y financiera.</li>
+ *   <li>{@link #ADMINISTRATIVO} — personal administrativo con acceso a gestión documental y financiera; es quien activa usuarios nuevos.</li>
  *   <li>{@link #ODONTOLOGO} — profesional odontológico con acceso a la agenda y expedientes clínicos.</li>
  * </ul>
  */

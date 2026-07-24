@@ -14,6 +14,11 @@
  *
  *  Activación: MAIL_ENABLED=true en .env
  *  Intervalo de polling: MAIL_POLL_INTERVAL (segundos, default 120)
+ *
+ *  Corre como servicio Docker propio (gs-mail-scraper), separado del bot de
+ *  WhatsApp: así un cuelgue de IMAP no puede afectar la sesión de WhatsApp (la
+ *  parte más lenta/frágil de recuperar), y `docker compose restart` sobre ESTE
+ *  servicio no toca al bot para nada.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -22,7 +27,9 @@ require('dotenv').config();
 const MAIL_ENABLED = process.env.MAIL_ENABLED === 'true';
 
 if (!MAIL_ENABLED) {
-  module.exports = { iniciar: () => console.log('[MailScraper] Desactivado (MAIL_ENABLED != true).') };
+  const iniciar = () => console.log('[MailScraper] Desactivado (MAIL_ENABLED != true).');
+  module.exports = { iniciar };
+  if (require.main === module) iniciar();
   return;
 }
 
@@ -47,6 +54,17 @@ const IMAP_SECURE   = process.env.MAIL_IMAP_SECURE !== 'false';
 const IMAP_USER     = process.env.MAIL_IMAP_USER || '';
 const IMAP_PASSWORD = process.env.MAIL_IMAP_PASSWORD || '';
 
+// Remitentes claramente automáticos (notificaciones, no-reply, rebotes) — se
+// descartan sin gastar una llamada a Gemini, que sale de una cuota muy chica
+// compartida con la lectura de comprobantes de WhatsApp.
+const PATRONES_REMITENTE_AUTOMATICO = [
+  /no-?reply@/i,
+  /^donotreply@/i,
+  /^mailer-daemon@/i,
+  /^postmaster@/i,
+  /@accounts\.google\.com$/i,
+];
+
 const SMTP_HOST     = process.env.MAIL_SMTP_HOST || '';
 const SMTP_PORT     = parseInt(process.env.MAIL_SMTP_PORT || '587', 10);
 const SMTP_USER     = process.env.MAIL_SMTP_USER || IMAP_USER;
@@ -56,6 +74,41 @@ const SMTP_PASSWORD = process.env.MAIL_SMTP_PASSWORD || IMAP_PASSWORD;
 const genAI       = new GoogleGenerativeAI(GEMINI_API_KEY);
 const geminiModel = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
+/** Suma días corridos a hoy y devuelve YYYY-MM-DD. */
+function enDias(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * El backend solo acepta NORMAL o URGENTE (enum Prioridad de ms-pedidos).
+ * Gemini a veces devolvía otras etiquetas —"ALTA" era la más común— y el pedido
+ * entero se rechazaba con 422 ("El cuerpo de la petición no se puede procesar"),
+ * perdiendo un pedido válido por un matiz de redacción. El prompt ya pide solo
+ * los dos valores buenos; esto es la red de seguridad por si igual se desvía.
+ *
+ * Las etiquetas por encima de lo normal se mapean a URGENTE: en un laboratorio
+ * es peor perder la señal de apuro que marcar un pedido de más.
+ */
+function normalizarPrioridad(valor) {
+  const v = String(valor || '').trim().toUpperCase();
+  return (v === 'URGENTE' || v === 'ALTA' || v === 'CRITICA' || v === 'CRÍTICA')
+    ? 'URGENTE'
+    : 'NORMAL';
+}
+
+/**
+ * fechaEntrega es @NotNull y @Future en el backend. Si Gemini no la detectó, la
+ * devolvió con otro formato, o cayó en hoy/pasado (ej: "lo necesito para hoy"),
+ * usamos 10 días corridos en vez de dejar que el pedido se rechace.
+ */
+function fechaEntregaValida(fecha) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const formatoOk = typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  return (formatoOk && fecha > hoy) ? fecha : enDias(10);
+}
+
 /**
  * Envía el cuerpo del email a Gemini y extrae los campos del pedido.
  * Devuelve un objeto con: paciente, trabajo, fechaEntrega, prioridad,
@@ -63,30 +116,53 @@ const geminiModel = genAI.getGenerativeModel({ model: GEMINI_MODEL });
  */
 async function extraerDatosConGemini(cuerpoEmail, remitenteNombre, fechaHoy) {
   const prompt =
-    'Sos un asistente de un laboratorio dental argentino. ' +
-    'Analizá el siguiente email de un odontólogo que solicita un trabajo y extraé los datos del pedido.\n\n' +
+    'Sos un asistente de un laboratorio dental argentino que filtra la casilla de ' +
+    'entrada: la mayoría de los emails NO son pedidos (son respuestas automáticas, ' +
+    'confirmaciones, spam, publicidad, notificaciones u otro tipo de correspondencia). ' +
+    'Analizá el siguiente email y decidí primero si es una solicitud real de trabajo ' +
+    'dental de un odontólogo.\n\n' +
     `Fecha de hoy: ${fechaHoy}\n` +
-    `Remitente (odontólogo): ${remitenteNombre}\n\n` +
+    `Remitente: ${remitenteNombre}\n\n` +
     'Email:\n' +
     cuerpoEmail + '\n\n' +
     'Devolvé SOLO un JSON válido sin markdown ni texto extra, con esta estructura exacta:\n' +
     '{\n' +
+    '  "esSolicitudTrabajo": <true SOLO si es un pedido real de un trabajo dental concreto, false para cualquier otra cosa>,\n' +
     '  "paciente": "<nombre del paciente, o null>",\n' +
-    '  "trabajo": "<tipo de trabajo dental, ej: Corona zirconio, Prótesis superior — obligatorio>",\n' +
+    '  "trabajo": "<tipo de trabajo dental, ej: Corona zirconio, Prótesis superior. null si esSolicitudTrabajo es false>",\n' +
     '  "fechaEntrega": "<YYYY-MM-DD. Si dicen el viernes, calculá desde la fecha de hoy. null si no hay>",\n' +
-    '  "prioridad": "<URGENTE | ALTA | NORMAL según el tono del pedido>",\n' +
+    '  "prioridad": "<URGENTE o NORMAL, nada más, según el tono del pedido>",\n' +
     '  "precioAcordado": <número sin símbolo si se menciona, si no null>,\n' +
     '  "observaciones": "<instrucciones especiales de material, color, forma, etc. null si no hay>"\n' +
     '}\n\n' +
     'Reglas:\n' +
-    '- "trabajo" es obligatorio — inferilo aunque sea parcialmente del contexto.\n' +
+    '- Si "esSolicitudTrabajo" es false, TODOS los demás campos van en null — nunca ' +
+    'expliques el motivo del rechazo dentro de "trabajo" ni de ningún otro campo.\n' +
+    '- "trabajo" nunca es una explicación ni una frase — es solo el nombre corto del ' +
+    'procedimiento (ej: "Corona zirconio"), o null.\n' +
     '- Fechas relativas ("el viernes", "la semana que viene") → calculá la fecha absoluta desde hoy.\n' +
     '- Si algo no figura, poné null. No inventes datos.';
 
-  const result = await geminiModel.generateContent(prompt);
+  const result = await conTimeout(
+    geminiModel.generateContent(prompt),
+    45_000,
+    'Gemini no respondió en 45s (posible reintento interno por cuota agotada)',
+  );
   let txt = result.response.text().trim()
     .replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
   return JSON.parse(txt);
+}
+
+// Sin este límite, si Gemini se queda reintentando internamente por cuota
+// agotada, la llamada puede tardar varios minutos — y como la conexión IMAP
+// queda abierta e inactiva mientras tanto, termina disparando su propio
+// socketTimeout y tirando abajo TODO el lote de emails del poll, no solo el
+// que estaba esperando a Gemini.
+function conTimeout(promesa, ms, mensaje) {
+  return Promise.race([
+    promesa,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(mensaje)), ms)),
+  ]);
 }
 
 // ─── JWT del bot ──────────────────────────────────────────────────────────────
@@ -157,7 +233,13 @@ async function enviarRespuesta(to, nombre, asuntoOriginal, pedido, mensajeError)
   }
 }
 
+function esRemitenteAutomatico(remitenteEmail) {
+  return !!remitenteEmail && PATRONES_REMITENTE_AUTOMATICO.some(p => p.test(remitenteEmail));
+}
+
 // ─── Procesamiento de un email ────────────────────────────────────────────────
+// Recibe el `source` ya descargado aparte (ver _pollMailInterno) — acá solo se
+// procesa contenido de emails que YA sabemos que no son de remitentes automáticos.
 async function procesarEmail(uid, envelope, source) {
   const remitenteNombre = envelope.from?.[0]?.name || envelope.from?.[0]?.address || 'Odontólogo';
   const remitenteEmail  = envelope.from?.[0]?.address || null;
@@ -181,25 +263,34 @@ async function procesarEmail(uid, envelope, source) {
     datos = await extraerDatosConGemini(cuerpo, remitenteNombre, fechaHoy);
     console.log('[MailScraper]    ✨ Gemini:', JSON.stringify(datos));
   } catch (e) {
+    // 429 (cuota agotada) u otro error de infraestructura de Gemini: no es culpa
+    // del contenido del email. No respondemos "no pudimos interpretarlo" (sería
+    // engañoso) y dejamos el email sin leer para reintentar cuando la cuota se
+    // restablezca — si no, se pierde el pedido y además gastamos cuota en vano
+    // reintentando el mismo email roto en cada poll.
+    const esCuotaOInfra = /429|quota|rate limit|too many requests|50[0-9]|timeout/i.test(e.message || '');
+    if (esCuotaOInfra) {
+      console.error('[MailScraper]    ❌ Gemini sin cuota/infra — se reintentará más tarde:', e.message);
+      return false;
+    }
     console.error('[MailScraper]    ❌ Gemini falló:', e.message);
     await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
       'no fue posible interpretar el contenido del email');
     return true;  // problema de contenido: ya respondimos, no reintentar
   }
 
-  if (!datos.trabajo) {
-    console.log('[MailScraper]    ⚠ Sin trabajo identificado — email descartado');
+  if (!datos.esSolicitudTrabajo || !datos.trabajo) {
+    console.log('[MailScraper]    ⚠ No es una solicitud de trabajo — email descartado (sin crear pedido)');
+    // Solo respondemos si de verdad parece dirigido al laboratorio (tiene remitente
+    // legible); evita contestar spam/notificaciones automáticas sin sentido.
+    if (datos.esSolicitudTrabajo === false) return true;
     await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
       'no se pudo determinar el tipo de trabajo. Por favor reenvíe con más detalles');
     return true;  // problema de contenido: ya respondimos, no reintentar
   }
 
-  // Fecha de entrega por defecto: 10 días corridos si Gemini no la detectó
-  const fechaEntrega = datos.fechaEntrega || (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 10);
-    return d.toISOString().slice(0, 10);
-  })();
+  const fechaEntrega = fechaEntregaValida(datos.fechaEntrega);
+  const prioridad    = normalizarPrioridad(datos.prioridad);
 
   // Crear pedido
   let token, pedidoCreado;
@@ -212,7 +303,7 @@ async function procesarEmail(uid, envelope, source) {
         paciente:         datos.paciente || 'Paciente por confirmar',
         trabajo:          datos.trabajo,
         fechaEntrega,
-        prioridad:        datos.prioridad || 'NORMAL',
+        prioridad,
         precioAcordado:   datos.precioAcordado || null,
         observaciones:    [
           datos.observaciones,
@@ -235,7 +326,7 @@ async function procesarEmail(uid, envelope, source) {
         const res = await axios.post(
           `${BACKEND_URL}/api/pedidos`,
           { odontologoNombre: remitenteNombre, paciente: datos.paciente || 'Paciente por confirmar',
-            trabajo: datos.trabajo, fechaEntrega, prioridad: datos.prioridad || 'NORMAL',
+            trabajo: datos.trabajo, fechaEntrega, prioridad,
             precioAcordado: datos.precioAcordado || null,
             observaciones: [datos.observaciones, `Pedido recibido por email desde ${remitenteEmail}`]
               .filter(Boolean).join(' | ') },
@@ -247,6 +338,13 @@ async function procesarEmail(uid, envelope, source) {
         console.error('[MailScraper]    ❌ Error creando pedido:', e2.response?.data?.message || e2.message);
         return false;  // falla de infraestructura: NO marcar leído, reintentar luego
       }
+    } else if (e.response?.status >= 400 && e.response?.status < 500) {
+      // Error del propio contenido del email (ej: fecha no futura, texto muy largo).
+      // Reintentar no lo va a arreglar — se cae en loop infinito si no lo resolvemos acá.
+      console.error('[MailScraper]    ❌ Datos del pedido rechazados:', e.response?.data?.mensaje || e.response?.data?.error || e.message);
+      await enviarRespuesta(remitenteEmail, remitenteNombre, asunto, null,
+        'no pudimos registrar el pedido con los datos detectados. Por favor comuníquese con el laboratorio');
+      return true;  // problema de contenido: ya respondimos, no reintentar
     } else {
       console.error('[MailScraper]    ❌ Error creando pedido:', e.response?.data?.message || e.message);
       return false;  // falla de infraestructura: NO marcar leído, reintentar luego
@@ -285,13 +383,77 @@ async function procesarEmail(uid, envelope, source) {
 }
 
 // ─── Poll IMAP ────────────────────────────────────────────────────────────────
+// Evita que dos ciclos corran en simultáneo: si un poll tarda más que
+// POLL_INTERVAL_MS (ej: Gemini reintentando por cuota), el setInterval de más
+// abajo dispararía un segundo pollMail() con una conexión IMAP nueva mientras
+// la anterior sigue abierta — dos conexiones a la vez contra la misma casilla
+// pueden ser la causa de los "Connection not available" observados.
+let _pollEnCurso = false;
+
+// Watchdog: si el ciclo completo falla muchas veces seguidas, algo quedó en un
+// estado raro que ningún timeout puntual está arreglando (ej: Gmail limitando
+// temporalmente las conexiones por reconectar demasiado seguido). En vez de
+// insistir para siempre con el mismo proceso posiblemente degradado, salimos
+// con código de error — como este servicio corre con `restart: unless-stopped`
+// en Docker, arranca de nuevo solo, limpio, sin que nadie tenga que mirarlo.
+const MAX_FALLOS_CONSECUTIVOS = parseInt(process.env.MAIL_MAX_FALLOS_CONSECUTIVOS || '8', 10);
+let _fallosConsecutivos = 0;
+
 async function pollMail() {
+  if (_pollEnCurso) {
+    console.warn('[MailScraper] Poll anterior todavía en curso — se salta este ciclo.');
+    return;
+  }
+  _pollEnCurso = true;
+  let imapRef = null;
+  try {
+    // Deadline duro para el ciclo completo — red de seguridad final por si una
+    // operación IMAP queda colgada de verdad (nunca resuelve ni rechaza). Antes
+    // esto estaba en 90s pensado como presupuesto de TODO el lote, pero un solo
+    // email real (Gemini + crear pedido + subir adjunto + responder por mail)
+    // puede tardar bastante — con varios emails así en la misma cola, los de
+    // más atrás se quedaban sin tiempo aunque nada estuviera realmente colgado.
+    // Cada paso individual (fetch, Gemini, flagAdd) ya tiene su propio timeout
+    // corto más abajo; este de acá es solo el techo global, generoso a
+    // propósito para no interrumpir procesamiento legítimo de varios mensajes.
+    await conTimeout(
+      _pollMailInterno((imap) => { imapRef = imap; }),
+      10 * 60 * 1000,
+      'El poll no terminó en 10 minutos — probablemente una operación IMAP quedó colgada',
+    );
+    _fallosConsecutivos = 0; // el ciclo terminó (haya o no encontrado mails nuevos) → todo bien
+  } catch (e) {
+    console.error('[MailScraper] Poll abortado:', e.message);
+    if (imapRef) {
+      try { imapRef.close(); } catch (_) {}  // cierre forzado, sin esperar LOGOUT
+    }
+    _fallosConsecutivos++;
+    if (_fallosConsecutivos >= MAX_FALLOS_CONSECUTIVOS) {
+      console.error(`[MailScraper] ${_fallosConsecutivos} ciclos seguidos abortados — reiniciando el proceso para arrancar de cero.`);
+      process.exit(1);
+    }
+  } finally {
+    _pollEnCurso = false;
+  }
+}
+
+async function _pollMailInterno(onConnect) {
   const imap = new ImapFlow({
     host:   IMAP_HOST,
     port:   IMAP_PORT,
     secure: IMAP_SECURE,
     auth:   { user: IMAP_USER, pass: IMAP_PASSWORD },
     logger: false,
+    socketTimeout: 60 * 1000,
+  });
+  if (onConnect) onConnect(imap);
+
+  // Sin este listener, un error de socket (timeout, conexión cortada) es un
+  // 'error' event sin handler → Node lo re-lanza y tira ABAJO TODO EL PROCESO
+  // (el bot de WhatsApp incluido), no solo este poll. Ya pasó y generó un
+  // crash-loop reprocesando el mismo email una y otra vez.
+  imap.on('error', (err) => {
+    console.error('[MailScraper] Error de conexión IMAP:', err.message);
   });
 
   try {
@@ -304,22 +466,69 @@ async function pollMail() {
 
       console.log(`[MailScraper] ${uids.length} email(s) nuevo(s)`);
 
-      for await (const msg of imap.fetch(uids, { envelope: true, source: true }, { uid: true })) {
+      // Paso 1: traer solo los envelopes (remitente/asunto) — liviano y rápido,
+      // sin bajar el cuerpo ni los adjuntos todavía. Antes se pedía todo junto
+      // (envelope + source) para el lote entero de una sola vez: si un solo
+      // mensaje tenía un adjunto pesado (ej. un STL de un pedido real), esa
+      // descarga lenta bloqueaba el fetch de TODO el lote, incluidos los mails
+      // triviales que ni necesitan Gemini.
+      const envelopes = [];
+      await conTimeout(
+        (async () => {
+          for await (const msg of imap.fetch(uids, { envelope: true }, { uid: true })) {
+            envelopes.push({ uid: msg.uid, envelope: msg.envelope });
+          }
+        })(),
+        30_000,
+        'La descarga de remitentes/asuntos no terminó en 30s — la conexión IMAP parece no responder en absoluto',
+      );
+
+      for (const { uid, envelope } of envelopes) {
         let resuelto = false;
-        try {
-          // Solo se marca leído si el email quedó resuelto (pedido creado o
-          // descartado por contenido). Si falló por infraestructura (backend
-          // caído), se deja sin leer para reintentarlo en el próximo poll y no
-          // perder el pedido.
-          resuelto = await procesarEmail(msg.uid, msg.envelope, msg.source);
-        } catch (e) {
-          console.error('[MailScraper] Error procesando email:', e.message);
-          resuelto = false;
-        }
-        if (resuelto) {
-          await imap.messageFlagsAdd({ uid: msg.uid }, ['\\Seen'], { uid: true });
+        const remitenteEmail = envelope.from?.[0]?.address || null;
+
+        if (esRemitenteAutomatico(remitenteEmail)) {
+          // Se descarta sin bajar el cuerpo/adjuntos — ni falta hace.
+          console.log(`\n[MailScraper] ── Email de ${envelope.from?.[0]?.name || remitenteEmail} <${remitenteEmail}>`);
+          console.log(`[MailScraper]    Asunto: ${envelope.subject || '(sin asunto)'}`);
+          console.log(`[MailScraper]    ⏭ Remitente automático — descartado sin bajar el contenido`);
+          resuelto = true;
         } else {
-          console.warn(`[MailScraper] Email uid=${msg.uid} sin marcar — se reintentará.`);
+          try {
+            // El source (cuerpo + adjuntos) se baja recién acá, mensaje por
+            // mensaje y con su propio timeout — así un adjunto pesado en UN
+            // mail no puede trabar la descarga de los demás ni comerse todo
+            // el presupuesto del poll.
+            const { source } = await conTimeout(
+              imap.fetchOne(uid, { source: true }, { uid: true }),
+              45_000,
+              `Descarga del contenido no terminó en 45s para uid=${uid} (¿adjunto pesado?)`,
+            );
+            resuelto = await procesarEmail(uid, envelope, source);
+          } catch (e) {
+            console.error(`[MailScraper] Error procesando email uid=${uid}:`, e.message);
+            resuelto = false;
+          }
+        }
+        // El flagAdd va en su propio try/catch + timeout corto: detectamos que
+        // este comando puede quedarse COLGADO para siempre (nunca resuelve ni
+        // rechaza, ni siquiera cuando el socket ya está en mal estado) en vez
+        // de fallar rápido — por eso antes se comía todo el deadline de 90s del
+        // poll entero. Con este timeout de 15s, si se cuelga lo detectamos
+        // rápido y seguimos con el resto del lote en la misma pasada.
+        if (resuelto) {
+          try {
+            await conTimeout(
+              imap.messageFlagsAdd({ uid }, ['\\Seen'], { uid: true }),
+              15_000,
+              `messageFlagsAdd no respondió en 15s para uid=${uid}`,
+            );
+            console.log(`[MailScraper]    ✓ Marcado como leído (uid=${uid}).`);
+          } catch (e) {
+            console.error(`[MailScraper] No se pudo marcar leído uid=${uid} — se reintentará:`, e.message);
+          }
+        } else {
+          console.warn(`[MailScraper] Email uid=${uid} sin marcar — se reintentará.`);
         }
       }
     } finally {
@@ -344,3 +553,8 @@ function iniciar() {
 }
 
 module.exports = { iniciar };
+
+// Corre standalone (`node mail-scraper.js`, ver Dockerfile.mail-scraper) — pero
+// si en algún momento vuelve a importarse desde otro módulo (como pasaba antes
+// desde index.js), `require.main !== module` y esta línea no hace nada.
+if (require.main === module) iniciar();

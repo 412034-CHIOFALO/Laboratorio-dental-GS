@@ -116,6 +116,15 @@ public class ConfiguracionSueldo {
     private LocalDate ultimoPago;
 
     /**
+     * Última fecha hasta la que ya se calculó el devengo diario (ver
+     * {@link com.gs.ms_finanzas.service.GestionSueldoService#devengarDiario()}).
+     * Null hasta el primer cálculo — en ese caso se devenga desde
+     * {@link #fechaCreacion} (el día de alta), prorrateando el ciclo incompleto.
+     */
+    @Column(name = "ultimo_devengo_calculado")
+    private LocalDate ultimoDevengoCalculado;
+
+    /**
      * Timestamp de creación del registro. Inmutable.
      */
     @Column(name = "fecha_creacion", nullable = false, updatable = false)

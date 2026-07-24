@@ -1,11 +1,19 @@
-:host { display: block; }
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 .stk-page {
   padding: 2rem 2.5rem;
-  max-width: 1500px;
+  max-width: 1600px;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* ── HEADER ── */
@@ -15,6 +23,7 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .page-title h1 {
   font-size: 1.5rem;
@@ -56,6 +65,7 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .search-wrap { position: relative; flex-shrink: 0; }
 .search-icon {
@@ -134,19 +144,22 @@
   background: var(--gs-card);
   border: 1px solid var(--gs-border);
   border-radius: 12px;
-  overflow: hidden;
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 .stk-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 0.85rem;
 }
-.stk-table thead {
+.stk-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   background: var(--gs-card-2);
   border-bottom: 1.5px solid var(--gs-border-md);
-}
-.stk-table th {
   padding: 0.85rem 1rem;
   text-align: left;
   font-weight: 700;

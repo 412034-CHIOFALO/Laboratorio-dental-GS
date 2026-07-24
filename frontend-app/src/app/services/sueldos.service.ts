@@ -40,6 +40,16 @@ export interface ConfigSueldoRequest {
   montoBase: number;
 }
 
+/** Alta de un integrante nuevo en el módulo de sueldos (ms-finanzas tiene su propia tabla, separada de Usuarios). */
+export interface CrearEmpleadoRequest {
+  usuarioId: number;
+  nombre: string;
+  rol?: string | null;
+  telefono?: string | null;
+  frecuencia: FrecuenciaPago;
+  montoBase: number;
+}
+
 export interface PagoSueldoRequest {
   usuarioId: number;
   monto: number;
@@ -134,6 +144,30 @@ export class SueldosService {
       return of({ ...e }).pipe(delay(180));
     }
     return this.http.put<EmpleadoSueldo>(`${this.base}/empleados/${usuarioId}/config`, req);
+  }
+
+  /** Da de alta a un integrante del laboratorio en el módulo de sueldos. */
+  crearEmpleado(req: CrearEmpleadoRequest): Observable<EmpleadoSueldo> {
+    if (environment.useMocks) {
+      if (this.store.some(x => x.usuarioId === req.usuarioId)) {
+        throw new Error('Ese empleado ya está dado de alta en sueldos.');
+      }
+      const nuevo: EmpleadoSueldo = {
+        usuarioId: req.usuarioId,
+        nombre: req.nombre,
+        rol: (req.rol as RolEmpleado) ?? 'OTRO',
+        telefono: req.telefono ?? null,
+        activo: true,
+        frecuencia: req.frecuencia,
+        montoBase: req.montoBase,
+        saldoDevengado: 0,
+        saldoSobrante: 0,
+        ultimoPago: null,
+      };
+      this.store.push(nuevo);
+      return of({ ...nuevo }).pipe(delay(200));
+    }
+    return this.http.post<EmpleadoSueldo>(`${this.base}/empleados`, req);
   }
 
   /** Histórico de pagos de un empleado. */
@@ -287,6 +321,17 @@ export class SueldosService {
       return of({ ...e }).pipe(delay(150));
     }
     return this.http.patch<EmpleadoSueldo>(`${this.base}/empleados/${usuarioId}/devengado`, { devengado: nuevoDevengado });
+  }
+
+  /**
+   * Fuerza el cálculo de devengado diario ahora mismo (en vez de esperar al cron
+   * de las 00:05). Idempotente — se puede llamar varias veces sin duplicar nada.
+   */
+  devengarAhora(): Observable<void> {
+    if (environment.useMocks) {
+      return of(undefined).pipe(delay(200));
+    }
+    return this.http.post<void>(`${this.base}/devengar-ahora`, {});
   }
 
   // ── Comprobantes demo (mock) — algunos del bot, algunos manuales ──

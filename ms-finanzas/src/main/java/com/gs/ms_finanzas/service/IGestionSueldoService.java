@@ -41,16 +41,27 @@ public interface IGestionSueldoService {
     EmpleadoSueldoResponse buscarEmpleado(Long usuarioId);
 
     /**
-     * Crea o actualiza la configuración de sueldo de un empleado.
-     *
-     * <p>Si ya existe una configuración para el {@code usuarioId}, la actualiza.
-     * Si no existe, la crea con saldo devengado y sobrante en cero.</p>
+     * Actualiza la configuración de sueldo de un empleado ya dado de alta.
      *
      * @param usuarioId ID del usuario en ms-auth.
      * @param req       configuración a aplicar (frecuencia de pago y monto base).
      * @return la configuración actualizada.
+     * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si el empleado no fue dado de alta con {@link #crearEmpleado}.
      */
     EmpleadoSueldoResponse guardarConfig(Long usuarioId, ConfigSueldoRequest req);
+
+    /**
+     * Da de alta a un integrante del laboratorio en el módulo de sueldos.
+     *
+     * <p>ms-finanzas mantiene su propia tabla de empleados, denormalizada de
+     * ms-auth: un usuario nuevo (creado en Usuarios) no es reconocido acá ni
+     * por el bot de WhatsApp hasta que se lo da de alta con este método.</p>
+     *
+     * @param req datos del empleado (usuarioId, nombre, rol, teléfono y configuración inicial).
+     * @return la configuración recién creada, con saldo devengado y sobrante en cero.
+     * @throws com.gs.ms_finanzas.exception.ConflictException si ya existe una configuración para ese usuarioId.
+     */
+    EmpleadoSueldoResponse crearEmpleado(CrearEmpleadoRequest req);
 
     /**
      * Registra un pago de sueldo desde la aplicación web (pago manual).
@@ -186,4 +197,20 @@ public interface IGestionSueldoService {
      * @return la distribución sugerida.
      */
     DistribucionCascadaResponse sugerirCascada(BigDecimal monto, TipoCaja cajaRemanente);
+
+    /**
+     * Devenga automáticamente el sueldo de todos los empleados activos, prorrateado
+     * por día corrido según su {@link com.gs.ms_finanzas.model.FrecuenciaPago}.
+     *
+     * <p>Para cada empleado activo, calcula los días transcurridos desde el último
+     * cálculo ({@code ultimoDevengoCalculado}) — o desde su fecha de alta si es la
+     * primera vez — y le acredita {@code montoBase / frecuencia.diasDeCiclo()} por
+     * cada día. Así un empleado que se dio de alta a mitad de mes ya tiene devengado
+     * proporcional desde ese mismo día, sin esperar a que cierre el ciclo completo.</p>
+     *
+     * <p>Pensado para correr una vez por día (ver el scheduler), pero es idempotente
+     * en el sentido de que nunca vuelve a contar un día ya devengado — se puede
+     * invocar manualmente sin miedo a duplicar devengado.</p>
+     */
+    void devengarDiario();
 }

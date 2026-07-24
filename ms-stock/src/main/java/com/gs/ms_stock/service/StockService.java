@@ -15,7 +15,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
+/**
+ * Implementación de {@link IStockService} para la gestión del inventario de materiales.
+ *
+ * <p>Administra el ciclo de vida de los materiales del laboratorio y sus movimientos:</p>
+ * <ul>
+ *   <li>CRUD de materiales con baja lógica (soft delete via {@code activo = false}).</li>
+ *   <li>Registro de movimientos: {@code ENTRADA}, {@code SALIDA} y {@code AJUSTE}.</li>
+ *   <li>Política permisiva: permite stock negativo con advertencia en log en vez de
+ *       lanzar excepción, reflejando la realidad operativa del laboratorio.</li>
+ * </ul>
+ *
+ * <p>Las salidas automáticas por producción son iniciadas por ms-pedidos a través
+ * del endpoint {@code POST /api/stock/movimiento}.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -79,8 +94,7 @@ public class StockService implements IStockService {
     @Override
     @Transactional
     public MaterialResponse registrarMovimiento(MovimientoRequest request) {
-        Material material = materialRepo.findById(request.getMaterialId())
-                .orElseThrow(() -> new ResourceNotFoundException("Material", request.getMaterialId()));
+        Material material = resolverMaterial(request);
 
         // Política nueva: avisamos pero permitimos descontar a negativo
         // (refleja la realidad — el admin sabe que está "debiendo" material)
@@ -106,6 +120,31 @@ public class StockService implements IStockService {
         movimientoRepo.save(mov);
 
         return MaterialResponse.from(material);
+    }
+
+    /**
+     * Resuelve el material del movimiento priorizando el nombre sobre el id.
+     *
+     * Quien más depende de esto es ms-pedidos: cuando descuenta stock según la
+     * receta del catálogo, el materialId que maneja viene de un seed hardcodeado
+     * en ms-catalogo (no hay acceso cruzado entre bases de datos de microservicios
+     * para resolverlo en el momento en que se creó esa receta). Si ese id quedó
+     * mal — por ejemplo porque la tabla de materiales ya tenía filas antes de
+     * correr el seed — resolver por nombre evita que el descuento falle en
+     * silencio contra un material inexistente o equivocado.
+     */
+    private Material resolverMaterial(MovimientoRequest request) {
+        String nombre = request.getMaterialNombre();
+        if (nombre != null && !nombre.isBlank()) {
+            Optional<Material> porNombre = materialRepo.findByNombreIgnoreCase(nombre.trim());
+            if (porNombre.isPresent()) {
+                return porNombre.get();
+            }
+            log.warn("[GS-STOCK] No hay material con nombre '{}' — se intenta resolver por id={}.",
+                nombre, request.getMaterialId());
+        }
+        return materialRepo.findById(request.getMaterialId())
+                .orElseThrow(() -> new ResourceNotFoundException("Material", request.getMaterialId()));
     }
 
     @Transactional

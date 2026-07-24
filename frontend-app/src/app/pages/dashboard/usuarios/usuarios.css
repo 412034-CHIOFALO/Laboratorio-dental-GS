@@ -1,13 +1,23 @@
-:host { display: block; }
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 .page-content {
   padding: 2rem 2.5rem;
-  max-width: 1000px;
+  max-width: 1600px;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .page-header {
   display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 1rem; margin-bottom: 1.75rem; flex-wrap: wrap;
+  gap: 1rem; margin-bottom: 1.75rem; flex-wrap: wrap; flex-shrink: 0;
 }
 .page-title h1 { font-size: 1.4rem; font-weight: 800; color: var(--gs-text); letter-spacing: -0.5px; }
 .page-title p { color: var(--gs-text-muted); font-size: 0.875rem; margin-top: 0.2rem; }
@@ -30,6 +40,7 @@
   padding: 0.7rem 0.9rem; border-radius: 9px;
   font-size: 0.835rem; font-weight: 500; line-height: 1.4;
   margin-bottom: 1rem;
+  flex-shrink: 0;
 }
 .alert-error {
   background: var(--gs-rose-soft); border: 1px solid rgba(244,63,94,0.25); color: #fda4af;
@@ -54,16 +65,17 @@
   background: var(--gs-card);
   border: 1px solid var(--gs-border);
   border-radius: 12px;
-  overflow: hidden;
-  overflow-x: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
 }
 
 .tabla {
-  width: 100%; border-collapse: collapse;
+  width: 100%; border-collapse: separate; border-spacing: 0;
   font-size: 0.875rem;
 }
-.tabla thead { background: var(--gs-card-2); }
 .tabla th {
+  position: sticky; top: 0; z-index: 1; background: var(--gs-card-2);
   text-align: left; padding: 0.85rem 1.25rem;
   font-size: 0.75rem; font-weight: 600;
   color: var(--gs-text-muted); text-transform: uppercase; letter-spacing: 0.5px;

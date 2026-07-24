@@ -1,4 +1,11 @@
 <div class="prov-view">
+  <a class="back-link" routerLink="/dashboard/finanzas" [queryParams]="{ seccion: 'proveedores' }">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+    </svg>
+    Volver a Finanzas
+  </a>
+
   <header class="prov-header">
     <div>
       <h1>Proveedores</h1>
@@ -72,13 +79,16 @@
                               {{ d.descripcion }}
                               @if (d.observaciones) { <div class="obs">{{ d.observaciones }}</div> }
                             </td>
-                            <td class="r mono">${{ d.monto | number:'1.0-0' }}</td>
-                            <td><span class="badge" [class.ok]="d.estado==='PAGADO'" [class.pend]="d.estado==='PENDIENTE'">{{ d.estado }}</span></td>
+                            <td class="r mono">
+                              ${{ d.saldoPendiente | number:'1.0-0' }}
+                              @if (d.estado === 'PARCIAL') { <div class="obs">de ${{ d.monto | number:'1.0-0' }}</div> }
+                            </td>
+                            <td><span class="badge" [class.ok]="d.estado==='PAGADO'" [class.pend]="d.estado==='PENDIENTE'" [class.parcial]="d.estado==='PARCIAL'">{{ d.estado }}</span></td>
                             <td class="nowrap">{{ d.fechaVencimiento ? (d.fechaVencimiento | date:'dd/MM/yy') : '—' }}</td>
                             <td class="nowrap">{{ d.fechaPago ? (d.fechaPago | date:'dd/MM/yy') : '—' }}</td>
                             <td class="nowrap">{{ d.nroFacturaProveedor || '—' }}</td>
                             <td class="nowrap">
-                              @if (d.estado === 'PENDIENTE') {
+                              @if (d.estado === 'PENDIENTE' || d.estado === 'PARCIAL') {
                                 <button class="btn-ghost btn-sm" [disabled]="pagandoId() === d.id"
                                         (click)="marcarPagada(d); $event.stopPropagation()">
                                   {{ pagandoId() === d.id ? 'Marcando…' : 'Marcar pagada' }}
@@ -130,6 +140,24 @@
         <div class="modal-acciones">
           <button class="btn-ghost" (click)="cerrarModalDeuda()">Cancelar</button>
           <button class="btn-primary" (click)="guardarDeuda()" [disabled]="guardandoDeuda()">{{ guardandoDeuda() ? 'Guardando…' : 'Registrar deuda' }}</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (modalPagoAbierto()) {
+    <div class="modal-overlay" (click)="cerrarModalPago()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>¿De qué caja salió el pago?</h2>
+        <p class="obs">{{ deudaAPagar?.descripcion }} — ${{ deudaAPagar?.monto | number:'1.0-0' }}</p>
+        <div class="modal-acciones">
+          <button class="btn-ghost" (click)="cerrarModalPago()">Cancelar</button>
+          <button class="btn-primary" [disabled]="pagandoId() !== null" (click)="confirmarPago('FISICA')">
+            {{ pagandoId() !== null ? 'Marcando…' : 'Física' }}
+          </button>
+          <button class="btn-primary" [disabled]="pagandoId() !== null" (click)="confirmarPago('BANCARIA')">
+            {{ pagandoId() !== null ? 'Marcando…' : 'Bancaria' }}
+          </button>
         </div>
       </div>
     </div>

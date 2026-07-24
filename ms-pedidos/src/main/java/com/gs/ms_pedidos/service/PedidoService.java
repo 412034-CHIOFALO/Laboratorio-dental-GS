@@ -120,7 +120,10 @@ public class PedidoService implements IPedidoService {
         pedido.setEstado(nuevoEstado);
 
         // ── Descuento automático de stock al entrar en producción ──
-        if (nuevoEstado == EstadoPedido.EN_PROCESO && estadoAnterior != EstadoPedido.EN_PROCESO) {
+        // El Kanban permite arrastrar una tarjeta a cualquier columna, no solo
+        // a la adyacente (ej: RECIBIDO → LISTO de un solo salto), así que no
+        // alcanza con comparar contra el valor exacto EN_PROCESO.
+        if (nuevoEstado.alcanzoProduccion() && !estadoAnterior.alcanzoProduccion()) {
             consumoStockService.descontarSiCorresponde(pedido);
         }
 

@@ -1,4 +1,4 @@
-.rep-page { padding: 1.5rem; max-width: 1300px; display: flex; flex-direction: column; gap: 1.25rem; }
+.rep-page { padding: 1.5rem; max-width: 1600px; display: flex; flex-direction: column; gap: 1.25rem; }
 
 .page-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .header-left { display: flex; align-items: center; gap: 0.75rem; }
@@ -66,6 +66,46 @@ h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .alert-error { background: rgba(220,38,38,0.08); border: 1px solid rgba(220,38,38,0.3); color: #dc2626; border-radius: 10px; padding: 0.9rem 1rem; font-size: 0.85rem; }
 .no-data { color: var(--gs-text-muted); font-size: 0.82rem; padding: 1.5rem 0; text-align: center; }
+
+/* Reportes mensuales archivados */
+.reportes-archivo { grid-column: 1 / -1; }
+.reportes-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
+.reportes-head .chart-title { margin: 0; }
+.btn-gen-reporte {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.95rem; background: var(--gs-cyan-soft);
+  border: 1px solid rgba(6,182,212,0.35); color: var(--gs-cyan); border-radius: 8px; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: background .15s; white-space: nowrap;
+}
+.btn-gen-reporte:hover:not(:disabled) { background: rgba(6,182,212,0.2); }
+.btn-gen-reporte:disabled { opacity: .6; cursor: not-allowed; }
+.btn-spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.35); border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+
+.reportes-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
+.reporte-item {
+  display: flex; align-items: center; gap: 0.85rem; padding: 0.7rem 0.85rem;
+  background: var(--gs-card-2); border: 1px solid var(--gs-border); border-radius: 10px; transition: border-color .15s;
+}
+.reporte-item:hover { border-color: var(--gs-border-md); }
+.ri-icon { flex-shrink: 0; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+  background: var(--gs-cyan-soft); color: var(--gs-cyan); border-radius: 8px; }
+.ri-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.ri-periodo { font-size: 0.92rem; font-weight: 700; color: var(--gs-text); }
+.ri-meta { font-size: 0.76rem; color: var(--gs-text-dim); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.ri-tag { font-size: 0.68rem; font-weight: 700; padding: 0.1rem 0.4rem; border-radius: 5px;
+  background: rgba(148,163,184,.15); color: #94a3b8; text-transform: uppercase; letter-spacing: .3px; }
+.ri-tag.auto { background: rgba(34,197,94,.15); color: #22c55e; }
+.btn-desc-reporte {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.4rem 0.8rem;
+  background: var(--gs-cyan-soft); border: 1px solid rgba(6,182,212,0.35); color: var(--gs-cyan);
+  border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: background .15s;
+}
+.btn-desc-reporte:hover { background: rgba(6,182,212,0.2); }
+
+@media (max-width: 600px) {
+  .reporte-item { flex-wrap: wrap; }
+  .ri-info { flex-basis: calc(100% - 55px); }
+  .btn-desc-reporte { margin-left: 55px; }
+}
 
 /* Tabla morosos */
 .morosos-card { grid-column: 1 / -1; }

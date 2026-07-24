@@ -31,13 +31,15 @@
           @if (odontologo.telefono)  { <span>· {{ odontologo.telefono }}</span> }
         </div>
       </div>
-      <div class="hero-saldo" [class.deuda]="saldoDeuda > 0">
-        <span class="saldo-label">Te debe</span>
-        <span class="saldo-val">{{ formatMoney(saldoDeuda) }}</span>
-        @if (saldoDeuda > 0) {
-          <button class="btn-registrar-pago" (click)="abrirModalPago()">Registrar pago</button>
-        }
-      </div>
+      @if (puedeVerFinanzas) {
+        <div class="hero-saldo" [class.deuda]="saldoDeuda > 0">
+          <span class="saldo-label">Te debe</span>
+          <span class="saldo-val">{{ formatMoney(saldoDeuda) }}</span>
+          @if (saldoDeuda > 0) {
+            <button class="btn-registrar-pago" (click)="abrirModalPago()">Registrar pago</button>
+          }
+        </div>
+      }
     </header>
 
     <!-- ── KPIs ── -->
@@ -54,10 +56,12 @@
         <span class="kpi-label">Entregados</span>
         <strong data-color="green">{{ pedidosEntregados.length }}</strong>
       </div>
-      <div class="kpi">
-        <span class="kpi-label">Facturado total</span>
-        <strong>{{ formatMoney(totalFacturado) }}</strong>
-      </div>
+      @if (puedeVerFinanzas) {
+        <div class="kpi">
+          <span class="kpi-label">Facturado total</span>
+          <strong>{{ formatMoney(totalFacturado) }}</strong>
+        </div>
+      }
       <div class="kpi">
         <span class="kpi-label">Último pedido</span>
         <strong>{{ formatFecha(fechaUltimoPedido) }}</strong>
@@ -147,7 +151,7 @@
         }
       }
 
-      @if (tabActiva === 'finanzas') {
+      @if (tabActiva === 'finanzas' && puedeVerFinanzas) {
         <div class="finanzas-resumen">
           <div class="big-stat" [class.deuda]="saldoDeuda > 0">
             <span class="big-label">Saldo pendiente</span>
@@ -194,43 +198,69 @@
           </section>
         }
 
-        @if (pedidosEntregados.length > 0) {
-          <section class="card-sec fin-sec">
-            <h3>Historial de entregas facturadas</h3>
-            <div class="tabla-wrap">
-              <table class="pedidos-tabla">
-                <thead>
-                  <tr>
-                    <th>N°</th>
-                    <th>Trabajo</th>
-                    <th>Entrega</th>
-                    <th class="num">Precio</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (p of pedidosEntregados; track p.id) {
-                    <tr class="row-clickable" (click)="abrirDetallePedido(p.id)">
-                      <td><strong>{{ p.nroPedido }}</strong></td>
-                      <td>{{ p.trabajo }}</td>
-                      <td class="muted">{{ formatFecha(p.fechaEntrega) }}</td>
-                      <td class="num">{{ p.precioAcordado ? formatMoney(p.precioAcordado) : '—' }}</td>
-                    </tr>
-                  }
-                </tbody>
-                <tfoot>
-                  <tr class="total-row">
-                    <td colspan="3" class="total-label">Total facturado</td>
-                    <td class="num total-val">{{ formatMoney(totalFacturado) }}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </section>
-        }
-
         @if (pedidosActivos.length === 0 && pedidosEntregados.length === 0) {
           <p class="empty-mini">No hay pedidos registrados con este odontólogo todavía.</p>
         }
+
+        <!-- Comprobantes: a diferencia de "Trabajos activos" (que es la lista de
+             pedidos), esto es el estado REAL de cobro de cada uno — cuánto se
+             pagó, cuánto falta, y cuándo. Un pedido entregado puede seguir
+             apareciendo acá como PENDIENTE o PARCIAL hasta que se cobre entero. -->
+        <section class="card-sec fin-sec">
+          <h3>Comprobantes</h3>
+          @if (comprobantes.length === 0) {
+            <p class="cc-empty">Sin comprobantes emitidos todavía.</p>
+          } @else {
+            <div class="tabla-wrap">
+              <table class="cc-tabla">
+                <thead>
+                  <tr>
+                    <th>Comprobante</th>
+                    <th>Trabajo</th>
+                    <th class="num">Monto</th>
+                    <th class="num">Pagado</th>
+                    <th class="num">Saldo</th>
+                    <th>Estado</th>
+                    <th>Cobro</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of comprobantes; track c.id) {
+                    <tr [class.saldado]="c.estadoPago === 'COBRADO'">
+                      <td>{{ c.nroComprobante }}</td>
+                      <td>{{ c.trabajo }}</td>
+                      <td class="num">{{ formatMoney(c.monto) }}</td>
+                      <td class="num">{{ formatMoney(c.montoPagado) }}</td>
+                      <td class="num">{{ formatMoney(c.saldoPendiente) }}</td>
+                      <td><span class="cc-estado" [attr.data-estado]="c.estadoPago">{{ c.estadoPago }}</span></td>
+                      <td class="muted">{{ c.fechaCobro ? formatFecha(c.fechaCobro) : '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </section>
+
+        <!-- Últimos pagos: los registrados manualmente desde "Registrar pago".
+             Los saldados vía triangulado del bot (un odontólogo que pagó por
+             cuenta del lab) no generan un registro acá — se ven reflejados en
+             el saldo/estado de arriba, pero no como una línea de pago propia. -->
+        <section class="card-sec fin-sec">
+          <h3>Últimos pagos</h3>
+          @if (historialPagos.length === 0) {
+            <p class="cc-empty">Sin pagos registrados manualmente todavía.</p>
+          } @else {
+            <div class="cc-historial">
+              @for (p of historialPagos; track p.id) {
+                <div class="cc-pago">
+                  <span>{{ formatFecha(p.fecha) }} · {{ p.medio }}</span>
+                  <strong>{{ formatMoney(p.montoImputado) }}</strong>
+                </div>
+              }
+            </div>
+          }
+        </section>
       }
 
       @if (tabActiva === 'escaneres') {

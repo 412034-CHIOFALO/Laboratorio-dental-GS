@@ -1,9 +1,19 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .historial-page {
   padding: 1.5rem;
-  max-width: 1400px;
+  max-width: 1600px;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .back-link {
@@ -14,8 +24,17 @@
   color: var(--muted, #6b7280);
   text-decoration: none;
   width: fit-content;
-  padding: 0.4rem 0;
   transition: color 0.15s;
+  /* Fija el link de "volver" al scrollear: en Finanzas el contenido es largo
+     y sin esto quedaba imposible volver a Odontólogos sin scrollear hasta
+     arriba del todo. Va arriba de .tabs (que también es sticky) — ver el
+     "top" de .tabs más abajo, que le deja lugar debajo de este. */
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--bg);
+  margin: 0 -1.5rem;
+  padding: 0.4rem 1.5rem;
 }
 .back-link:hover { color: var(--text); }
 
@@ -142,8 +161,19 @@
   display: flex;
   gap: 0.4rem;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 1px;
   overflow-x: auto;
+  /* Fija la barra al scrollear: el contenido de algunas pestañas (Finanzas,
+     con saldo + trabajos activos + historial) es largo, y sin esto al bajar
+     se perdía el menú y no había forma de cambiar de pestaña sin volver arriba.
+     El fondo + el sangrado lateral tapan el contenido que pasa por debajo
+     (el sangrado compensa el padding de .historial-page). top offset = alto
+     aproximado de .back-link (arriba, también sticky), para no superponerse. */
+  position: sticky;
+  top: 2.4rem;
+  z-index: 5;
+  background: var(--bg);
+  margin: 0 -1.5rem;
+  padding: 0 1.5rem 1px;
 }
 .tab {
   padding: 0.65rem 1rem;
@@ -351,6 +381,22 @@
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 
+/* ─── Comprobantes + últimos pagos (tab Finanzas) ────────────────────── */
+.cc-empty { color: var(--muted, #6b7280); font-size: 0.9rem; padding: 0.5rem 0; }
+.cc-tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.cc-tabla th { text-align: left; color: var(--muted, #6b7280); font-weight: 600; padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--border); }
+.cc-tabla th.num, .cc-tabla td.num { text-align: right; }
+.cc-tabla td { padding: 0.45rem 0.5rem; border-bottom: 1px solid var(--border); color: var(--text); }
+.cc-tabla tr.saldado td { color: var(--muted, #6b7280); }
+.cc-estado { font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
+.cc-estado[data-estado="PENDIENTE"] { background: rgba(239,68,68,.14); color: #ef4444; }
+.cc-estado[data-estado="PARCIAL"]   { background: rgba(245,158,11,.16); color: #f59e0b; }
+.cc-estado[data-estado="COBRADO"]   { background: rgba(34,197,94,.14); color: #22c55e; }
+.cc-estado[data-estado="VENCIDO"]   { background: rgba(239,68,68,.14); color: #ef4444; }
+.cc-historial { display: flex; flex-direction: column; }
+.cc-pago { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 0.4rem 0; color: var(--text); border-bottom: 1px dashed var(--border); }
+.cc-pago span { color: var(--muted, #6b7280); }
+
 .placeholder, .placeholder-info {
   text-align: center;
   color: var(--muted, #6b7280);
@@ -365,6 +411,9 @@
 
 @media (max-width: 768px) {
   .historial-page { padding: 1rem; }
+  /* El sangrado de las barras fijas tiene que seguir al padding de la página. */
+  .back-link { margin: 0 -1rem; padding: 0.4rem 1rem; }
+  .tabs { margin: 0 -1rem; padding: 0 1rem 1px; }
   .hero { padding: 1rem; }
   .hero-avatar { width: 52px; height: 52px; font-size: 1.1rem; }
   .hero-info h1 { font-size: 1.15rem; }

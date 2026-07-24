@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { delay } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { FAKE_JWT } from './mock-data';
+import { FAKE_JWT, MOCK_USUARIOS, clonar } from './mock-data';
 
 export interface RegisterPayload {
   nombre: string;
@@ -22,12 +22,22 @@ export interface PerfilResponse {
   rol: string;
   enabled: boolean;
   pendienteAprobacion: boolean;
+  terminosAceptados: boolean;
 }
 
 export interface PerfilUpdate {
   nombre?: string;
   apellido?: string;
   telefono?: string | null;
+}
+
+export interface UsuarioListado {
+  id: number;
+  username: string;
+  nombre: string;
+  apellido: string;
+  rol: string;
+  enabled: boolean;
 }
 
 interface JwtPayload {
@@ -42,24 +52,50 @@ interface JwtPayload {
 export class AuthService {
   private gatewayUrl = environment.gatewayUrl;
   private readonly TOKEN_KEY = 'gs_token';
+  private readonly TERMINOS_KEY = 'gs_terminos_aceptados';
 
   constructor(private http: HttpClient) {}
 
-  login(username: string, password: string): Observable<{ access_token: string }> {
-    // MODO DEMO: cualquier user/pass válido entra
+  login(username: string, password: string): Observable<{ access_token: string; terminosAceptados: boolean }> {
+    // MODO DEMO: cualquier user/pass válido entra, ya se considera onboardeado
     if (environment.useMocks) {
       if (username && password) {
-        return of({ access_token: FAKE_JWT }).pipe(delay(400));
+        return of({ access_token: FAKE_JWT, terminosAceptados: true }).pipe(delay(400));
       }
-      return throwError(() => ({ status: 401, error: { error: 'Credenciales incorrectas' } }));
+      return throwError(() => ({ status: 401, error: { mensaje: 'Credenciales incorrectas' } }));
     }
 
     // El endpoint de login viene de environment.loginUrl: en dev va por el
     // gateway (:8080) y en prod va relativo (vía nginx). Siempre /api/auth/login.
-    return this.http.post<{ access_token: string }>(
+    return this.http.post<{ access_token: string; terminosAceptados: boolean }>(
       environment.loginUrl,
       { username, password }
     );
+  }
+
+  aceptarTerminos(): Observable<PerfilResponse> {
+    if (environment.useMocks) {
+      this.saveTerminosAceptados(true);
+      return of({ ...this.mockPerfil(), terminosAceptados: true }).pipe(delay(200));
+    }
+    return this.http.post<PerfilResponse>(
+      `${this.gatewayUrl}/api/auth/me/aceptar-terminos`, {}, { headers: this.authHeaders() }
+    );
+  }
+
+  saveTerminosAceptados(v: boolean): void {
+    localStorage.setItem(this.TERMINOS_KEY, v ? '1' : '0');
+  }
+
+  terminosAceptados(): boolean {
+    return localStorage.getItem(this.TERMINOS_KEY) === '1';
+  }
+
+  listarUsuarios(): Observable<UsuarioListado[]> {
+    if (environment.useMocks) {
+      return of(clonar(MOCK_USUARIOS) as unknown as UsuarioListado[]).pipe(delay(200));
+    }
+    return this.http.get<UsuarioListado[]>(`${this.gatewayUrl}/api/auth/usuarios`, { headers: this.authHeaders() });
   }
 
   register(payload: RegisterPayload): Observable<{ mensaje: string; username: string }> {
@@ -121,7 +157,7 @@ export class AuthService {
         apellido: u === 'admin' ? 'González' : '',
         telefono: '3516588576',
         rol: this.getRoles()[0] || 'ROLE_ADMIN',
-        enabled: true, pendienteAprobacion: false,
+        enabled: true, pendienteAprobacion: false, terminosAceptados: true,
       };
     }
     return this._mockPerfil;
@@ -193,6 +229,15 @@ export class AuthService {
 
   isAdmin(): boolean {
     return this.getRoles().includes('ROLE_ADMIN');
+  }
+
+  isAdministrativo(): boolean {
+    return this.getRoles().includes('ROLE_ADMINISTRATIVO');
+  }
+
+  /** ADMIN o ADMINISTRATIVO — los dos roles que ven información financiera. */
+  puedeVerFinanzas(): boolean {
+    return this.isAdmin() || this.isAdministrativo();
   }
 
   logout(): void {

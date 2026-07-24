@@ -58,11 +58,14 @@ class AuthControllerTest {
                 new UsernamePasswordAuthenticationToken("admin", "x",
                         List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
         when(jwtEncoder.encode(any())).thenReturn(fakeJwt());
+        when(usuarioService.buscarPorUsername("admin")).thenReturn(
+                Usuario.builder().id(1L).username("admin").rol(Rol.ADMIN).terminosAceptados(true).build());
 
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"username\":\"admin\",\"password\":\"admin123\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.access_token").value("tok-123"));
+                .andExpect(jsonPath("$.access_token").value("tok-123"))
+                .andExpect(jsonPath("$.terminosAceptados").value(true));
     }
 
     @Test

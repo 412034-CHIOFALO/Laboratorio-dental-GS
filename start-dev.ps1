@@ -60,28 +60,28 @@ function Start-Service-Window {
 
 # -- 3. Backend ----------------------------------------------------
 Write-Host "Paso 1: Discovery Server (Eureka)" -ForegroundColor Cyan
-Start-Service-Window "1.discovery" "$root\discovery-server" "mvn spring-boot:run"
+Start-Service-Window "1.discovery" "$root\discovery-server" ".\mvnw.cmd spring-boot:run"
 Write-Host "  -> esperando 20s para que Eureka este listo..." -ForegroundColor Yellow
 Start-Sleep -Seconds 20
 
 Write-Host ""
 Write-Host "Paso 2: ms-auth (JWT)" -ForegroundColor Cyan
-Start-Service-Window "2.ms-auth" "$root\ms-auth" "mvn spring-boot:run"
+Start-Service-Window "2.ms-auth" "$root\ms-auth" ".\mvnw.cmd spring-boot:run"
 Write-Host "  -> esperando 15s para que ms-auth exponga el JWK Set..." -ForegroundColor Yellow
 Start-Sleep -Seconds 15
 
 Write-Host ""
 Write-Host "Paso 3: 4 ms de negocio en paralelo" -ForegroundColor Cyan
-Start-Service-Window "3.catalogo"   "$root\ms-catalogo"   "mvn spring-boot:run"
-Start-Service-Window "4.pedidos"    "$root\ms-pedidos"    "mvn spring-boot:run"
-Start-Service-Window "5.finanzas"   "$root\ms-finanzas"   "mvn spring-boot:run"
-Start-Service-Window "6.stock"      "$root\ms-stock"      "mvn spring-boot:run"
+Start-Service-Window "3.catalogo"   "$root\ms-catalogo"   ".\mvnw.cmd spring-boot:run"
+Start-Service-Window "4.pedidos"    "$root\ms-pedidos"    ".\mvnw.cmd spring-boot:run"
+Start-Service-Window "5.finanzas"   "$root\ms-finanzas"   ".\mvnw.cmd spring-boot:run"
+Start-Service-Window "6.stock"      "$root\ms-stock"      ".\mvnw.cmd spring-boot:run"
 Write-Host "  -> esperando 25s para que los ms se registren en Eureka..." -ForegroundColor Yellow
 Start-Sleep -Seconds 25
 
 Write-Host ""
 Write-Host "Paso 4: API Gateway" -ForegroundColor Cyan
-Start-Service-Window "7.gateway" "$root\api-gateway" "mvn spring-boot:run"
+Start-Service-Window "7.gateway" "$root\api-gateway" ".\mvnw.cmd spring-boot:run"
 Start-Sleep -Seconds 10
 
 # -- 4. Frontend ---------------------------------------------------

@@ -57,6 +57,21 @@ public class GestionSueldoController {
         return ResponseEntity.ok(service.listarEmpleados());
     }
 
+    @Operation(summary = "Da de alta a un integrante del laboratorio en sueldos",
+               description = "ms-finanzas mantiene su propia tabla de empleados: un usuario nuevo creado en " +
+                             "Usuarios no es reconocido acá ni por el bot de WhatsApp hasta que se lo da de alta " +
+                             "con este endpoint (usuarioId de ms-auth, nombre, rol, teléfono y config inicial).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Empleado dado de alta correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos del request inválidos"),
+        @ApiResponse(responseCode = "409", description = "Ya existe una configuración de sueldo para ese usuarioId"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN o ADMINISTRATIVO")
+    })
+    @PostMapping("/empleados")
+    public ResponseEntity<EmpleadoSueldoResponse> crearEmpleado(@Valid @RequestBody CrearEmpleadoRequest req) {
+        return ResponseEntity.ok(service.crearEmpleado(req));
+    }
+
     @Operation(summary = "Busca un empleado por su ID de usuario",
                description = "Devuelve la configuración de sueldo y estado de cuenta de un empleado específico.")
     @ApiResponses({
@@ -104,6 +119,20 @@ public class GestionSueldoController {
             throw new com.gs.ms_finanzas.exception.BusinessException("El campo 'devengado' es obligatorio.");
         }
         return ResponseEntity.ok(service.ajustarDevengado(usuarioId, devengado));
+    }
+
+    @Operation(summary = "Fuerza el cálculo de devengado diario ahora mismo",
+               description = "Devenga el sueldo prorrateado de todos los empleados activos hasta el día de hoy, sin " +
+                             "esperar al cron diario (00:05). Es idempotente: nunca vuelve a contar un día ya devengado, " +
+                             "así que se puede llamar varias veces sin duplicar nada. Pensado para testing/demos.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Devengado recalculado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado — se requiere rol ADMIN")
+    })
+    @PostMapping("/devengar-ahora")
+    public ResponseEntity<Void> devengarAhora() {
+        service.devengarDiario();
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(summary = "Registra un pago de sueldo manual",

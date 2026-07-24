@@ -1,75 +1,16 @@
 <div class="login-page">
+  <div class="login-center">
 
-  <!-- ── PANEL IZQUIERDO — Branding ── -->
-  <div class="left-panel">
-    <a class="back-link" routerLink="/">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-      </svg>
-      Volver al inicio
-    </a>
-
-    <div class="left-content">
-      <div class="left-logo">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2C8 2 5 5 5 8c0 2 1 4 2.5 5.5L12 22l4.5-8.5C18 12 19 10 19 8c0-3-3-6-7-6z"/>
-          <circle cx="12" cy="8" r="2"/>
+    @if (!esPwa) {
+      <a class="back-link" routerLink="/">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
         </svg>
-      </div>
+        Volver al inicio
+      </a>
+    }
 
-      <div class="left-text">
-        <h2>GS Ortodoncia</h2>
-        <p class="left-sub">Laboratorio de ortodoncia, ortopedia y ATM</p>
-        <p class="left-desc">
-          Sistema de gestión integral para el control de pedidos, producción y finanzas del laboratorio.
-        </p>
-      </div>
-
-      <div class="left-features">
-        <div class="feat-item">
-          <div class="feat-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-            </svg>
-          </div>
-          <span>Seguimiento de pedidos en tiempo real</span>
-        </div>
-        <div class="feat-item">
-          <div class="feat-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-            </svg>
-          </div>
-          <span>Tablero Kanban por estación de trabajo</span>
-        </div>
-        <div class="feat-item">
-          <div class="feat-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-            </svg>
-          </div>
-          <span>Control de cuentas corrientes y caja</span>
-        </div>
-        <div class="feat-item">
-          <div class="feat-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-            </svg>
-          </div>
-          <span>Stock y alertas de materiales</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="left-footer">
-      <span>Rebeca González · Mat. 1666</span>
-      <a href="https://wa.me/3516588576" target="_blank">351 658 8576</a>
-    </div>
-  </div>
-
-  <!-- ── PANEL DERECHO — Formulario ── -->
-  <div class="right-panel">
-    <div class="form-container">
+    <div class="form-card">
 
       <div class="form-header">
         <h1>Bienvenido</h1>
@@ -159,5 +100,4 @@
 
     </div>
   </div>
-
 </div>

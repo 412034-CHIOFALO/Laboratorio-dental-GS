@@ -30,6 +30,7 @@ type NavEntry = NavItem | NavGroup;
 })
 export class DashboardComponent implements OnInit {
   username = '';
+  nombreCompleto = '';
   roles: string[] = [];
   sidebarOpen = true;
   mobileMenuOpen = false;
@@ -48,18 +49,15 @@ export class DashboardComponent implements OnInit {
     { type: 'item', label: 'Odontólogos',  icon: 'tooth',     route: '/dashboard/odontologos' },
     { type: 'item', label: 'Stock',        icon: 'box',       route: '/dashboard/stock',        tourId: 'nav-stock' },
     { type: 'item', label: 'Finanzas',     icon: 'dollar',    route: '/dashboard/finanzas',     roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'], tourId: 'nav-finanzas' },
-    { type: 'item', label: 'Proveedores',  icon: 'briefcase', route: '/dashboard/proveedores',  roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'] },
-    { type: 'item', label: 'Bot WhatsApp', icon: 'chat',      route: '/dashboard/bot-registros', roles: ['ROLE_ADMIN'], tourId: 'nav-bot' },
-    { type: 'item', label: 'Reportes',     icon: 'chart',     route: '/dashboard/reportes',      roles: ['ROLE_ADMIN'], tourId: 'nav-reportes' },
+    { type: 'item', label: 'Bot WhatsApp', icon: 'chat',      route: '/dashboard/bot-registros', roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'], tourId: 'nav-bot' },
+    { type: 'item', label: 'Reportes',     icon: 'chart',     route: '/dashboard/reportes',      roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'], tourId: 'nav-reportes' },
 
     { type: 'group', label: 'Archivo' },
     { type: 'item', label: 'Documentos',   icon: 'file',      route: '/dashboard/documentos' },
-    { type: 'item', label: 'Escaneos 3D',  icon: 'cube',      route: '/dashboard/escaneos' },
-    { type: 'item', label: 'Auditoría',    icon: 'shield',    route: '/dashboard/auditoria', roles: ['ROLE_ADMIN'] },
 
     { type: 'group', label: 'Administración' },
-    { type: 'item', label: 'Usuarios',     icon: 'users',     route: '/dashboard/usuarios',     roles: ['ROLE_ADMIN'] },
-    { type: 'item', label: 'Manual',       icon: 'book',      route: '/dashboard/manual',       tourId: 'nav-manual' },
+    { type: 'item', label: 'Usuarios',     icon: 'users',     route: '/dashboard/usuarios',     roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'] },
+    { type: 'item', label: 'Auditoría',    icon: 'shield',    route: '/dashboard/auditoria', roles: ['ROLE_ADMIN'] },
   ];
 
   readonly themeService    = inject(ThemeService);
@@ -99,8 +97,22 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit() {
     this.username = this.authService.getUsername();
+    this.nombreCompleto = this.username;
     this.roles = this.authService.getRoles();
     this.sidebarOpen = window.innerWidth >= 1024;
+
+    this.authService.miPerfil().subscribe({
+      next: p => {
+        const nombre = `${p.nombre ?? ''} ${p.apellido ?? ''}`.trim();
+        if (nombre) this.nombreCompleto = nombre;
+      },
+      error: () => { /* se queda mostrando el username */ },
+    });
+  }
+
+  /** Inicial para el avatar circular: prioriza el nombre real sobre el username. */
+  get avatarLetra(): string {
+    return (this.nombreCompleto || this.username).charAt(0).toUpperCase();
   }
 
   @HostListener('window:resize', ['$event'])
@@ -144,13 +156,5 @@ export class DashboardComponent implements OnInit {
 
   closeMobileMenu() {
     this.mobileMenuOpen = false;
-  }
-
-  getRolLabel(): string {
-    if (this.roles.includes('ROLE_ADMIN')) return 'Administrador';
-    if (this.roles.includes('ROLE_TECNICO')) return 'Técnico';
-    if (this.roles.includes('ROLE_ADMINISTRATIVO')) return 'Administrativo';
-    if (this.roles.includes('ROLE_ODONTOLOGO')) return 'Odontólogo';
-    return '';
   }
 }

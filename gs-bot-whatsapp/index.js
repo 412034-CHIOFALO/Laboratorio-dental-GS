@@ -35,6 +35,25 @@ const BACKEND_ENABLED = process.env.BACKEND_ENABLED === 'true';
 const BOT_API_KEY     = process.env.BOT_API_KEY || '';
 const GRUPOS = (process.env.GRUPOS || '')
   .split(',').map(g => g.trim().toLowerCase()).filter(Boolean);
+// Grupos donde TODO mensaje de texto con "Emisor (Receptor) monto" se toma
+// directo como pago en efectivo — sin necesitar la palabra "efectivo" ni foto
+// de comprobante. Repetir "efectivo" en un mensaje que ya está en el grupo
+// "Comprobantes Efectivo" era redundante y confundía a quien lo escribía.
+const GRUPOS_EFECTIVO = (process.env.GRUPOS_EFECTIVO || 'comprobantes efectivo')
+  .split(',').map(g => g.trim().toLowerCase()).filter(Boolean);
+
+// Mapeo manual opcional "nombre:jid" (separados por coma) para saltear por
+// completo la resolución en vivo del nombre del grupo — ver resolverChat()
+// más abajo para el porqué. Ej: "comprobantes efectivo:120363...@g.us,..."
+const GRUPOS_JIDS = new Map(
+  (process.env.GRUPOS_JIDS || '')
+    .split(',').map(par => par.trim()).filter(Boolean)
+    .map(par => {
+      const i = par.lastIndexOf(':');
+      return i < 0 ? null : [par.slice(i + 1).trim(), par.slice(0, i).trim()];
+    })
+    .filter(Boolean)
+);
 
 // ─── Gemini (IA para leer cualquier billetera + fotos) ───────────────────────
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -118,6 +137,85 @@ function guardarBaseline() {
 
 let chatsConBaseline = cargarBaseline();
 
+// Caché de "jid del grupo → nombre" para no depender de una llamada en vivo
+// (getChat/getChats) por cada mensaje — ver resolverChat() más abajo. Se
+// completa sola la primera vez que una resolución en vivo funciona (o queda
+// vacía para siempre si GRUPOS_JIDS ya cubre todo).
+const RUTA_GRUPOS = path.join(path.resolve('./.wwebjs_auth/'), 'grupos-conocidos.json');
+
+function cargarGruposConocidos() {
+  try {
+    const data = JSON.parse(fs.readFileSync(RUTA_GRUPOS, 'utf8'));
+    return new Map(Object.entries(data || {}));
+  } catch {
+    return new Map();
+  }
+}
+
+function guardarGruposConocidos() {
+  try {
+    fs.mkdirSync(path.dirname(RUTA_GRUPOS), { recursive: true });
+    fs.writeFileSync(RUTA_GRUPOS, JSON.stringify(Object.fromEntries(gruposConocidos)));
+  } catch (e) {
+    console.warn('[Bot] No se pudo guardar grupos-conocidos.json:', e.message);
+  }
+}
+
+let gruposConocidos = cargarGruposConocidos();
+
+// El stack de Puppeteer del bug de getChats()/getChatById() (ver resolverChat
+// más abajo) es larguísimo y, mientras whatsapp-web.js no lo parchee, sale
+// SIEMPRE que rompe — sin esto inundaba la consola con el mismo stack
+// repetido en cada reconciliación y en cada mensaje de un grupo no resuelto.
+// Lo mostramos completo una vez (para poder diagnosticarlo si hace falta) y
+// después solo un aviso corto, por JID en el caso de resolverChat().
+let getChatsStackYaMostrado = false;
+const jidsSinResolverYaAvisados = new Set();
+
+/**
+ * Resuelve el chat de un mensaje SIN pasar por `msg.getChat()`/`client.getChatById()`
+ * salvo que no quede otra — esas dos llamadas evalúan código dentro del contexto
+ * de WhatsApp Web (Puppeteer) contra el Store interno, que rompe cada vez que
+ * WhatsApp cambia algo ahí adentro (bug recurrente y conocido de whatsapp-web.js,
+ * fuera de nuestro control — ver error "r: r" en los logs). Como esto pasa en
+ * TODOS los mensajes, cuando se rompe el bot deja de procesar comprobantes por
+ * completo. Acá evitamos la llamada en vivo siempre que se pueda:
+ *   1) GRUPOS_JIDS (config manual) — si está seteado, cero llamadas en vivo.
+ *   2) gruposConocidos (caché persistida) — de una resolución en vivo anterior.
+ *   3) Como último recurso, sí llama a msg.getChat() — si falla, no tira el
+ *      mensaje: lo deja sin marcar procesado para que la reconciliación
+ *      periódica lo reintente más tarde (por si la falla es transitoria).
+ */
+async function resolverChat(msg) {
+  const jid = msg.id.remote || msg.from;
+  const esGrupo = jid.endsWith('@g.us');
+  if (!esGrupo) return { id: { _serialized: jid }, name: null, isGroup: false };
+
+  const nombreManual = GRUPOS_JIDS.get(jid);
+  if (nombreManual) return { id: { _serialized: jid }, name: nombreManual, isGroup: true };
+
+  const nombreCacheado = gruposConocidos.get(jid);
+  if (nombreCacheado) return { id: { _serialized: jid }, name: nombreCacheado, isGroup: true };
+
+  try {
+    const chat = await msg.getChat();
+    if (chat.name) {
+      gruposConocidos.set(jid, chat.name);
+      guardarGruposConocidos();
+    }
+    return chat;
+  } catch (e) {
+    const aviso = `[Bot] No se pudo resolver el grupo del mensaje (jid: ${jid}) — se reintenta en la próxima reconciliación. Si este jid corresponde a "Comprobantes Transferencias" o "Comprobantes Efectivo", agregalo a GRUPOS_JIDS en el .env para no depender más de esta llamada.`;
+    if (jidsSinResolverYaAvisados.has(jid)) {
+      console.warn(aviso);
+    } else {
+      jidsSinResolverYaAvisados.add(jid);
+      console.warn(aviso + ' (stack completo, solo se muestra una vez por jid):', e.stack || e);
+    }
+    return null;
+  }
+}
+
 // Estado del bot expuesto a la pantalla web "Estado del bot".
 let estadoBot = {
   conectado: false,
@@ -153,6 +251,20 @@ function limpiarLocksDeSesionColgados() {
 }
 limpiarLocksDeSesionColgados();
 
+// NO se fija la versión de WhatsApp Web: el bot carga la que WhatsApp sirve en
+// vivo. Se probó pinnear una versión concreta (webVersion + webVersionCache
+// local con el HTML congelado) para intentar arreglar el bug de lectura de
+// comprobantes, y NO sirvió: el HTML pinneado es solo el "shell", el bundle JS
+// pesado lo sigue bajando WhatsApp en vivo, así que el desajuste del Store
+// (getChats/downloadMedia) pasa igual. Encima una versión pinneada es más
+// frágil para conectar (WhatsApp puede dejar de aceptarla), así que dejar la
+// versión viva es lo más confiable para que el bot AL MENOS conecte y registre.
+//
+// El problema de fondo de downloadMedia es de whatsapp-web.js (ya en su última
+// versión, 1.34.7) contra el bundle actual de WhatsApp: window.require(
+// 'WAWebCollections') no resuelve. No es arreglable desde acá; se maneja con el
+// fallback de monto-en-el-pie (ver procesarPago).
+
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
@@ -163,6 +275,26 @@ const client = new Client({
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
   },
 });
+
+// Watchdog de arranque: a veces el cliente se cuelga en silencio entre
+// 'authenticated' y 'ready' (sin tirar ningún error) — la inyección de
+// WWebJS en la página de WhatsApp Web queda a medio terminar y ahí se
+// queda para siempre. Sin esto, el bot quedaba "Iniciando..." de por vida
+// sin ninguna forma de detectarlo ni recuperarse solo.
+const READY_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutos desde initialize()
+let readyWatchdog = null;
+
+function armarWatchdogReady() {
+  if (readyWatchdog) clearTimeout(readyWatchdog);
+  readyWatchdog = setTimeout(() => {
+    console.error(`💥 El bot no llegó a "listo" en ${READY_TIMEOUT_MS / 1000}s desde que arrancó — quedó colgado a mitad de la conexión con WhatsApp Web. Reiniciando (lo levanta Docker con una sesión de Chromium limpia).`);
+    process.exit(1);
+  }, READY_TIMEOUT_MS);
+}
+
+function desarmarWatchdogReady() {
+  if (readyWatchdog) { clearTimeout(readyWatchdog); readyWatchdog = null; }
+}
 
 client.on('qr', async (qr) => {
   console.log('\n┌──────────────────────────────────────────────────────┐');
@@ -175,9 +307,18 @@ client.on('qr', async (qr) => {
   estadoBot.conectado = false;
   estadoBot.motivo = 'Esperando vinculación — escaneá el QR';
   estadoBot.ultimaActualizacion = new Date().toISOString();
+  // Esperar que alguien escanee el QR puede tardar lo que tarde — no es un
+  // cuelgue, así que no cuenta contra el watchdog.
+  desarmarWatchdogReady();
 });
 
-client.on('authenticated', () => console.log('🔐 Autenticado — sesión guardada.'));
+client.on('authenticated', () => {
+  console.log('🔐 Autenticado — sesión guardada.');
+  // De acá en más es todo automático (inyección de WWebJS + carga del
+  // Store de WhatsApp Web) — si no llega a "listo" en el plazo, es que se
+  // colgó de verdad.
+  armarWatchdogReady();
+});
 client.on('auth_failure', (m) => {
   console.error('❌ Falló la autenticación:', m);
   estadoBot.conectado = false;
@@ -191,10 +332,12 @@ client.on('disconnected', async (r) => {
   estadoBot.motivo = 'Desconectado: ' + String(r);
   estadoBot.ultimaActualizacion = new Date().toISOString();
   // Reintenta: si se perdió la sesión, vuelve a disparar 'qr' (nuevo QR para la pantalla)
+  armarWatchdogReady();
   try { await client.initialize(); } catch (e) { console.error('No se pudo reiniciar:', e.message); }
 });
 
 client.on('ready', async () => {
+  desarmarWatchdogReady();
   estadoBot.conectado = true;
   estadoBot.qrDataUrl = null;
   estadoBot.motivo = GRUPOS.length
@@ -232,9 +375,48 @@ async function reconciliarChats(limitePorGrupo) {
   let chatsRevisados = 0;
   let mensajesRevisados = 0;
   try {
-    const chats = await client.getChats();
+    let chats;
+    try {
+      chats = await client.getChats();
+    } catch (e) {
+      // Bug conocido y recurrente de whatsapp-web.js: cada vez que WhatsApp
+      // actualiza su versión web, client.getChats() puede tirar un error
+      // interno (evalúa código minificado del lado del navegador) hasta que
+      // la librería lo parchea — no es algo que podamos arreglar acá.
+      // Fallback: en vez de listar TODOS los chats, pedimos uno por uno los
+      // grupos que ya conocemos de reconciliaciones anteriores (persistidos
+      // en chatsConBaseline) — es una llamada más chica y no siempre falla
+      // aunque getChats() sí.
+      if (getChatsStackYaMostrado) {
+        console.warn('[Reconciliación] getChats() volvió a fallar (mismo bug ya reportado) — reintentando por ID con los grupos ya conocidos.');
+      } else {
+        getChatsStackYaMostrado = true;
+        console.warn('[Reconciliación] getChats() falló (stack completo, solo se muestra una vez por sesión) — reintentando por ID con los grupos ya conocidos:', e.stack || e);
+      }
+      e._yaLogueado = true;
+      const idsConocidos = [...chatsConBaseline];
+      const resultados = await Promise.all(
+        idsConocidos.map(id => client.getChatById(id).catch(() => null))
+      );
+      chats = resultados.filter(Boolean);
+      if (chats.length === 0) throw e; // sin fallback posible (ningún grupo conocido todavía) → error original
+    }
     const grupos = chats.filter(c => c.isGroup &&
       (GRUPOS.length === 0 || GRUPOS.includes(c.name.toLowerCase())));
+
+    // Aprovechamos que acá SÍ tenemos el nombre en vivo para completar el
+    // caché que usa resolverChat() en cada mensaje — así, aunque getChats()
+    // vuelva a romperse después, los mensajes de estos grupos ya no dependen
+    // de una llamada en vivo.
+    let huboNombreNuevo = false;
+    for (const chat of grupos) {
+      const jid = chat.id._serialized;
+      if (chat.name && gruposConocidos.get(jid) !== chat.name) {
+        gruposConocidos.set(jid, chat.name);
+        huboNombreNuevo = true;
+      }
+    }
+    if (huboNombreNuevo) guardarGruposConocidos();
 
     for (const chat of grupos) {
       try {
@@ -264,11 +446,20 @@ async function reconciliarChats(limitePorGrupo) {
         }
         chatsRevisados++;
       } catch (e) {
-        console.warn(`[Reconciliación] Error en el grupo "${chat.name}":`, e.message);
+        console.warn(`[Reconciliación] Error en el grupo "${chat.name}":`, e && e.stack || e);
       }
     }
   } catch (e) {
-    console.error('[Reconciliación] Error general:', e.message);
+    // e.message a veces viene truncado/vacío en errores que vienen de adentro
+    // del contexto de Puppeteer (whatsapp-web.js) — logueamos el objeto entero
+    // para poder diagnosticar la próxima vez que pase (pasa siempre al conectar).
+    // Si ya se logueó el stack completo más arriba (getChats() sin fallback
+    // posible), no lo repetimos acá — es el mismo error re-lanzado.
+    if (e && e._yaLogueado) {
+      console.error('[Reconciliación] Error general: getChats() falló y no hay grupos conocidos como fallback (ver detalle arriba).');
+    } else {
+      console.error('[Reconciliación] Error general:', e && e.stack || e);
+    }
   }
   console.log(`🔄 Reconciliación completa: ${chatsRevisados} grupo(s), ${mensajesRevisados} mensaje(s) revisado(s).\n`);
   return { chats: chatsRevisados, mensajes: mensajesRevisados };
@@ -296,7 +487,8 @@ setInterval(() => {
 async function manejarMensaje(msg, opciones = {}) {
   const { reconciliacion = false } = opciones;
   try {
-    const chat = await msg.getChat();
+    const chat = await resolverChat(msg);
+    if (!chat) return; // no se pudo resolver el grupo — se reintenta solo en la próxima reconciliación
     if (!chat.isGroup) return;
     if (GRUPOS.length && !GRUPOS.includes(chat.name.toLowerCase())) return;
 
@@ -344,10 +536,31 @@ async function manejarMensaje(msg, opciones = {}) {
       // más abajo igual que en vivo.
 
     } else if (msg.body) {
-      // ── ¿Es declaración de efectivo? ──────────────────────────────────────
+      // ── Grupo de efectivo: "Emisor (Receptor) monto" alcanza directo — no
+      // hace falta la palabra "efectivo" (ya lo dice el grupo) ni foto. ──
+      if (GRUPOS_EFECTIVO.includes(chat.name.toLowerCase())) {
+        const pieEfectivo = parsearPie(msg.body);
+        if (pieEfectivo.receptor && pieEfectivo.montoManual) {
+          await registrarEfectivo(msg, chat, contacto,
+            { monto: pieEfectivo.montoManual, receptor: pieEfectivo.receptor, emisor: pieEfectivo.emisor },
+            { reconciliacion });
+          if (reconciliacion) marcarProcesado(msg.id._serialized);
+          return;
+        }
+        if (pieEfectivo.receptor && !pieEfectivo.montoManual) {
+          if (!reconciliacion) {
+            await msg.reply('💵 Anotado el receptor, pero me falta el monto. Mandá: *Emisor (Receptor) monto*\nEj: Dr. García (Proveedor X) 85000');
+          }
+          if (reconciliacion) marcarProcesado(msg.id._serialized);
+          return;
+        }
+      }
+
+      // ── ¿Es declaración de efectivo con la palabra clave? (formato viejo,
+      // sigue andando en cualquier grupo por compatibilidad) ──
       const efectivo = parsearEfectivo(msg.body);
       if (efectivo) {
-        await registrarEfectivo(msg, chat, contacto, efectivo, { reconciliacion });
+        await registrarEfectivo(msg, chat, contacto, { ...efectivo, emisor: null }, { reconciliacion });
         if (reconciliacion) marcarProcesado(msg.id._serialized);
         return;
       }
@@ -380,11 +593,15 @@ async function manejarMensaje(msg, opciones = {}) {
       }
     }
   } catch (err) {
-    console.error('❌ Error:', err.message);
+    // .message a veces viene truncado en errores que salen de adentro del
+    // contexto de Puppeteer (evaluate sobre WhatsApp Web) — logueamos el
+    // stack completo para poder diagnosticar de verdad qué pasó.
+    console.error('❌ Error procesando mensaje:', err && err.stack || err);
   }
 }
 
-client.on('message', (msg) => manejarMensaje(msg));
+client.on('message', (msg) => manejarMensaje(msg).catch(err =>
+  console.error('❌ Error no capturado en manejarMensaje:', err && err.stack || err)));
 
 // ─── Procesar un pago (comprobante + pie ya emparejados) ─────────────────────
 async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie, opciones = {}) {
@@ -410,9 +627,10 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
   if (!monto) {
     console.log('   ⚠ No pude leer el monto (ni del comprobante ni del pie).');
     await responder(
-      `⚠️ Recibí el comprobante para *${pie.receptor}* pero no pude leer el monto.\n` +
-      `Si es una foto, reenviá el pie con el monto:\n*${pie.emisor || 'Emisor'} (${pie.receptor}) 10000*\n` +
-      `O mandá el comprobante en *PDF* (se lee solo).`
+      `⚠️ Recibí el comprobante para *${pie.receptor}* pero no pude leer el monto de la imagen.\n` +
+      `Mandá el pie *con el monto al final* y queda registrado igual:\n` +
+      `*${pie.emisor || 'Emisor'} (${pie.receptor}) 10000*\n\n` +
+      `_Tip: podés escribir eso mismo como epígrafe de la foto y se registra en un solo paso._`
     );
     return;
   }
@@ -490,10 +708,122 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
 }
 
 // ─── Lectura del comprobante (PDF o imagen) ──────────────────────────────────
+/**
+ * Descarga el adjunto SIN buscar el mensaje en la base local de WhatsApp Web.
+ *
+ * Por qué existe esto: el downloadMedia() de whatsapp-web.js arranca buscando el
+ * modelo del mensaje con Msg.get(id) / Msg.getMessagesById([id]), y HOY ese paso
+ * revienta contra IndexedDB:
+ *
+ *     DataError: Failed to execute 'get' on 'IDBObjectStore':
+ *                No key or key range specified
+ *
+ * Como la librería aborta ahí, nunca llega a descargar nada — y el error sale
+ * minificado como "r", que no dice absolutamente nada.
+ *
+ * La clave: NO hace falta buscar el mensaje. Todos los datos necesarios para
+ * bajar y desencriptar el archivo (directPath, mediaKey, filehash...) ya viajan
+ * en el objeto del mensaje del lado de Node (msg._data), porque WhatsApp los
+ * mandó junto con la notificación del mensaje. Así que se los pasamos a la
+ * página ya resueltos y llamamos derecho al downloadManager, salteando por
+ * completo el paso roto.
+ *
+ * Devuelve { data, mimetype, filename, filesize } igual que la librería, o
+ * { _fallo: true, diag } con el detalle de dónde y por qué falló.
+ */
+async function descargarMediaDirecto(msg) {
+  // Metadatos del media tal como los mandó WhatsApp, tomados del lado de Node.
+  const d = msg._data || {};
+  const meta = {
+    directPath:        d.directPath        ?? msg.directPath,
+    encFilehash:       d.encFilehash       ?? msg.encFilehash,
+    filehash:          d.filehash          ?? msg.filehash,
+    mediaKey:          d.mediaKey          ?? msg.mediaKey,
+    mediaKeyTimestamp: d.mediaKeyTimestamp ?? msg.mediaKeyTimestamp,
+    type:              d.type              ?? msg.type,
+    mimetype:          d.mimetype          ?? msg.mimetype ?? '',
+    filename:          d.filename          ?? msg.filename ?? null,
+    size:              d.size              ?? msg.size     ?? null,
+  };
+
+  if (!meta.directPath || !meta.mediaKey) {
+    return { _fallo: true, diag: { paso: 'metadatos', error: 'el mensaje no trae directPath/mediaKey' } };
+  }
+
+  return await client.pupPage.evaluate(async (m) => {
+    const diag = { paso: 'inicio', tipo: m.type };
+    try {
+      diag.paso = 'download-manager';
+      let DM = null;
+      try { DM = window.require('WAWebDownloadManager'); } catch (e) { diag.errModulo = String(e); }
+      const downloadManager = DM && DM.downloadManager;
+      if (!downloadManager || typeof downloadManager.downloadAndMaybeDecrypt !== 'function') {
+        diag.error = 'WAWebDownloadManager no disponible';
+        return { _fallo: true, diag };
+      }
+
+      // Bajar + desencriptar directo con los metadatos que ya teníamos.
+      diag.paso = 'descargar-desencriptar';
+      const mockQpl = { addAnnotations() { return this; }, addPoint() { return this; } };
+      const buffer = await downloadManager.downloadAndMaybeDecrypt({
+        directPath: m.directPath,
+        encFilehash: m.encFilehash,
+        filehash: m.filehash,
+        mediaKey: m.mediaKey,
+        mediaKeyTimestamp: m.mediaKeyTimestamp,
+        type: m.type,
+        signal: new AbortController().signal,
+        downloadQpl: mockQpl,
+      });
+
+      diag.paso = 'base64';
+      const data = await window.WWebJS.arrayBufferToBase64Async(buffer);
+      // mimetype siempre string: leerComprobante hace .startsWith() sobre esto.
+      return { data, mimetype: m.mimetype || '', filename: m.filename, filesize: m.size };
+    } catch (e) {
+      diag.error = String((e && (e.message || e.name)) || e);
+      if (e && e.stack) diag.stack = String(e.stack).slice(0, 300);
+      return { _fallo: true, diag };
+    }
+  }, meta);
+}
+
+/**
+ * Descarga el comprobante: primero por la vía normal de la librería (si anda,
+ * anda) y, si falla, por la vía directa de arriba, que sortea el paso que hoy
+ * está roto. Solo se rinde si las dos fallan.
+ */
+async function descargarMediaConReintentos(msg, intentos = 3) {
+  for (let i = 1; i <= intentos; i++) {
+    try {
+      return await msg.downloadMedia();
+    } catch (e) {
+      // Vía directa: es la que salva el caso del paso 2 roto.
+      try {
+        const r = await descargarMediaDirecto(msg);
+        if (r && !r._fallo && r.data) {
+          console.log('   (descarga directa OK — se sorteó el bug de la librería)');
+          return r;
+        }
+        if (r && r._fallo) {
+          console.log(`   (descarga directa falló en "${r.diag.paso}": ${r.diag.error || 's/d'}` +
+            `${r.diag.mediaStage ? ` | mediaStage=${r.diag.mediaStage}` : ''}` +
+            `${r.diag.avisoResolver ? ` | resolver: ${r.diag.avisoResolver}` : ''})`);
+        }
+      } catch (e2) {
+        console.log('   (descarga directa lanzó:', e2 && e2.message, ')');
+      }
+      if (i === intentos) throw e;
+      console.log(`   (downloadMedia falló, reintento ${i}/${intentos - 1}...)`);
+      await new Promise(r => setTimeout(r, 1500));
+    }
+  }
+}
+
 async function leerComprobante(msg) {
   const vacio = { monto: null, confianza: 'baja', idOperacion: null, de: null, para: null, texto: '' };
   try {
-    const media = await msg.downloadMedia();
+    const media = await descargarMediaConReintentos(msg);
     if (!media || !media.data) return vacio;
     const buffer = Buffer.from(media.data, 'base64');
     const esPdf = media.mimetype === 'application/pdf';
@@ -514,8 +844,25 @@ async function leerComprobante(msg) {
       console.log('   (PDF — texto extraído)');
     }
 
-    // 1) IA Gemini — generaliza a CUALQUIER billetera y lee fotos
-    if (GEMINI_ENABLED && geminiModel) {
+    // 1) Reglas locales primero (gratis, sin gastar cuota de Gemini — resuelven
+    // bien MP/Personal Pay, que son los que llegan en la práctica)
+    if (esImg && !texto && ocrWorker) {
+      texto = (await ocrWorker.recognize(buffer)).data.text || '';
+      console.log('   (imagen — OCR local)');
+    }
+    logTexto(texto);
+    const { monto, confianza } = extraerMonto(texto);
+    const local = {
+      monto,
+      confianza,
+      idOperacion: extraerIdOperacion(texto),
+      ...extraerDePara(texto),
+    };
+
+    // 2) IA Gemini solo como respaldo — cuando las reglas locales no encontraron
+    // un monto confiable (billetera rara, foto mala, etc). Cuota muy limitada,
+    // compartida con el mail-scraper: se reserva para lo que de verdad la necesita.
+    if (local.confianza !== 'alta' && GEMINI_ENABLED && geminiModel) {
       const g = await leerConGemini(media, texto);
       if (g && g.monto) {
         console.log('   ✨ Leído con IA (Gemini)');
@@ -523,16 +870,7 @@ async function leerComprobante(msg) {
       }
     }
 
-    // 2) Fallback: reglas locales (MP / Personal Pay)
-    if (esImg && !texto && ocrWorker) {
-      texto = (await ocrWorker.recognize(buffer)).data.text || '';
-      console.log('   (imagen — OCR local)');
-    }
-    logTexto(texto);
-    const { monto, confianza } = extraerMonto(texto);
-    const idOperacion = extraerIdOperacion(texto);
-    const { de, para } = extraerDePara(texto);
-    return { monto, confianza, idOperacion, de, para, texto, ...archivo };
+    return { ...local, texto, ...archivo };
   } catch (e) {
     console.log('   (error leyendo comprobante:', e.message, ')');
     return vacio;
@@ -822,6 +1160,23 @@ function validarPersonas(pie, lectura) {
 }
 
 // ─── Backend ─────────────────────────────────────────────────────────────────
+/**
+ * Traduce un error de axios contra el backend a un texto útil. El caso 401 es
+ * especial: significa que el backend rechazó la API key del bot — casi siempre
+ * porque BOT_API_KEY (bot) y GS_BOT_API_KEY (ms-finanzas) no coinciden, lo que
+ * suele pasar cuando se recrea un solo container y quedan desincronizados. Sin
+ * este hint el error llega como un opaco "Request failed with status code 401".
+ */
+function mensajeErrorBackend(e) {
+  if (e.response?.status === 401) {
+    console.error('[Bot] 401 del backend: la API key del bot fue rechazada. ' +
+      'Verificá que GS_BOT_API_KEY sea IGUAL en el bot y en ms-finanzas ' +
+      '(recreá ambos juntos: docker compose up -d --force-recreate gs-bot ms-finanzas).');
+    return 'el backend rechazó la clave del bot (401). Revisá que GS_BOT_API_KEY coincida en el bot y en ms-finanzas.';
+  }
+  return e.response?.data?.mensaje || e.message;
+}
+
 // Reintenta hasta 3 veces con 3 s de pausa si el backend no responde.
 async function registrarPago(datos) {
   const headers = { 'Content-Type': 'application/json' };
@@ -880,19 +1235,20 @@ async function registrarEfectivo(msg, chat, contacto, efectivo, opciones = {}) {
     if (BOT_API_KEY) headers['X-Bot-Api-Key'] = BOT_API_KEY;
     const res = await axios.post(
       `${BACKEND_URL}/api/finanzas/sueldos/pago-efectivo`,
-      { receptorNombre: efectivo.receptor, monto: efectivo.monto, cargadoPorNombre, cargadoPorTelefono, grupoOrigen: chat.name },
+      { receptorNombre: efectivo.receptor, monto: efectivo.monto, emisor: efectivo.emisor || null, cargadoPorNombre, cargadoPorTelefono, grupoOrigen: chat.name },
       { headers, timeout: 10000 }
     );
-    console.log(`[BOT-EFECTIVO] Borrador id=${res.data?.id} creado para "${efectivo.receptor}"`);
+    console.log(`[BOT-EFECTIVO] Borrador id=${res.data?.id} creado para "${efectivo.receptor}"${efectivo.emisor ? ` (pagó: ${efectivo.emisor})` : ''}`);
     await responder(
       `💵 Efectivo anotado como *pendiente de confirmación*\n` +
+      (efectivo.emisor ? `• Pagó: *${efectivo.emisor}*\n` : '') +
       `• Monto: *$${montoFmt}*\n` +
       `• Para: *${efectivo.receptor}*\n` +
       `_El administrativo lo confirma desde el sistema._`
     );
   } catch (e) {
     console.error('[BOT-EFECTIVO] Error:', e.message);
-    await responder(`⚠️ No se pudo registrar el efectivo: ${e.response?.data?.mensaje || e.message}`);
+    await responder(`⚠️ No se pudo registrar el efectivo: ${mensajeErrorBackend(e)}`);
   }
 }
 
@@ -949,6 +1305,7 @@ http.createServer((req, res) => {
         try {
           console.log('🔄 Regenerando QR por solicitud de la UI...');
           await client.logout();
+          armarWatchdogReady();
           await client.initialize();
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ ok: true, mensaje: 'Cerrando sesión y regenerando QR...' }));
@@ -1057,8 +1414,25 @@ function normalizarTelefono(telefono) {
   return '54' + digitos + '@c.us';
 }
 
-console.log('🤖 Iniciando bot de WhatsApp GS...');
-client.initialize();
+// OJO: hubo acá manejadores globales de uncaughtException/unhandledRejection
+// que mataban el proceso entero (process.exit) ante CUALQUIER excepción no
+// atrapada en cualquier parte del código — no solo en el arranque. Puppeteer
+// tira errores internos esporádicos como parte de su funcionamiento normal
+// (fuera de nuestras propias promesas, ej. durante el manejo interno de la
+// página de WhatsApp Web), y esos handlers terminaban reiniciando el bot en
+// bucle apenas llegaba cualquier mensaje — el bot quedaba "Iniciando" para
+// siempre y no procesaba nada. Se sacaron. El error real que motivó
+// agregarlos (client.initialize() fallando en el arranque) ya está cubierto
+// puntualmente más abajo con el .catch() de la propia llamada, que es seguro
+// porque solo actúa sobre ESE fallo específico.
 
-// ─── Scraper de mails (pedidos recibidos por email) ──────────────────────────
-require('./mail-scraper').iniciar();
+console.log('🤖 Iniciando bot de WhatsApp GS...');
+armarWatchdogReady();
+client.initialize().catch((e) => {
+  console.error('❌ No se pudo inicializar el cliente de WhatsApp:', e && e.stack || e);
+  process.exit(1);
+});
+
+// El scraper de mails (pedidos recibidos por email) corre como servicio Docker
+// aparte (gs-mail-scraper, ver Dockerfile.mail-scraper) — así un cuelgue de
+// IMAP no puede afectar esta sesión de WhatsApp, y viceversa.

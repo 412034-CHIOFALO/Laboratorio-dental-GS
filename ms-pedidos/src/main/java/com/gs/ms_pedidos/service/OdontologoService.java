@@ -23,6 +23,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+/**
+ * Implementación de {@link IOdontologoService} para la gestión del directorio de odontólogos.
+ *
+ * <p>Implementa el patrón <em>find-or-create</em> en {@link #buscarOCrearPorNombre}:
+ * al crear un pedido desde la UI el operador puede escribir un nombre nuevo en vez de
+ * seleccionar uno existente; el servicio normaliza el texto y lo persiste si no existe.</p>
+ *
+ * <p>La normalización del nombre elimina acentos, colapsa espacios y convierte a
+ * Title Case para evitar duplicados por diferencias tipográficas.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

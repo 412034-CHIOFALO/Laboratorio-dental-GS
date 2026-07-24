@@ -16,6 +16,7 @@ export interface Notificacion {
   titulo: string;
   detalle: string;
   ruta: string;
+  queryParams?: Record<string, string>;
 }
 
 /**
@@ -59,12 +60,12 @@ export class NotificacionesService {
   /** Recalcula las notificaciones contra el estado actual de cada modulo. */
   refrescar(): void {
     this._cargando.set(true);
-    // "efectivo pendiente" es un endpoint solo-ADMIN en el backend. Si lo pedimos
-    // igual para otros roles, el 403 dispara el interceptor global (redirige a
+    // "efectivo pendiente" es un endpoint de ADMIN/ADMINISTRATIVO en el backend. Si lo
+    // pedimos igual para otros roles, el 403 dispara el interceptor global (redirige a
     // /sin-permisos) ANTES de que este catchError llegue a correr — y como este
     // servicio se instancia apenas se entra al dashboard, bloqueaba la app entera
-    // para cualquier rol que no fuera admin.
-    const efectivo$ = this.auth.isAdmin()
+    // para roles que no ven finanzas.
+    const efectivo$ = this.auth.puedeVerFinanzas()
       ? this.sueldos.pendientesEfectivo().pipe(catchError(() => of([])))
       : of([]);
     forkJoin({
@@ -112,6 +113,7 @@ export class NotificacionesService {
           titulo: n === 1 ? 'Efectivo pendiente de confirmar' : `${n} efectivos pendientes de confirmar`,
           detalle: r.receptorNombre ? `Declarado para ${r.receptorNombre}${monto} por el bot` : `Declarado${monto} por el bot`,
           ruta: '/dashboard/finanzas',
+          queryParams: { seccion: 'sueldos' },
         });
       }
 

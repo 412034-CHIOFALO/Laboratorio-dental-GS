@@ -1,34 +1,29 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PedidosService, PedidoResponse } from '../../../services/pedidos.service';
 import { DocumentosService, DocumentoResponse } from '../../../services/documentos.service';
-import { FinanzasService, ReporteMensualResponse } from '../../../services/finanzas.service';
 import { AuthService } from '../../../services/auth';
+import { iniciarPolling } from '../../../shared/poll.util';
+import { EscaneosComponent } from '../escaneos/escaneos';
 
 @Component({
   selector: 'app-documentos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, EscaneosComponent],
   templateUrl: './documentos.html',
   styleUrls: ['./documentos.css'],
 })
 export class DocumentosComponent implements OnInit, OnDestroy {
   private pedidosService = inject(PedidosService);
   private docService      = inject(DocumentosService);
-  private finanzasService = inject(FinanzasService);
   private auth            = inject(AuthService);
+  private destroyRef      = inject(DestroyRef);
 
   readonly esAdmin = this.auth.isAdmin();
 
-  // ── Vista activa: documentos por pedido | reportes mensuales ─────────────
-  vista = signal<'pedidos' | 'reportes'>('pedidos');
-
-  // ── Reportes mensuales archivados (solo ADMIN) ───────────────────────────
-  reportes         = signal<ReporteMensualResponse[]>([]);
-  cargandoReportes = signal(false);
-  errorReportes    = signal('');
-  generandoReporte = signal(false);
+  // ── Vista activa: documentos por pedido | escaneos 3D ─────────────
+  vista = signal<'pedidos' | 'escaneos'>('pedidos');
 
   // ── Estado general ──────────────────────────────────────────────────────
   cargandoPedidos = signal(true);
@@ -62,67 +57,33 @@ export class DocumentosComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    this.cargarPedidos();
+    iniciarPolling(() => this.cargarPedidos(true), this.destroyRef);
+  }
+
+  private cargarPedidos(silencioso = false): void {
+    if (silencioso && this.subiendo()) return; // no pisar la lista mientras se sube un archivo
+    if (!silencioso) this.cargandoPedidos.set(true);
     this.pedidosService.listarTodos().subscribe({
       next: ps => {
         this.pedidos.set(ps.sort((a, b) =>
           new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime()
         ));
-        this.cargandoPedidos.set(false);
+        if (!silencioso) this.cargandoPedidos.set(false);
       },
       error: () => {
-        this.errorPedidos.set('No se pudieron cargar los pedidos.');
-        this.cargandoPedidos.set(false);
+        if (!silencioso) {
+          this.errorPedidos.set('No se pudieron cargar los pedidos.');
+          this.cargandoPedidos.set(false);
+        }
       },
     });
   }
 
-  // ── Reportes mensuales ────────────────────────────────────────────────────
+  // ── Vista ──────────────────────────────────────────────────────────────
 
-  cambiarVista(v: 'pedidos' | 'reportes'): void {
+  cambiarVista(v: 'pedidos' | 'escaneos'): void {
     this.vista.set(v);
-    if (v === 'reportes' && this.reportes().length === 0 && !this.cargandoReportes()) {
-      this.cargarReportes();
-    }
-  }
-
-  cargarReportes(): void {
-    this.cargandoReportes.set(true);
-    this.errorReportes.set('');
-    this.finanzasService.listarReportesMensuales().subscribe({
-      next: rs => { this.reportes.set(rs); this.cargandoReportes.set(false); },
-      error: () => {
-        this.errorReportes.set('No se pudieron cargar los reportes.');
-        this.cargandoReportes.set(false);
-      },
-    });
-  }
-
-  generarReporteActual(): void {
-    const now = new Date();
-    this.generandoReporte.set(true);
-    this.errorReportes.set('');
-    this.finanzasService.generarReporteMensual(now.getFullYear(), now.getMonth() + 1).subscribe({
-      next: () => { this.generandoReporte.set(false); this.cargarReportes(); },
-      error: () => {
-        this.errorReportes.set('No se pudo generar el reporte de este mes.');
-        this.generandoReporte.set(false);
-      },
-    });
-  }
-
-  descargarReporte(r: ReporteMensualResponse): void {
-    this.finanzasService.descargarReporteMensual(r.id).subscribe({
-      next: blob => {
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        setTimeout(() => URL.revokeObjectURL(url), 15000);
-      },
-      error: () => { this.errorReportes.set('No se pudo abrir el reporte.'); },
-    });
-  }
-
-  formatFecha(iso: string): string {
-    return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   }
 
   seleccionar(p: PedidoResponse): void {

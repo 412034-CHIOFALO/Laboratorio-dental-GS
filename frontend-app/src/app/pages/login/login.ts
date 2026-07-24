@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth';
 import { FormsModule } from '@angular/forms';
@@ -8,24 +8,37 @@ import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
-  standalone: true,
   templateUrl: './login.html',
   styleUrls: ['./login.css'],
   imports: [FormsModule, RouterLink]
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   username = '';
   password = '';
   mostrarPassword = false;
   errorMessage = '';
   loginLoading = false;
 
-  // Mostrar hint con credenciales de prueba SOLO en dev/mocks
   readonly mostrarDemoHint = !environment.production;
+
+  /** true si la app corre instalada como PWA (no en una pestaña del navegador). */
+  readonly esPwa = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    (window.navigator as any).standalone === true   // iOS Safari
+  );
 
   private notif = inject(NotificationService);
 
   constructor(private authService: AuthService, private router: Router) {}
+
+  /** El ícono de la PWA abre directo en /login — si ya hay sesión, saltamos a destino. */
+  ngOnInit(): void {
+    if (this.authService.isLoggedIn()) {
+      this.router.navigate([this.authService.terminosAceptados() ? '/dashboard' : '/terminos']);
+    }
+  }
 
   /** Botón del hint demo — autocompleta los campos */
   usarCreds(user: string, pass: string): void {
@@ -48,12 +61,13 @@ export class LoginComponent {
     this.authService.login(this.username, this.password).subscribe({
       next: (response) => {
         this.authService.saveToken(response.access_token);
+        this.authService.saveTerminosAceptados(response.terminosAceptados);
         this.notif.exito(`Bienvenido ${this.username}`, 'Sesión iniciada');
-        this.router.navigate(['/dashboard']);
+        this.router.navigate([response.terminosAceptados ? '/dashboard' : '/terminos']);
       },
       error: (err: HttpErrorResponse) => {
         this.loginLoading = false;
-        const msg = err.error?.error ?? err.error?.mensaje ?? 'Usuario o contraseña incorrectos';
+        const msg = this.mensajeError(err, 'Usuario o contraseña incorrectos');
         this.errorMessage = msg; // mantener la versión inline para accesibilidad
         // status 0 = sin conexión al back. Mensaje específico, no genérico.
         if (err.status === 0) {
@@ -67,5 +81,19 @@ export class LoginComponent {
         }
       }
     });
+  }
+
+  /**
+   * Extrae el mejor mensaje de un error HTTP del backend para mostrarlo inline.
+   * Prioriza el detalle de validación por campo, luego el mensaje de negocio.
+   * El campo 'error' del ErrorResponse es solo la frase HTTP genérica (ej:
+   * "Bad Request") — nunca hay que mostrarlo como si fuera el mensaje real.
+   */
+  private mensajeError(err: any, fallback: string): string {
+    const body = err?.error ?? {};
+    if (Array.isArray(body.campos) && body.campos.length > 0) {
+      return body.campos.map((c: any) => c.mensaje).join(' · ');
+    }
+    return body.mensaje ?? fallback;
   }
 }

@@ -2,7 +2,7 @@
 
 .home-view {
   padding: 22px 24px;
-  max-width: 1500px;
+  max-width: 1600px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -228,6 +228,13 @@
 /* ═══════════════════════════════════════════════════════════════
    TABLA DE PEDIDOS RECIENTES
    ═══════════════════════════════════════════════════════════════ */
+/* .panel tiene overflow:hidden (para las esquinas redondeadas) — sin este
+   wrapper con su propio scroll, la tabla no entraba en mobile y las
+   columnas de más quedaban recortadas en vez de poder scrollear a verlas. */
+.ped-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .ped-table {
   width: 100%;
   border-collapse: collapse;
@@ -381,6 +388,9 @@
   .home-actions .seg button { padding: 5px 9px; font-size: 11px; }
   .ped-table th, .ped-table td { padding: 7px 11px; }
   .td-trab { max-width: 130px; }
+  /* Sin un ancho mínimo, el navegador comprime las 6 columnas hasta que
+     entren todas apretadas en vez de activar el scroll horizontal. */
+  .ped-table { min-width: 560px; }
 }
 
 @media (max-width: 420px) {

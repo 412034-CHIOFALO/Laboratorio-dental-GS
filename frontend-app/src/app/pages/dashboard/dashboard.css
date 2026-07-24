@@ -181,6 +181,12 @@
   gap: 1px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  /* Sin esto, cuando la lista de items no tiene más para scrollear (o el
+     gesto de scroll llega al tope/final), el navegador "encadena" el mismo
+     gesto hacia el contenido de atrás en vez de pararlo ahí — se sentía
+     como si el sidebar dejara pasar el scroll y se moviera la página
+     detrás suyo. */
+  overscroll-behavior: contain;
 }
 
 .nav-item {
@@ -359,8 +365,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 14px;
-  height: var(--topbar-h);
+  padding: env(safe-area-inset-top) 14px 0;
+  height: calc(var(--topbar-h) + env(safe-area-inset-top));
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -414,11 +420,14 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* ── CONTENIDO PRINCIPAL ── */
+/* ── CONTENIDO PRINCIPAL ──
+   height (no min-height): fija el alto al viewport para que el scroll pase
+   ACA adentro (overflow-y) y no en la página entera — así el sidebar y el
+   topbar quedan fijos y cada sección scrollea en su propio contenedor. */
 .main-content {
   background: var(--gs-bg);
   overflow-y: auto;
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   -webkit-overflow-scrolling: touch;
@@ -673,10 +682,17 @@
     width: var(--sidebar-w);
     transform: translateX(-100%);
     box-shadow: 4px 0 32px rgba(0,0,0,0.5);
+    overscroll-behavior: contain;
   }
 
   .sidebar.mobile-open { transform: translateX(0); }
   .mobile-overlay { display: block; }
+  /* Con el sidebar mobile abierto, el contenido de atrás no debe seguir
+     scrolleando debajo del overlay. overflow:hidden solo no alcanza en iOS
+     Safari — un gesto de scroll que arranca en el sidebar y se queda sin
+     más para scrollear ahí puede seguir moviendo lo de atrás igual;
+     overscroll-behavior corta esa "propagación" del gesto. */
+  .app-shell.mobile-menu-open .main-content { overflow: hidden; overscroll-behavior: none; }
   .close-mobile-btn { display: flex; }
   .collapse-btn { display: none; }
   .mobile-topbar { display: flex; }
@@ -686,7 +702,9 @@
 
   /* ── Sidebar mobile: tamaños más grandes para tap targets cómodos ── */
   .sidebar { width: 280px; }
-  .sidebar-header { height: 60px; padding: 0 18px; }
+  /* padding-top respeta la isla dinámica / notch: si no, "Cerrar menú" queda
+     debajo del área del status bar y no se puede tocar en iPhone. */
+  .sidebar-header { height: calc(60px + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 18px 0; }
   .brand-icon { width: 32px; height: 32px; font-size: 13px; border-radius: 8px; }
   .brand-name { font-size: 15px; }
   .brand-sub  { font-size: 10.5px; }
@@ -708,7 +726,7 @@
   .user-avatar { width: 36px; height: 36px; font-size: 13px; border-radius: 8px; }
   .user-name { font-size: 14px; }
   .user-role { font-size: 11.5px; }
-  .sidebar-footer { padding: 14px 16px; }
+  .sidebar-footer { padding: 14px 16px calc(14px + env(safe-area-inset-bottom)); }
   .logout-btn { padding: 9px; }
   .logout-btn svg { width: 18px; height: 18px; }
 }

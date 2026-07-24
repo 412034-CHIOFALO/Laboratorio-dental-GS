@@ -5,7 +5,7 @@
   "display": "standalone",
   "orientation": "portrait-primary",
   "scope": "./",
-  "start_url": "./dashboard",
+  "start_url": "./login",
   "background_color": "#0f172a",
   "theme_color": "#2ECC71",
   "lang": "es-AR",

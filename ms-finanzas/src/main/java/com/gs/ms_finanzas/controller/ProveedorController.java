@@ -3,6 +3,7 @@ import jakarta.validation.constraints.Positive;
 import org.springframework.validation.annotation.Validated;
 
 import com.gs.ms_finanzas.dto.*;
+import com.gs.ms_finanzas.model.TipoCaja;
 import com.gs.ms_finanzas.service.IDeudaProveedorService;
 import com.gs.ms_finanzas.service.IProveedorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -143,7 +144,8 @@ public class ProveedorController {
     }
 
     @Operation(summary = "Marca una deuda como pagada",
-               description = "Cambia el estado de la deuda a PAGADO y registra la fecha de pago (hoy).")
+               description = "Cambia el estado de la deuda a PAGADO, registra la fecha de pago (hoy) y el egreso "
+                   + "correspondiente en la caja indicada.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Deuda marcada como pagada"),
         @ApiResponse(responseCode = "404", description = "Deuda no encontrada"),
@@ -153,7 +155,9 @@ public class ProveedorController {
     @PatchMapping("/deudas/{id}/pagar")
     public ResponseEntity<DeudaProveedorResponse> pagarDeuda(
             @Parameter(description = "ID interno de la deuda", required = true)
-            @PathVariable @Positive Long id) {
-        return ResponseEntity.ok(deudaService.pagar(id));
+            @PathVariable @Positive Long id,
+            @Parameter(description = "Caja de la que salió el pago (FISICA o BANCARIA)", required = true)
+            @RequestParam TipoCaja caja) {
+        return ResponseEntity.ok(deudaService.pagar(id, caja));
     }
 }

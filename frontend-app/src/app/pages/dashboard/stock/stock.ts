@@ -1,10 +1,11 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   StockService, MaterialResponse, MaterialRequest, CategoriaMaterial,
   TipoMovimiento, MovimientoRequest,
 } from '../../../services/stock.service';
 import { NotificationService } from '../../../services/notification.service';
+import { iniciarPolling } from '../../../shared/poll.util';
 
 type FiltroCategoria = CategoriaMaterial | 'TODOS';
 type SortDir = 'asc' | 'desc';
@@ -78,29 +79,33 @@ export class StockComponent implements OnInit {
   ];
 
   private notif = inject(NotificationService);
+  private destroyRef = inject(DestroyRef);
 
   constructor(private stockService: StockService) {}
 
   ngOnInit(): void {
     this.cargar();
+    iniciarPolling(() => this.cargar(true), this.destroyRef);
   }
 
   // ─────────────────────────────────────────────────────────────
   // CARGA Y FILTROS
   // ─────────────────────────────────────────────────────────────
 
-  private cargar(): void {
-    this.loading = true;
-    this.error = '';
+  private cargar(silencioso = false): void {
+    if (silencioso && (this.showModal || this.showMovModal || this.desactivarConfirmId != null)) return;
+    if (!silencioso) { this.loading = true; this.error = ''; }
     this.stockService.listarActivos().subscribe({
       next: data => {
         this.materiales = data.sort((a, b) => a.nombre.localeCompare(b.nombre));
         this.filtrar();
-        this.loading = false;
+        if (!silencioso) this.loading = false;
       },
       error: err => {
-        this.error = 'No se pudo cargar el stock. ¿ms-stock está corriendo?';
-        this.loading = false;
+        if (!silencioso) {
+          this.error = 'No se pudo cargar el stock. ¿ms-stock está corriendo?';
+          this.loading = false;
+        }
         console.error(err);
       },
     });

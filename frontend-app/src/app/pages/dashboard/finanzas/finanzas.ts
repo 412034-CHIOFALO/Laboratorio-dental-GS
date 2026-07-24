@@ -1,7 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { RouterLink, ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
+import { iniciarPolling } from '../../../shared/poll.util';
 import {
   FinanzasService, ResumenCajasResponse, CajaMovimientoResponse, TipoCaja,
   CuentaCorrienteOdontologoResponse, SeveridadDeuda,
@@ -9,9 +10,10 @@ import {
 } from '../../../services/finanzas.service';
 import {
   SueldosService, EmpleadoSueldo, FrecuenciaPago, ConfigSueldoRequest, PagoSueldoRequest,
-  PagoSueldoResponse, RegistroBot, DistribucionCascada
+  PagoSueldoResponse, RegistroBot, DistribucionCascada, CrearEmpleadoRequest
 } from '../../../services/sueldos.service';
 import { NotificationService } from '../../../services/notification.service';
+import { AuthService, UsuarioListado } from '../../../services/auth';
 import { PagoCuentaCorrienteModalComponent } from '../odontologos/pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 
 export type FiltroMorosos = 'TODOS' | 'MOROSOS' | 'MAS_30' | 'MAS_60';
@@ -121,6 +123,8 @@ export class FinanzasComponent implements OnInit {
   odontologoPago: CuentaCorrienteOdontologoResponse | null = null;
 
   private notif = inject(NotificationService);
+  private destroyRef = inject(DestroyRef);
+  private route = inject(ActivatedRoute);
 
   readonly filtros: { valor: FiltroMorosos; label: string }[] = [
     { valor: 'TODOS',   label: 'Todos' },
@@ -160,6 +164,13 @@ export class FinanzasComponent implements OnInit {
   empleadoEditando: EmpleadoSueldo | null = null;
   configForm: ConfigSueldoRequest = { frecuencia: 'MENSUAL', montoBase: 0 };
   savingConfig = false;
+
+  // Modal alta de empleado nuevo (usuarios de ms-auth sin dar de alta en sueldos)
+  showNuevoEmpleadoModal = false;
+  usuariosSinAlta: UsuarioListado[] = [];
+  loadingUsuariosSinAlta = false;
+  nuevoEmpleadoForm: CrearEmpleadoRequest = this.nuevoEmpleadoFormVacio();
+  savingNuevoEmpleado = false;
 
   // Modal registrar pago
   showPagoModal = false;
@@ -205,6 +216,7 @@ export class FinanzasComponent implements OnInit {
   constructor(
     private finanzasService: FinanzasService,
     private sueldosService: SueldosService,
+    private authService: AuthService,
   ) {}
 
   private movFormVacio(): CajaMovimientoRequest {
@@ -301,12 +313,32 @@ export class FinanzasComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    const seccion = this.route.snapshot.queryParamMap.get('seccion') as SeccionFinanzas | null;
+    if (seccion && this.secciones.some(s => s.id === seccion)) {
+      this.seccionActiva = seccion;
+    }
     this.cargarResumen();
     this.cargarMovimientos();
     this.cargarCuentasCorrientes();
     this.cargarEmpleados();
     this.cargarComprobantes();
     this.cargarPendientesEfectivo();
+    iniciarPolling(() => this.refrescarSilencioso(), this.destroyRef);
+  }
+
+  /** Refresco de fondo para multi-pestaña. No toca pantallas con un modal o edición en curso. */
+  private refrescarSilencioso(): void {
+    this.cargarResumen(true);
+    this.cargarMovimientos(true);
+    this.cargarCuentasCorrientes(true);
+    this.cargarComprobantes(true);
+    if (!this.hayModalSueldosAbierto) this.cargarEmpleados(true);
+    if (this.rechazandoId == null) this.cargarPendientesEfectivo(true);
+  }
+
+  private get hayModalSueldosAbierto(): boolean {
+    return this.showConfigModal || this.showPagoModal || this.showCascadaModal
+        || this.showHistorialModal || this.showNuevoEmpleadoModal;
   }
 
   // ═════════════════════════ COMPROBANTES (TRIANGULADOS) ═════════════════════════
@@ -317,8 +349,8 @@ export class FinanzasComponent implements OnInit {
    * registrosBot). Antes esta pestaña solo leía la primera, así que un comprobante
    * a un proveedor quedaba invisible acá aunque el bot lo hubiera cargado bien.
    */
-  cargarComprobantes(): void {
-    this.loadingComprobantes = true;
+  cargarComprobantes(silencioso = false): void {
+    if (!silencioso) this.loadingComprobantes = true;
     forkJoin({
       sueldos: this.sueldosService.historialPagosGlobal(),
       registrosBot: this.sueldosService.registrosBot(),
@@ -353,9 +385,14 @@ export class FinanzasComponent implements OnInit {
         this.comprobantes = [...deSueldos, ...deProveedores]
           .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
         this.aplicarFiltroComprobantes();
-        this.loadingComprobantes = false;
+        if (!silencioso) this.loadingComprobantes = false;
       },
-      error: err => { this.loadingComprobantes = false; this.notif.errorHttp(err, 'No se pudieron cargar los comprobantes'); },
+      error: err => {
+        if (!silencioso) {
+          this.loadingComprobantes = false;
+          this.notif.errorHttp(err, 'No se pudieron cargar los comprobantes');
+        }
+      },
     });
   }
 
@@ -405,14 +442,54 @@ export class FinanzasComponent implements OnInit {
 
   // ═════════════════════════ SUELDOS ═════════════════════════
 
-  cargarEmpleados(): void {
-    this.loadingEmpleados = true;
-    this.sueldosService.listarEmpleados().subscribe({
-      next: data => { this.empleados = data; this.loadingEmpleados = false; },
-      error: err => {
-        this.loadingEmpleados = false;
-        this.notif.errorHttp(err, 'No se pudieron cargar los empleados');
+  recalculandoDevengado = false;
+
+  /** Fuerza el cálculo de devengado diario ahora (sin esperar al cron de las 00:05). */
+  recalcularDevengado(): void {
+    this.recalculandoDevengado = true;
+    this.sueldosService.devengarAhora().subscribe({
+      next: () => {
+        this.recalculandoDevengado = false;
+        this.notif.exito('Devengado recalculado');
+        this.cargarEmpleados();
       },
+      error: err => {
+        this.recalculandoDevengado = false;
+        this.notif.errorHttp(err, 'No se pudo recalcular el devengado');
+      },
+    });
+  }
+
+  cargarEmpleados(silencioso = false): void {
+    if (!silencioso) this.loadingEmpleados = true;
+    this.sueldosService.listarEmpleados().subscribe({
+      next: data => {
+        this.empleados = data;
+        if (!silencioso) this.loadingEmpleados = false;
+        this.cargarUsuariosSinAlta(silencioso);
+      },
+      error: err => {
+        if (!silencioso) {
+          this.loadingEmpleados = false;
+          this.notif.errorHttp(err, 'No se pudieron cargar los empleados');
+        }
+      },
+    });
+  }
+
+  /** Usuarios de ms-auth que todavía no tienen sueldo configurado (caso excepcional: ver nota en el HTML). */
+  cargarUsuariosSinAlta(silencioso = false): void {
+    if (!silencioso) this.loadingUsuariosSinAlta = true;
+    this.authService.listarUsuarios().subscribe({
+      next: usuarios => {
+        const yaDadosDeAlta = new Set(this.empleados.map(e => e.usuarioId));
+        this.usuariosSinAlta = usuarios.filter(u =>
+          !yaDadosDeAlta.has(u.id)
+          && u.username !== 'bot-pedidos'        // cuenta de servicio del bot, no un empleado
+          && !u.rol.includes('ODONTOLOGO'));      // cliente del labo, no cobra sueldo
+        if (!silencioso) this.loadingUsuariosSinAlta = false;
+      },
+      error: () => { if (!silencioso) this.loadingUsuariosSinAlta = false; },
     });
   }
 
@@ -435,6 +512,56 @@ export class FinanzasComponent implements OnInit {
     this.showConfigModal = true;
   }
   cerrarConfigModal(): void { this.showConfigModal = false; this.empleadoEditando = null; }
+
+  // ── Modal alta de empleado nuevo (se abre desde la fila del usuario pendiente) ──
+  usuarioSeleccionado: UsuarioListado | null = null;
+
+  private nuevoEmpleadoFormVacio(): CrearEmpleadoRequest {
+    return { usuarioId: 0, nombre: '', rol: '', telefono: '', frecuencia: 'MENSUAL', montoBase: 0 };
+  }
+
+  abrirNuevoEmpleado(u: UsuarioListado): void {
+    this.usuarioSeleccionado = u;
+    this.nuevoEmpleadoForm = {
+      usuarioId: u.id,
+      nombre: `${u.nombre} ${u.apellido}`.trim(),
+      rol: u.rol.replace('ROLE_', ''),
+      telefono: '',
+      frecuencia: 'MENSUAL',
+      montoBase: 0,
+    };
+    this.showNuevoEmpleadoModal = true;
+  }
+
+  cerrarNuevoEmpleadoModal(): void {
+    this.showNuevoEmpleadoModal = false;
+    this.usuarioSeleccionado = null;
+  }
+
+  get nuevoEmpleadoValido(): boolean {
+    return this.nuevoEmpleadoForm.usuarioId > 0
+        && !!this.nuevoEmpleadoForm.nombre?.trim()
+        && this.nuevoEmpleadoForm.montoBase >= 0;
+  }
+
+  crearEmpleado(): void {
+    if (!this.nuevoEmpleadoValido) return;
+    this.savingNuevoEmpleado = true;
+    this.sueldosService.crearEmpleado(this.nuevoEmpleadoForm).subscribe({
+      next: creado => {
+        this.empleados = [...this.empleados, creado].sort((a, b) => a.nombre.localeCompare(b.nombre));
+        this.usuariosSinAlta = this.usuariosSinAlta.filter(u => u.id !== creado.usuarioId);
+        this.savingNuevoEmpleado = false;
+        this.showNuevoEmpleadoModal = false;
+        this.usuarioSeleccionado = null;
+        this.notif.exito(`${creado.nombre} dado de alta en sueldos`);
+      },
+      error: err => {
+        this.savingNuevoEmpleado = false;
+        this.notif.errorHttp(err, 'No se pudo dar de alta al empleado');
+      },
+    });
+  }
 
   guardarConfig(): void {
     if (!this.empleadoEditando) return;
@@ -604,17 +731,19 @@ export class FinanzasComponent implements OnInit {
 
   // ── Cuentas corrientes / Ranking morosos ─────────────────────────
 
-  cargarCuentasCorrientes(): void {
-    this.loadingCuentas = true;
+  cargarCuentasCorrientes(silencioso = false): void {
+    if (!silencioso) this.loadingCuentas = true;
     this.finanzasService.rankingMorosos().subscribe({
       next: data => {
         this.cuentasCorrientes = data;
         this.aplicarFiltroMorosos();
-        this.loadingCuentas = false;
+        if (!silencioso) this.loadingCuentas = false;
       },
       error: err => {
-        this.loadingCuentas = false;
-        this.notif.errorHttp(err, 'No se pudo cargar el ranking de cuentas corrientes');
+        if (!silencioso) {
+          this.loadingCuentas = false;
+          this.notif.errorHttp(err, 'No se pudo cargar el ranking de cuentas corrientes');
+        }
       },
     });
   }
@@ -725,14 +854,15 @@ export class FinanzasComponent implements OnInit {
   // CARGAS
   // ─────────────────────────────────────────────────────────────
 
-  cargarResumen(): void {
-    this.loadingResumen = true;
-    this.errorResumen = '';
+  cargarResumen(silencioso = false): void {
+    if (!silencioso) { this.loadingResumen = true; this.errorResumen = ''; }
     this.finanzasService.obtenerResumen().subscribe({
-      next: data => { this.resumen = data; this.loadingResumen = false; },
+      next: data => { this.resumen = data; if (!silencioso) this.loadingResumen = false; },
       error: err => {
-        this.errorResumen = 'No se pudo cargar el resumen. ¿ms-finanzas está corriendo?';
-        this.loadingResumen = false;
+        if (!silencioso) {
+          this.errorResumen = 'No se pudo cargar el resumen. ¿ms-finanzas está corriendo?';
+          this.loadingResumen = false;
+        }
         console.error(err);
       },
     });
@@ -743,16 +873,16 @@ export class FinanzasComponent implements OnInit {
     this.cargarMovimientos();
   }
 
-  cargarMovimientos(): void {
-    this.loadingMovimientos = true;
+  cargarMovimientos(silencioso = false): void {
+    if (!silencioso) this.loadingMovimientos = true;
     this.finanzasService.movimientosPorCaja(this.cajaActiva).subscribe({
       next: data => {
         this.movimientos = data;
         this.aplicarFiltroMovimientos();
-        this.loadingMovimientos = false;
+        if (!silencioso) this.loadingMovimientos = false;
       },
       error: err => {
-        this.loadingMovimientos = false;
+        if (!silencioso) this.loadingMovimientos = false;
         console.error(err);
       },
     });
@@ -929,11 +1059,16 @@ export class FinanzasComponent implements OnInit {
 
   // ═════════════════════════ EFECTIVO PENDIENTE ═══════════════════════════════
 
-  cargarPendientesEfectivo(): void {
-    this.loadingPendientes = true;
+  cargarPendientesEfectivo(silencioso = false): void {
+    if (!silencioso) this.loadingPendientes = true;
     this.sueldosService.pendientesEfectivo().subscribe({
-      next: data => { this.pendientesEfectivo = data; this.loadingPendientes = false; },
-      error: err => { this.loadingPendientes = false; this.notif.errorHttp(err, 'No se pudieron cargar los efectivos pendientes'); },
+      next: data => { this.pendientesEfectivo = data; if (!silencioso) this.loadingPendientes = false; },
+      error: err => {
+        if (!silencioso) {
+          this.loadingPendientes = false;
+          this.notif.errorHttp(err, 'No se pudieron cargar los efectivos pendientes');
+        }
+      },
     });
   }
 

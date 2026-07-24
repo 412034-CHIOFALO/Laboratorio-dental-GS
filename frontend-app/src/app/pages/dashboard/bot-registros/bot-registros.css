@@ -1,9 +1,24 @@
-.bot-view { padding: 1.5rem 2rem; }
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.bot-view {
+  padding: 1.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
 
 /* ── Encabezado ── */
 .bot-header {
   display: flex; justify-content: space-between; align-items: flex-start;
   gap: 1rem; margin-bottom: 1.2rem;
+  flex-shrink: 0;
 }
 .bot-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text); }
 .bot-header .sub { color: var(--dim); font-size: 0.85rem; margin-top: 2px; }
@@ -39,7 +54,7 @@
 .btn-refresh:disabled { opacity: .5; cursor: default; }
 
 /* ── Filtros ── */
-.filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+.filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; flex-shrink: 0; }
 .pill {
   background: var(--card); border: 1px solid var(--border); color: var(--muted);
   border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 0.8rem; font-weight: 600;
@@ -50,9 +65,10 @@
 .pill.dup.active { border-color: #d97706; color: #d97706; }
 
 /* ── Tabla ── */
-.tabla-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
-.tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tabla-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+.tabla { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; }
 .tabla thead th {
+  position: sticky; top: 0; z-index: 1;
   text-align: left; padding: 10px 12px; background: var(--neutral-tint);
   color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); white-space: nowrap;
 }

@@ -1,8 +1,27 @@
-:host { display: block; }
+:host {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
 
 .fin-page {
   padding: 2rem 2.5rem;
-  max-width: 1400px;
+  max-width: 1600px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Contenido de la sección activa (dentro del @switch) — es lo único que
+   scrollea; header y pills de navegación quedan siempre fijos arriba. */
+.fin-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -15,6 +34,7 @@
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 .page-title h1 {
   font-size: 1.5rem;
@@ -640,14 +660,11 @@
   border: 1px solid var(--border);
   border-radius: 10px;
 }
-.table-wrap-scroll table { width: 100%; border-collapse: collapse; }
-.table-wrap-scroll thead {
+.table-wrap-scroll table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.table-wrap-scroll thead th {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: var(--card);
-}
-.table-wrap-scroll thead th {
   background: var(--card);
   border-bottom: 2px solid var(--border);
   box-shadow: 0 1px 0 var(--border);
@@ -686,6 +703,7 @@
   margin-bottom: 1.5rem;
   padding-bottom: 0.85rem;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 .fin-pill {
   display: inline-flex;
@@ -1289,6 +1307,18 @@
 .btn-pagar:hover:not(:disabled) { opacity: 0.9; }
 .btn-pagar:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.pendientes-alta {
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.pendientes-alta h3 { font-size: 0.95rem; font-weight: 700; color: var(--gs-text); margin: 0; }
+
 .sueldos-nota {
   font-size: 0.8rem;
   color: var(--muted, #6b7280);
@@ -1299,6 +1329,38 @@
   margin: 0;
 }
 .sueldos-nota strong { color: var(--text); }
+
+.alta-tabla-wrap { border: 1px solid var(--gs-border); border-radius: 10px; overflow: hidden; }
+.alta-tabla { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.85rem; background: var(--gs-card); }
+.alta-tabla thead { background: var(--gs-card-2); }
+.alta-tabla th {
+  padding: 0.65rem 1rem; text-align: left; font-size: 0.72rem; font-weight: 600;
+  color: var(--gs-text-dim, var(--muted)); text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--gs-border);
+}
+.alta-tabla td { padding: 0.65rem 1rem; color: var(--gs-text); border-bottom: 1px solid var(--gs-border); }
+.alta-tabla tbody tr:last-child td { border-bottom: none; }
+.alta-tabla tbody tr:hover td { background: var(--gs-card-2); }
+.alta-nombre { font-weight: 600; }
+.alta-username { color: var(--muted, #6b7280); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.78rem; }
+.alta-accion { text-align: right; }
+
+.btn-dar-alta {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  background: var(--accent, #22c55e); border: 1px solid var(--accent, #22c55e); color: #fff;
+  padding: 0.4rem 0.85rem; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; font-family: inherit; transition: opacity 0.15s;
+}
+.btn-dar-alta:hover { opacity: 0.9; }
+
+.badge-rol {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+}
+.badge-rol.admin          { background: var(--gs-purple-soft); color: var(--gs-purple); }
+.badge-rol.tecnico        { background: var(--gs-blue-soft);   color: #60a5fa; }
+.badge-rol.administrativo { background: var(--gs-amber-soft);  color: var(--gs-amber); }
+.badge-rol.odontologo     { background: var(--gs-cyan-soft);   color: var(--gs-cyan); }
 
 /* Modal pago — extras */
 .mov-field-hint {
@@ -1355,6 +1417,21 @@
   transition: opacity 0.15s;
 }
 .btn-cascada:hover { opacity: 0.9; }
+
+.btn-recalcular {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  border: 1px solid var(--accent, #22c55e);
+  border-radius: 8px;
+  color: var(--accent, #22c55e);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.btn-recalcular:hover:not(:disabled) { background: color-mix(in srgb, var(--accent, #22c55e) 10%, transparent); }
+.btn-recalcular:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .cascada-ayuda { font-size: 0.82rem; color: var(--muted, #6b7280); margin: 0 0 0.75rem; }
 

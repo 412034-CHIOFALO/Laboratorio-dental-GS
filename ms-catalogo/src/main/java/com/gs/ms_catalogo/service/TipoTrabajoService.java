@@ -13,6 +13,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Implementación de {@link ITipoTrabajoService} para la gestión del catálogo de trabajos dentales.
+ *
+ * <p>Soporta CRUD completo sobre {@link com.gs.ms_catalogo.model.TipoTrabajo}, incluyendo
+ * la gestión de la receta de materiales ({@link com.gs.ms_catalogo.model.IngredienteReceta})
+ * asociada a cada trabajo. La baja es lógica (soft delete via {@code activo = false}).</p>
+ *
+ * <p>Todas las lecturas son {@code readOnly = true}; las operaciones de escritura declaran
+ * su propia anotación {@code @Transactional}.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
