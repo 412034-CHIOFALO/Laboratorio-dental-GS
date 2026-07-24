@@ -42,6 +42,19 @@ const GRUPOS = (process.env.GRUPOS || '')
 const GRUPOS_EFECTIVO = (process.env.GRUPOS_EFECTIVO || 'comprobantes efectivo')
   .split(',').map(g => g.trim().toLowerCase()).filter(Boolean);
 
+// Mapeo manual opcional "nombre:jid" (separados por coma) para saltear por
+// completo la resolución en vivo del nombre del grupo — ver resolverChat()
+// más abajo para el porqué. Ej: "comprobantes efectivo:120363...@g.us,..."
+const GRUPOS_JIDS = new Map(
+  (process.env.GRUPOS_JIDS || '')
+    .split(',').map(par => par.trim()).filter(Boolean)
+    .map(par => {
+      const i = par.lastIndexOf(':');
+      return i < 0 ? null : [par.slice(i + 1).trim(), par.slice(0, i).trim()];
+    })
+    .filter(Boolean)
+);
+
 // ─── Gemini (IA para leer cualquier billetera + fotos) ───────────────────────
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL   = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -123,6 +136,70 @@ function guardarBaseline() {
 }
 
 let chatsConBaseline = cargarBaseline();
+
+// Caché de "jid del grupo → nombre" para no depender de una llamada en vivo
+// (getChat/getChats) por cada mensaje — ver resolverChat() más abajo. Se
+// completa sola la primera vez que una resolución en vivo funciona (o queda
+// vacía para siempre si GRUPOS_JIDS ya cubre todo).
+const RUTA_GRUPOS = path.join(path.resolve('./.wwebjs_auth/'), 'grupos-conocidos.json');
+
+function cargarGruposConocidos() {
+  try {
+    const data = JSON.parse(fs.readFileSync(RUTA_GRUPOS, 'utf8'));
+    return new Map(Object.entries(data || {}));
+  } catch {
+    return new Map();
+  }
+}
+
+function guardarGruposConocidos() {
+  try {
+    fs.mkdirSync(path.dirname(RUTA_GRUPOS), { recursive: true });
+    fs.writeFileSync(RUTA_GRUPOS, JSON.stringify(Object.fromEntries(gruposConocidos)));
+  } catch (e) {
+    console.warn('[Bot] No se pudo guardar grupos-conocidos.json:', e.message);
+  }
+}
+
+let gruposConocidos = cargarGruposConocidos();
+
+/**
+ * Resuelve el chat de un mensaje SIN pasar por `msg.getChat()`/`client.getChatById()`
+ * salvo que no quede otra — esas dos llamadas evalúan código dentro del contexto
+ * de WhatsApp Web (Puppeteer) contra el Store interno, que rompe cada vez que
+ * WhatsApp cambia algo ahí adentro (bug recurrente y conocido de whatsapp-web.js,
+ * fuera de nuestro control — ver error "r: r" en los logs). Como esto pasa en
+ * TODOS los mensajes, cuando se rompe el bot deja de procesar comprobantes por
+ * completo. Acá evitamos la llamada en vivo siempre que se pueda:
+ *   1) GRUPOS_JIDS (config manual) — si está seteado, cero llamadas en vivo.
+ *   2) gruposConocidos (caché persistida) — de una resolución en vivo anterior.
+ *   3) Como último recurso, sí llama a msg.getChat() — si falla, no tira el
+ *      mensaje: lo deja sin marcar procesado para que la reconciliación
+ *      periódica lo reintente más tarde (por si la falla es transitoria).
+ */
+async function resolverChat(msg) {
+  const jid = msg.id.remote || msg.from;
+  const esGrupo = jid.endsWith('@g.us');
+  if (!esGrupo) return { id: { _serialized: jid }, name: null, isGroup: false };
+
+  const nombreManual = GRUPOS_JIDS.get(jid);
+  if (nombreManual) return { id: { _serialized: jid }, name: nombreManual, isGroup: true };
+
+  const nombreCacheado = gruposConocidos.get(jid);
+  if (nombreCacheado) return { id: { _serialized: jid }, name: nombreCacheado, isGroup: true };
+
+  try {
+    const chat = await msg.getChat();
+    if (chat.name) {
+      gruposConocidos.set(jid, chat.name);
+      guardarGruposConocidos();
+    }
+    return chat;
+  } catch (e) {
+    console.warn(`[Bot] No se pudo resolver el grupo del mensaje (jid: ${jid}) — se reintenta en la próxima reconciliación. Si este jid corresponde a "Comprobantes Transferencias" o "Comprobantes Efectivo", agregalo a GRUPOS_JIDS en el .env para no depender más de esta llamada:`, e.stack || e);
+    return null;
+  }
+}
 
 // Estado del bot expuesto a la pantalla web "Estado del bot".
 let estadoBot = {
@@ -275,6 +352,20 @@ async function reconciliarChats(limitePorGrupo) {
     const grupos = chats.filter(c => c.isGroup &&
       (GRUPOS.length === 0 || GRUPOS.includes(c.name.toLowerCase())));
 
+    // Aprovechamos que acá SÍ tenemos el nombre en vivo para completar el
+    // caché que usa resolverChat() en cada mensaje — así, aunque getChats()
+    // vuelva a romperse después, los mensajes de estos grupos ya no dependen
+    // de una llamada en vivo.
+    let huboNombreNuevo = false;
+    for (const chat of grupos) {
+      const jid = chat.id._serialized;
+      if (chat.name && gruposConocidos.get(jid) !== chat.name) {
+        gruposConocidos.set(jid, chat.name);
+        huboNombreNuevo = true;
+      }
+    }
+    if (huboNombreNuevo) guardarGruposConocidos();
+
     for (const chat of grupos) {
       try {
         const idChat = chat.id._serialized;
@@ -338,7 +429,8 @@ setInterval(() => {
 async function manejarMensaje(msg, opciones = {}) {
   const { reconciliacion = false } = opciones;
   try {
-    const chat = await msg.getChat();
+    const chat = await resolverChat(msg);
+    if (!chat) return; // no se pudo resolver el grupo — se reintenta solo en la próxima reconciliación
     if (!chat.isGroup) return;
     if (GRUPOS.length && !GRUPOS.includes(chat.name.toLowerCase())) return;
 
