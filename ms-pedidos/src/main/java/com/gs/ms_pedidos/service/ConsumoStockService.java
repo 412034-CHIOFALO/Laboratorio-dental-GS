@@ -19,7 +19,9 @@ import java.util.List;
  * Orquesta el descuento automático de stock cuando un pedido entra en producción.
  *
  * Flujo:
- *   1. Pedido pasa a EN_PROCESO (lo dispara PedidoService.actualizarEstado)
+ *   1. Pedido alcanza o supera EN_PROCESO (lo dispara PedidoService.actualizarEstado,
+ *      incluso si el salto en el Kanban va directo de RECIBIDO a una columna
+ *      posterior — ver EstadoPedido.alcanzoProduccion())
  *   2. Si el pedido tiene catalogoTrabajoId y stockConsumido = false:
  *      a. Llama a ms-catalogo → obtiene la receta del trabajo
  *      b. Por cada ingrediente, llama a ms-stock (SALIDA) con motivo

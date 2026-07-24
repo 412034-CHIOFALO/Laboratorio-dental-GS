@@ -27,5 +27,19 @@ public enum EstadoPedido {
     CONTROL,
     LISTO,
     ENTREGADO,
-    CANCELADO
+    CANCELADO;
+
+    /**
+     * true si este estado ya alcanzó o superó EN_PROCESO dentro del flujo normal.
+     *
+     * El Kanban de Producción permite arrastrar una tarjeta directamente a
+     * cualquier columna (no solo a la adyacente), por lo que un pedido puede
+     * pasar de RECIBIDO a CONTROL o LISTO sin pisar nunca el valor literal
+     * EN_PROCESO. Comparar solo con {@code == EN_PROCESO} deja ese salto sin
+     * disparar el descuento de stock — por eso el gatillo usa este método en
+     * vez de una igualdad exacta.
+     */
+    public boolean alcanzoProduccion() {
+        return this == EN_PROCESO || this == CONTROL || this == LISTO || this == ENTREGADO;
+    }
 }
