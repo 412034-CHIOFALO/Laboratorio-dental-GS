@@ -1081,6 +1081,23 @@ function validarPersonas(pie, lectura) {
 }
 
 // ─── Backend ─────────────────────────────────────────────────────────────────
+/**
+ * Traduce un error de axios contra el backend a un texto útil. El caso 401 es
+ * especial: significa que el backend rechazó la API key del bot — casi siempre
+ * porque BOT_API_KEY (bot) y GS_BOT_API_KEY (ms-finanzas) no coinciden, lo que
+ * suele pasar cuando se recrea un solo container y quedan desincronizados. Sin
+ * este hint el error llega como un opaco "Request failed with status code 401".
+ */
+function mensajeErrorBackend(e) {
+  if (e.response?.status === 401) {
+    console.error('[Bot] 401 del backend: la API key del bot fue rechazada. ' +
+      'Verificá que GS_BOT_API_KEY sea IGUAL en el bot y en ms-finanzas ' +
+      '(recreá ambos juntos: docker compose up -d --force-recreate gs-bot ms-finanzas).');
+    return 'el backend rechazó la clave del bot (401). Revisá que GS_BOT_API_KEY coincida en el bot y en ms-finanzas.';
+  }
+  return e.response?.data?.mensaje || e.message;
+}
+
 // Reintenta hasta 3 veces con 3 s de pausa si el backend no responde.
 async function registrarPago(datos) {
   const headers = { 'Content-Type': 'application/json' };
@@ -1152,7 +1169,7 @@ async function registrarEfectivo(msg, chat, contacto, efectivo, opciones = {}) {
     );
   } catch (e) {
     console.error('[BOT-EFECTIVO] Error:', e.message);
-    await responder(`⚠️ No se pudo registrar el efectivo: ${e.response?.data?.mensaje || e.message}`);
+    await responder(`⚠️ No se pudo registrar el efectivo: ${mensajeErrorBackend(e)}`);
   }
 }
 
