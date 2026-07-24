@@ -15,4 +15,7 @@ public interface ProveedorRepository extends JpaRepository<Proveedor, Long> {
     Optional<Proveedor> findByCuit(String cuit);
 
     boolean existsByCuit(String cuit);
+
+    /** Usado por el seed inicial para no duplicar proveedores ya cargados. */
+    boolean existsByNombreIgnoreCase(String nombre);
 }
