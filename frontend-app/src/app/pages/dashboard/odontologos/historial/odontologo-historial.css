@@ -152,8 +152,18 @@
   display: flex;
   gap: 0.4rem;
   border-bottom: 1px solid var(--border);
-  padding-bottom: 1px;
   overflow-x: auto;
+  /* Fija la barra al scrollear: el contenido de algunas pestañas (Finanzas,
+     con saldo + trabajos activos + historial) es largo, y sin esto al bajar
+     se perdía el menú y no había forma de cambiar de pestaña sin volver arriba.
+     El fondo + el sangrado lateral tapan el contenido que pasa por debajo
+     (el sangrado compensa el padding de .historial-page). */
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg);
+  margin: 0 -1.5rem;
+  padding: 0 1.5rem 1px;
 }
 .tab {
   padding: 0.65rem 1rem;
@@ -375,6 +385,8 @@
 
 @media (max-width: 768px) {
   .historial-page { padding: 1rem; }
+  /* El sangrado de la barra fija tiene que seguir al padding de la página. */
+  .tabs { margin: 0 -1rem; padding: 0 1rem 1px; }
   .hero { padding: 1rem; }
   .hero-avatar { width: 52px; height: 52px; font-size: 1.1rem; }
   .hero-info h1 { font-size: 1.15rem; }

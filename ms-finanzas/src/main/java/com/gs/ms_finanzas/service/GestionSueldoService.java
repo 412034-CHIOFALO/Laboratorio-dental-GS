@@ -24,6 +24,22 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Implementación de {@link IGestionSueldoService} para la gestión de sueldos del personal del laboratorio.
+ *
+ * <p>El sistema de sueldos funciona con devengo diario:</p>
+ * <ol>
+ *   <li>Cada empleado tiene una {@link com.gs.ms_finanzas.model.ConfiguracionSueldo} con
+ *       un monto base y una frecuencia de cobro ({@link com.gs.ms_finanzas.model.FrecuenciaPago}).</li>
+ *   <li>El scheduler {@link DevengoScheduler} ejecuta {@link #devengarDiario()} cada noche,
+ *       acumulando en {@code saldoDevengado} la parte proporcional del día.</li>
+ *   <li>Al registrar un pago, el monto se descuenta del {@code saldoDevengado}.
+ *       El sobrante o faltante se gestiona según la política {@link com.gs.ms_finanzas.model.ManejoSobrante}.</li>
+ * </ol>
+ *
+ * <p>También procesa comprobantes de transferencia enviados por el bot de WhatsApp
+ * ({@link #registrarPagoAutomatico}), resolviendo si el receptor es empleado o proveedor.</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -175,16 +191,38 @@ public class GestionSueldoService implements IGestionSueldoService {
                 pago.setIdOperacion(req.getIdOperacion());
                 pago.setComprobanteUrl(comprobanteRef);
                 pagoRepo.save(pago);
-                // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
-                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
-                        "Sueldo (transferencia) a " + c.getEmpleadoNombre(), req.getIdOperacion());
 
                 reg.setEstado(EstadoRegistroBot.REGISTRADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
                 reg.setReceptorId(c.getEmpleadoId());
                 reg.setReceptorResuelto(c.getEmpleadoNombre());
-                reg.setMensaje("Sueldo registrado para " + c.getEmpleadoNombre());
-                log.info("[BOT] Sueldo: {} recibió {} (emisor: {})", c.getEmpleadoNombre(), req.getMonto(), req.getEmisor());
+
+                // ¿El sueldo lo pagó un odontólogo que nos debe? Entonces es un
+                // TRIANGULADO igual que el de proveedores: pagó una obligación del
+                // lab por nosotros, así que además de saldar el sueldo hay que
+                // descontarle esa plata de su cuenta corriente. Y como no salió
+                // plata real del lab, va a COMPENSACION y no a la caja bancaria.
+                Optional<Comprobante> odo = resolverOdontologoEmisor(req.getEmisor(), c.getEmpleadoNombre());
+                if (odo.isPresent()) {
+                    Comprobante oc = odo.get();
+                    BigDecimal settOdo = settleDeudaOdontologo(oc.getOdontologoId(), req.getMonto());
+                    registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, req.getMonto(),
+                            "Triangulado: " + oc.getOdontologoNombre() + " paga el sueldo de " + c.getEmpleadoNombre(),
+                            req.getIdOperacion());
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, req.getMonto(),
+                            "Triangulado: sueldo a " + c.getEmpleadoNombre() + " por cuenta de " + oc.getOdontologoNombre(),
+                            req.getIdOperacion());
+                    reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → sueldo de " + c.getEmpleadoNombre()
+                            + " (odontólogo -$" + settOdo.toBigInteger() + ")");
+                    log.info("[BOT] Triangulado sueldo: {} pagó a {} por {}",
+                            oc.getOdontologoNombre(), c.getEmpleadoNombre(), req.getMonto());
+                } else {
+                    // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
+                            "Sueldo (transferencia) a " + c.getEmpleadoNombre(), req.getIdOperacion());
+                    reg.setMensaje("Sueldo registrado para " + c.getEmpleadoNombre());
+                    log.info("[BOT] Sueldo: {} recibió {} (emisor: {})", c.getEmpleadoNombre(), req.getMonto(), req.getEmisor());
+                }
                 return RegistroPagoBotResponse.from(registroRepo.save(reg));
             } catch (BusinessException e) {
                 // ej: empleado inactivo → se rechaza pero queda registrado
@@ -375,15 +413,19 @@ public class GestionSueldoService implements IGestionSueldoService {
      * los comprobantes PENDIENTE (que llevan el snapshot del odontólogo) y se
      * matchea por palabra (apellido) para tolerar "Dr. García" vs "Dr. Martín García".
      *
-     * <p>Se excluye explícitamente al propio proveedor receptor: si una misma
-     * persona/empresa es a la vez proveedor del lab y odontólogo cliente, no se
-     * la triangula "contra sí misma" — en ese caso se trata como pago directo al
-     * proveedor.</p>
+     * <p>Sirve para los dos tipos de receptor: proveedor (el odontólogo le paga
+     * una compra del lab) y empleado (el odontólogo le paga el sueldo). En ambos
+     * casos el odontólogo cubrió una obligación del laboratorio, así que hay que
+     * descontarla de su cuenta corriente.</p>
+     *
+     * <p>Se excluye explícitamente al propio receptor: si una misma persona es a
+     * la vez receptor (proveedor/empleado) y odontólogo cliente, no se la
+     * triangula "contra sí misma" — en ese caso se trata como pago directo.</p>
      */
-    private Optional<Comprobante> resolverOdontologoEmisor(String emisor, String proveedorNombre) {
+    private Optional<Comprobante> resolverOdontologoEmisor(String emisor, String receptorNombre) {
         if (emisor == null || emisor.isBlank()) return Optional.empty();
         String[] palabras = emisor.trim().toLowerCase().split("\\s+");
-        String prov = proveedorNombre == null ? "" : proveedorNombre.trim().toLowerCase();
+        String prov = receptorNombre == null ? "" : receptorNombre.trim().toLowerCase();
         return comprobanteRepo.findAll().stream()
                 .filter(c -> c.getEstadoPago() == EstadoPago.PENDIENTE)
                 .filter(c -> {
@@ -556,14 +598,32 @@ public class GestionSueldoService implements IGestionSueldoService {
                 pago.setCargadoPorTelefono(reg.getCargadoPorTelefono());
                 pago.setGrupoOrigen(reg.getGrupoOrigen());
                 pagoRepo.save(pago);
-                registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
-                        "Efectivo confirmado: sueldo a " + c.getEmpleadoNombre(), null);
                 reg.setEstado(EstadoRegistroBot.REGISTRADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
                 reg.setReceptorId(c.getEmpleadoId());
                 reg.setReceptorResuelto(c.getEmpleadoNombre());
-                reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
-                log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
+
+                // Mismo criterio que en la transferencia: si el que pagó el sueldo
+                // es un odontólogo que nos debe, es un triangulado — se le descuenta
+                // de su cuenta corriente y no sale plata de la caja física.
+                Optional<Comprobante> odoEf = resolverOdontologoEmisor(reg.getEmisor(), c.getEmpleadoNombre());
+                if (odoEf.isPresent()) {
+                    Comprobante oc = odoEf.get();
+                    BigDecimal settOdo = settleDeudaOdontologo(oc.getOdontologoId(), reg.getMonto());
+                    registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                            "Triangulado (efectivo): " + oc.getOdontologoNombre() + " paga el sueldo de " + c.getEmpleadoNombre(), null);
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, reg.getMonto(),
+                            "Triangulado (efectivo): sueldo a " + c.getEmpleadoNombre() + " por cuenta de " + oc.getOdontologoNombre(), null);
+                    reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → sueldo de " + c.getEmpleadoNombre()
+                            + " (odontólogo -$" + settOdo.toBigInteger() + ")");
+                    log.info("[BOT-EFECTIVO] Triangulado sueldo: {} pagó a {} por ${}",
+                            oc.getOdontologoNombre(), c.getEmpleadoNombre(), reg.getMonto());
+                } else {
+                    registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
+                            "Efectivo confirmado: sueldo a " + c.getEmpleadoNombre(), null);
+                    reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
+                    log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
+                }
             } catch (BusinessException e) {
                 reg.setEstado(EstadoRegistroBot.RECHAZADO);
                 reg.setTipoReceptor(TipoReceptorBot.EMPLEADO);
