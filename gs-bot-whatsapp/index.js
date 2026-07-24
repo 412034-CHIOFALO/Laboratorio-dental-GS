@@ -251,37 +251,23 @@ function limpiarLocksDeSesionColgados() {
 }
 limpiarLocksDeSesionColgados();
 
-// Fijamos la versión de WhatsApp Web a un HTML CONGELADO servido localmente
-// (wa-web-pinned/), no a la página viva de web.whatsapp.com. Si no la fijamos,
-// el bot carga la versión más nueva que WhatsApp sirva en ese momento; en
-// cuanto sirven un frontend más nuevo que el que la librería entiende, cambia
-// la forma interna del "Store" y todo lo que lo lee vía Puppeteer —getChats()
-// y downloadMedia()— empieza a tirar "Execution context" y el bot recibe los
-// comprobantes pero NO puede leer el monto ni descargar la foto/PDF.
+// NO se fija la versión de WhatsApp Web: el bot carga la que WhatsApp sirve en
+// vivo. Se probó pinnear una versión concreta (webVersion + webVersionCache
+// local con el HTML congelado) para intentar arreglar el bug de lectura de
+// comprobantes, y NO sirvió: el HTML pinneado es solo el "shell", el bundle JS
+// pesado lo sigue bajando WhatsApp en vivo, así que el desajuste del Store
+// (getChats/downloadMedia) pasa igual. Encima una versión pinneada es más
+// frágil para conectar (WhatsApp puede dejar de aceptarla), así que dejar la
+// versión viva es lo más confiable para que el bot AL MENOS conecte y registre.
 //
-// Esta versión concreta (2.3000.1040944432) es la que estaba corriendo la
-// mañana del 2026-07-24, cuando la lectura de comprobantes andaba perfecto —
-// es la ÚNICA con evidencia de que downloadMedia funciona contra el backend
-// actual de WhatsApp. El archivo se capturó de una sesión real y vive en el
-// repo (no depende de que WhatsApp ni ningún CDN lo sigan sirviendo).
-//
-// Nota: NO se usa webVersionCache remoto porque esta versión ya no está en el
-// repo de la comunidad (wppconnect/wa-version) — daría 404 y caería a la
-// página viva, que es justo lo que rompe. Por eso va como caché LOCAL.
-//
-// Si en el futuro WhatsApp deja de aceptar esta versión (el bot no llega a
-// mostrar el QR / "Execution context destroyed" en el arranque), hay que
-// recapturar wa-web-pinned/ de una sesión real reciente y actualizar el número.
-const WA_WEB_VERSION = '2.3000.1040944432';
+// El problema de fondo de downloadMedia es de whatsapp-web.js (ya en su última
+// versión, 1.34.7) contra el bundle actual de WhatsApp: window.require(
+// 'WAWebCollections') no resuelve. No es arreglable desde acá; se maneja con el
+// fallback de monto-en-el-pie (ver procesarPago).
 
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
-  webVersion: WA_WEB_VERSION,
-  webVersionCache: {
-    type: 'local',
-    path: './wa-web-pinned',
-  },
   puppeteer: {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -641,9 +627,10 @@ async function procesarPago(msgComprobante, chat, contacto, pie, lectura, msgPie
   if (!monto) {
     console.log('   ⚠ No pude leer el monto (ni del comprobante ni del pie).');
     await responder(
-      `⚠️ Recibí el comprobante para *${pie.receptor}* pero no pude leer el monto.\n` +
-      `Si es una foto, reenviá el pie con el monto:\n*${pie.emisor || 'Emisor'} (${pie.receptor}) 10000*\n` +
-      `O mandá el comprobante en *PDF* (se lee solo).`
+      `⚠️ Recibí el comprobante para *${pie.receptor}* pero no pude leer el monto de la imagen.\n` +
+      `Mandá el pie *con el monto al final* y queda registrado igual:\n` +
+      `*${pie.emisor || 'Emisor'} (${pie.receptor}) 10000*\n\n` +
+      `_Tip: podés escribir eso mismo como epígrafe de la foto y se registra en un solo paso._`
     );
     return;
   }
