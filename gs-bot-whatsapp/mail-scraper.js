@@ -74,6 +74,41 @@ const SMTP_PASSWORD = process.env.MAIL_SMTP_PASSWORD || IMAP_PASSWORD;
 const genAI       = new GoogleGenerativeAI(GEMINI_API_KEY);
 const geminiModel = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
+/** Suma días corridos a hoy y devuelve YYYY-MM-DD. */
+function enDias(n) {
+  const d = new Date();
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * El backend solo acepta NORMAL o URGENTE (enum Prioridad de ms-pedidos).
+ * Gemini a veces devolvía otras etiquetas —"ALTA" era la más común— y el pedido
+ * entero se rechazaba con 422 ("El cuerpo de la petición no se puede procesar"),
+ * perdiendo un pedido válido por un matiz de redacción. El prompt ya pide solo
+ * los dos valores buenos; esto es la red de seguridad por si igual se desvía.
+ *
+ * Las etiquetas por encima de lo normal se mapean a URGENTE: en un laboratorio
+ * es peor perder la señal de apuro que marcar un pedido de más.
+ */
+function normalizarPrioridad(valor) {
+  const v = String(valor || '').trim().toUpperCase();
+  return (v === 'URGENTE' || v === 'ALTA' || v === 'CRITICA' || v === 'CRÍTICA')
+    ? 'URGENTE'
+    : 'NORMAL';
+}
+
+/**
+ * fechaEntrega es @NotNull y @Future en el backend. Si Gemini no la detectó, la
+ * devolvió con otro formato, o cayó en hoy/pasado (ej: "lo necesito para hoy"),
+ * usamos 10 días corridos en vez de dejar que el pedido se rechace.
+ */
+function fechaEntregaValida(fecha) {
+  const hoy = new Date().toISOString().slice(0, 10);
+  const formatoOk = typeof fecha === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  return (formatoOk && fecha > hoy) ? fecha : enDias(10);
+}
+
 /**
  * Envía el cuerpo del email a Gemini y extrae los campos del pedido.
  * Devuelve un objeto con: paciente, trabajo, fechaEntrega, prioridad,
@@ -96,7 +131,7 @@ async function extraerDatosConGemini(cuerpoEmail, remitenteNombre, fechaHoy) {
     '  "paciente": "<nombre del paciente, o null>",\n' +
     '  "trabajo": "<tipo de trabajo dental, ej: Corona zirconio, Prótesis superior. null si esSolicitudTrabajo es false>",\n' +
     '  "fechaEntrega": "<YYYY-MM-DD. Si dicen el viernes, calculá desde la fecha de hoy. null si no hay>",\n' +
-    '  "prioridad": "<URGENTE | ALTA | NORMAL según el tono del pedido>",\n' +
+    '  "prioridad": "<URGENTE o NORMAL, nada más, según el tono del pedido>",\n' +
     '  "precioAcordado": <número sin símbolo si se menciona, si no null>,\n' +
     '  "observaciones": "<instrucciones especiales de material, color, forma, etc. null si no hay>"\n' +
     '}\n\n' +
@@ -254,12 +289,8 @@ async function procesarEmail(uid, envelope, source) {
     return true;  // problema de contenido: ya respondimos, no reintentar
   }
 
-  // Fecha de entrega por defecto: 10 días corridos si Gemini no la detectó
-  const fechaEntrega = datos.fechaEntrega || (() => {
-    const d = new Date();
-    d.setDate(d.getDate() + 10);
-    return d.toISOString().slice(0, 10);
-  })();
+  const fechaEntrega = fechaEntregaValida(datos.fechaEntrega);
+  const prioridad    = normalizarPrioridad(datos.prioridad);
 
   // Crear pedido
   let token, pedidoCreado;
@@ -272,7 +303,7 @@ async function procesarEmail(uid, envelope, source) {
         paciente:         datos.paciente || 'Paciente por confirmar',
         trabajo:          datos.trabajo,
         fechaEntrega,
-        prioridad:        datos.prioridad || 'NORMAL',
+        prioridad,
         precioAcordado:   datos.precioAcordado || null,
         observaciones:    [
           datos.observaciones,
@@ -295,7 +326,7 @@ async function procesarEmail(uid, envelope, source) {
         const res = await axios.post(
           `${BACKEND_URL}/api/pedidos`,
           { odontologoNombre: remitenteNombre, paciente: datos.paciente || 'Paciente por confirmar',
-            trabajo: datos.trabajo, fechaEntrega, prioridad: datos.prioridad || 'NORMAL',
+            trabajo: datos.trabajo, fechaEntrega, prioridad,
             precioAcordado: datos.precioAcordado || null,
             observaciones: [datos.observaciones, `Pedido recibido por email desde ${remitenteEmail}`]
               .filter(Boolean).join(' | ') },
