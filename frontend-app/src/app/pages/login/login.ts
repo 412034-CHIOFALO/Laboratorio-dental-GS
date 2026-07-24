@@ -8,7 +8,6 @@ import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-login',
-  standalone: true,
   templateUrl: './login.html',
   styleUrls: ['./login.css'],
   imports: [FormsModule, RouterLink]
@@ -20,8 +19,15 @@ export class LoginComponent implements OnInit {
   errorMessage = '';
   loginLoading = false;
 
-  // Mostrar hint con credenciales de prueba SOLO en dev/mocks
   readonly mostrarDemoHint = !environment.production;
+
+  /** true si la app corre instalada como PWA (no en una pestaña del navegador). */
+  readonly esPwa = typeof window !== 'undefined' && (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: fullscreen)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
+    (window.navigator as any).standalone === true   // iOS Safari
+  );
 
   private notif = inject(NotificationService);
 
