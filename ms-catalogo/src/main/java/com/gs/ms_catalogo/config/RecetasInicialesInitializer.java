@@ -27,13 +27,15 @@ import java.util.Optional;
  * insertó materiales en una tabla vacía, en el orden exacto en que están
  * escritos ahí — por eso quedarían con ID 1 a 12 en ese mismo orden.
  *
- * <p><b>Si esto está mal</b> (por ejemplo, porque ya habían cargado materiales
- * a mano en ms-stock antes de que corriera el seed), las recetas van a quedar
- * apuntando al material equivocado. Verificar con
- * {@code GET /api/stock} que el ID de cada material coincide con el nombre de
- * la tabla de acá abajo; si no coincide, corregir los IDs y volver a levantar
- * ms-catalogo (esto solo escribe si la receta está vacía, así que es seguro
- * re-ejecutarlo después de corregir).</p>
+ * <p><b>Red de seguridad si el ID está mal</b>: cada línea de receta también
+ * guarda {@code materialNombre} (ver {@link Linea}), y
+ * {@code StockService.registrarMovimiento} (ms-stock) resuelve el material
+ * PRIORIZANDO el nombre sobre el id — así que aunque el ID hardcodeado acá
+ * abajo no coincida con la fila real (por ejemplo, porque ya habían cargado
+ * materiales a mano en ms-stock antes de que corriera el seed), el descuento
+ * igual encuentra el material correcto mientras el nombre sea exactamente el
+ * mismo que usa {@code StockInicialInitializer}. El ID solo se usa como
+ * último recurso si no hay ningún material con ese nombre.</p>
  *
  * <p>Las cantidades son un punto de partida razonable (no una medición real
  * del laboratorio) — se pueden ajustar después desde Catálogo → editar tipo

@@ -93,6 +93,7 @@ public class ConsumoStockService {
             try {
                 MovimientoStockRequest mov = new MovimientoStockRequest(
                         ing.materialId(),
+                        ing.materialNombre(),
                         "SALIDA",
                         ing.cantidad() != null ? ing.cantidad().doubleValue() : 0.0,
                         motivo,

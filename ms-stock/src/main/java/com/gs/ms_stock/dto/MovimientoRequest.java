@@ -12,6 +12,15 @@ public class MovimientoRequest {
     @NotNull
     private Long materialId;
 
+    /**
+     * Nombre del material, opcional. Si viene informado y existe un material con
+     * ese nombre exacto, se usa para resolver el material en vez de materialId —
+     * así un id mal calculado del lado de quien llama (ej: la receta hardcodeada
+     * de ms-catalogo) no rompe el descuento silenciosamente.
+     */
+    @Size(max = 255)
+    private String materialNombre;
+
     @NotNull
     private TipoMovimiento tipo;
 
