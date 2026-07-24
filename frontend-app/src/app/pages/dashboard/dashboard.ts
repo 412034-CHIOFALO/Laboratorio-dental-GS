@@ -12,11 +12,13 @@ interface NavItem {
   route: string;
   roles?: string[];
   tourId?: string;
+  mobileOnly?: boolean;
 }
 
 interface NavGroup {
   type: 'group';
   label: string;
+  mobileOnly?: boolean;
 }
 
 type NavEntry = NavItem | NavGroup;
@@ -54,6 +56,12 @@ export class DashboardComponent implements OnInit {
 
     { type: 'group', label: 'Archivo' },
     { type: 'item', label: 'Documentos',   icon: 'file',      route: '/dashboard/documentos' },
+
+    { type: 'group', label: 'Cuenta', mobileOnly: true },
+    { type: 'item', label: 'Editar perfil', icon: 'settings', route: '/dashboard/mi-perfil', mobileOnly: true },
+    { type: 'item', label: 'Manual de usuario', icon: 'book', route: '/dashboard/manual', mobileOnly: true },
+    { type: 'item', label: 'Preguntas frecuentes', icon: 'help', route: '/dashboard/faq', mobileOnly: true },
+    { type: 'item', label: 'Términos y privacidad', icon: 'shield', route: '/terminos', mobileOnly: true },
 
     { type: 'group', label: 'Administración' },
     { type: 'item', label: 'Usuarios',     icon: 'users',     route: '/dashboard/usuarios',     roles: ['ROLE_ADMIN', 'ROLE_ADMINISTRATIVO'] },
@@ -124,9 +132,16 @@ export class DashboardComponent implements OnInit {
   }
 
   visibleNavEntries(): NavEntry[] {
-    return this.navEntries.filter(entry =>
-      entry.type === 'group' || !entry.roles || entry.roles.some(r => this.roles.includes(r))
-    );
+    const mobile = this.isMobile();
+    return this.navEntries.filter(entry => {
+      if (entry.mobileOnly && !mobile) {
+        return false;
+      }
+      if (entry.type === 'group') {
+        return true;
+      }
+      return !entry.roles || entry.roles.some(r => this.roles.includes(r));
+    });
   }
 
   isItem(entry: NavEntry): entry is NavItem {

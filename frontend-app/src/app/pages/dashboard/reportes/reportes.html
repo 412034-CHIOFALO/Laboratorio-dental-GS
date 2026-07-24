@@ -166,21 +166,23 @@
   @if (morosos.length > 0) {
     <div class="chart-card morosos-card">
       <h3 class="chart-title">Morosos — top deudores</h3>
-      <table class="morosos-table">
-        <thead>
-          <tr><th>Odontólogo</th><th>Deuda</th><th>Comprobantes</th><th>Días sin pagar</th></tr>
-        </thead>
-        <tbody>
-          @for (m of morosos; track m.odontologoId) {
-            <tr>
-              <td>{{ m.odontologoNombre }}</td>
-              <td class="monto-col">{{ formatMoney(m.totalDeuda) }}</td>
-              <td>{{ m.comprobantesPendientes }}</td>
-              <td [class.dias-alto]="m.diasSinPagar > 30">{{ m.diasSinPagar }}d</td>
-            </tr>
-          }
-        </tbody>
-      </table>
+      <div class="morosos-table-wrap">
+        <table class="morosos-table">
+          <thead>
+            <tr><th>Odontólogo</th><th>Deuda</th><th>Comprobantes</th><th>Días sin pagar</th></tr>
+          </thead>
+          <tbody>
+            @for (m of morosos; track m.odontologoId) {
+              <tr>
+                <td>{{ m.odontologoNombre }}</td>
+                <td class="monto-col">{{ formatMoney(m.totalDeuda) }}</td>
+                <td>{{ m.comprobantesPendientes }}</td>
+                <td [class.dias-alto]="m.diasSinPagar > 30">{{ m.diasSinPagar }}d</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   }
 
