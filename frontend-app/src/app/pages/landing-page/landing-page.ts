@@ -17,9 +17,7 @@ interface ItemGaleria {
  * mismo para el detalle de nombres y formatos esperados.
  */
 const GALERIA_INSTAGRAM: ItemGaleria[] = [
-  { tipo: 'video', archivo: 'reel-1.mp4', alt: 'Trabajo del laboratorio GS Ortodoncia', caption: 'Así trabajamos en el laboratorio', layout: 'tall' },
-  { tipo: 'video', archivo: 'reel-2.mp4', alt: 'Trabajo del laboratorio GS Ortodoncia', caption: 'Precisión en cada detalle', layout: 'tall' },
-  { tipo: 'video', archivo: 'reel-3.mp4', alt: 'Trabajo del laboratorio GS Ortodoncia', caption: 'Un vistazo a nuestro día a día', layout: 'tall' },
+  { tipo: 'video', archivo: 'reel-2.mp4', alt: 'Trabajo del laboratorio GS Ortodoncia', caption: 'Precisión en cada detalle' },
 ];
 
 @Component({

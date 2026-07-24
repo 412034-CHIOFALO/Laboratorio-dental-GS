@@ -219,4 +219,5 @@
   .qr-block { justify-content: center; }
   .qr-img img { width: 160px; height: 160px; }
   .detalle .k { width: 90px; }
+  .filtros { flex-wrap: nowrap; overflow-x: auto; }
 }

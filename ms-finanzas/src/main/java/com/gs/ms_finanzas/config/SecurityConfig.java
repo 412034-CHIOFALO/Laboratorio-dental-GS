@@ -63,6 +63,10 @@ public class SecurityConfig {
                 // Registrar cobro legacy — solo ADMIN (operación financiera definitiva)
                 .requestMatchers(HttpMethod.PATCH, "/api/finanzas/comprobantes/*/cobrar")
                     .hasRole("ADMIN")
+                // Sincronizar monto tras corregir el precio de un pedido entregado —
+                // mismos roles que emitir el comprobante (ADMIN y ADMINISTRATIVO editan pedidos)
+                .requestMatchers(HttpMethod.PATCH, "/api/finanzas/comprobantes/pedido/*/monto")
+                    .hasAnyRole("ADMIN", "ADMINISTRATIVO")
                 // Pagos a cuenta corriente del odontólogo — ADMIN y ADMINISTRATIVO
                 .requestMatchers(HttpMethod.POST, "/api/finanzas/odontologos/*/pagos")
                     .hasAnyRole("ADMIN", "ADMINISTRATIVO")

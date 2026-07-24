@@ -1,5 +1,6 @@
 package com.gs.ms_pedidos.client;
 
+import com.gs.ms_pedidos.client.dto.ActualizarMontoRequestDTO;
 import com.gs.ms_pedidos.client.dto.ComprobanteRequestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,12 @@ public class FinanzasClientFallback implements FinanzasClient {
     public Object emitirComprobante(ComprobanteRequestDTO request) {
         log.warn("[CB] ms-finanzas no disponible. No se generó el comprobante del pedido {}.",
                 request.nroPedido());
+        throw new RuntimeException("ms-finanzas no disponible (circuit breaker abierto)");
+    }
+
+    @Override
+    public void actualizarMontoComprobante(Long pedidoId, ActualizarMontoRequestDTO request) {
+        log.warn("[CB] ms-finanzas no disponible. No se sincronizó el monto del pedido {}.", pedidoId);
         throw new RuntimeException("ms-finanzas no disponible (circuit breaker abierto)");
     }
 }

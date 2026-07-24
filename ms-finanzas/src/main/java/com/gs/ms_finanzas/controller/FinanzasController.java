@@ -122,6 +122,28 @@ public class FinanzasController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.emitir(request));
     }
 
+    @Operation(summary = "Sincroniza el monto del comprobante de un pedido",
+               description = "Llamado por ms-pedidos cuando se corrige el precio de un pedido ya entregado. " +
+                             "Si el pedido todavía no tiene comprobante, no hace nada.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "204", description = "Monto sincronizado (o nada que sincronizar)"),
+        @ApiResponse(responseCode = "422", description = "El nuevo monto es menor a lo ya cobrado"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    @PatchMapping("/comprobantes/pedido/{pedidoId}/monto")
+    public ResponseEntity<Void> actualizarMontoPorPedido(
+            @Parameter(description = "ID del pedido en ms-pedidos", required = true)
+            @PathVariable @Positive Long pedidoId,
+            @Valid @RequestBody ActualizarMontoRequest request) {
+        service.actualizarMontoPorPedido(pedidoId, request.monto());
+        return ResponseEntity.noContent().build();
+    }
+
+    public record ActualizarMontoRequest(
+        @jakarta.validation.constraints.NotNull @jakarta.validation.constraints.Positive
+        java.math.BigDecimal monto
+    ) {}
+
     @Operation(summary = "Marca un comprobante como cobrado",
                description = "Actualiza el estado del comprobante de PENDIENTE a COBRADO y registra la fecha de cobro.")
     @ApiResponses({

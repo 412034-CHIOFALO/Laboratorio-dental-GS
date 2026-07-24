@@ -252,29 +252,31 @@
 
   <!-- ── GALERÍA DE TRABAJOS ── -->
   <section class="trabajos" id="trabajos">
-    <div class="section-header">
-      <span class="section-tag">Nuestros trabajos</span>
-      <h2>Cada pieza, hecha a mano con detalle</h2>
-      <p>Una muestra de lo que fabricamos a diario en el laboratorio.</p>
-    </div>
+    <div class="trabajos-split">
+      <div class="gallery-grid">
+        @for (item of galeria; track item.archivo) {
+          <div class="gallery-item"
+               [class.gallery-item--tall]="item.layout === 'tall'"
+               [class.gallery-item--wide]="item.layout === 'wide'">
+            @if (item.tipo === 'video') {
+              <video [src]="'instagram/' + item.archivo" [attr.aria-label]="item.alt"
+                     autoplay muted controls loop playsinline preload="metadata"></video>
+              <div class="gallery-caption">{{ item.caption }}</div>
+            } @else {
+              <img [src]="'instagram/' + item.archivo" [alt]="item.alt" loading="lazy">
+              <div class="gallery-overlay">
+                <span>{{ item.caption }}</span>
+              </div>
+            }
+          </div>
+        }
+      </div>
 
-    <div class="gallery-grid">
-      @for (item of galeria; track item.archivo) {
-        <div class="gallery-item"
-             [class.gallery-item--tall]="item.layout === 'tall'"
-             [class.gallery-item--wide]="item.layout === 'wide'">
-          @if (item.tipo === 'video') {
-            <video [src]="'instagram/' + item.archivo" [attr.aria-label]="item.alt"
-                   autoplay muted controls loop playsinline preload="metadata"></video>
-            <div class="gallery-caption">{{ item.caption }}</div>
-          } @else {
-            <img [src]="'instagram/' + item.archivo" [alt]="item.alt" loading="lazy">
-            <div class="gallery-overlay">
-              <span>{{ item.caption }}</span>
-            </div>
-          }
-        </div>
-      }
+      <div class="section-header">
+        <span class="section-tag">Nuestros trabajos</span>
+        <h2>Cada pieza, hecha a mano con detalle</h2>
+        <p>Una muestra de lo que fabricamos a diario en el laboratorio.</p>
+      </div>
     </div>
 
     <div class="gallery-cta">

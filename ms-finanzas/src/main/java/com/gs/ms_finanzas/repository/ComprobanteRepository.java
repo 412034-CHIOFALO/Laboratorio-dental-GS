@@ -8,9 +8,13 @@ import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> {
+
+    /** Usado para sincronizar el monto del comprobante si se corrige el precio del pedido ya entregado. */
+    Optional<Comprobante> findByPedidoId(Long pedidoId);
 
     List<Comprobante> findByOdontologoId(Long odontologoId);
 
