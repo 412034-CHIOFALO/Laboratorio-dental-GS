@@ -15,6 +15,9 @@ public interface MaterialRepository extends JpaRepository<Material, Long> {
 
     List<Material> findByCategoriaAndActivoTrue(CategoriaMaterial categoria);
 
+    /** Usado por el seed inicial para no duplicar materiales ya cargados. */
+    boolean existsByNombreIgnoreCase(String nombre);
+
     /** Materiales cuyo stock actual es menor o igual al mínimo. */
     @Query("SELECT m FROM Material m WHERE m.activo = true AND m.stockActual <= m.stockMinimo")
     List<Material> findBajoStock();
