@@ -251,22 +251,37 @@ function limpiarLocksDeSesionColgados() {
 }
 limpiarLocksDeSesionColgados();
 
-// Habíamos fijado una versión concreta de WhatsApp Web (webVersion +
-// webVersionCache) para no depender de que WhatsApp cambie su frontend de un
-// día para el otro. Se sacó el 2026-07-24: se cumplió el riesgo que ya estaba
-// documentado acá mismo — la versión pinneada quedó tan vieja que WhatsApp
-// empezó a redirigir/recargar la página en medio de la inicialización,
-// tirando "ProtocolError: Execution context was destroyed" y el bot ni
-// siquiera llegaba a mostrar el QR. Volvemos al comportamiento por defecto
-// de whatsapp-web.js: pide siempre la versión web más nueva en cada arranque.
+// Fijamos la versión de WhatsApp Web a la MISMA contra la que fue probada la
+// versión instalada de whatsapp-web.js (ver node_modules/whatsapp-web.js/
+// src/util/Constants.js → DefaultOptions.webVersion). Si no la fijamos, el bot
+// carga la página VIVA de web.whatsapp.com, que WhatsApp actualiza seguido; en
+// cuanto sirven un frontend más nuevo que el que la librería entiende, cambia
+// la forma interna del "Store" y todo lo que lo lee vía Puppeteer —getChats()
+// y downloadMedia()— empieza a tirar "Execution context" y el bot recibe los
+// comprobantes pero NO puede leer el monto ni descargar la foto/PDF.
 //
-// Si en el futuro se vuelve a pinnear una versión, hay que mantenerla
-// actualizada (recapturar wa-web-pinned/ de una sesión real reciente) en vez
-// de dejarla fija para siempre — si no, este mismo problema vuelve a pasar.
+// El pin anterior fallaba por dos motivos que acá se corrigen:
+//   1. Apuntaba a 2.3000.1040944432, MÁS NUEVA que la que soporta la librería
+//      (por eso igual había mismatch). Ahora usamos exactamente la de la
+//      librería: quedan sincronizadas.
+//   2. Cacheaba un HTML local (wa-web-pinned/, 565 KB versionado a mano) que se
+//      desincronizaba. Ahora se baja congelado del repo de la comunidad
+//      (wppconnect/wa-version) — la misma fuente que usa la librería por
+//      defecto. Requiere salida a raw.githubusercontent.com (la hay).
+//
+// Al subir de versión whatsapp-web.js en el futuro, actualizar este número al
+// nuevo DefaultOptions.webVersion de la librería (o borrar las dos líneas para
+// volver al default local, aceptando el riesgo de mismatch).
+const WA_WEB_VERSION = '2.3000.1017054665';
 
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
+  webVersion: WA_WEB_VERSION,
+  webVersionCache: {
+    type: 'remote',
+    remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/{version}.html',
+  },
   puppeteer: {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
