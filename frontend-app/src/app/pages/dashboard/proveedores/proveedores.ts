@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   ProveedoresService, Proveedor, DeudaProveedor, ProveedorRequest, DeudaProveedorRequest, CajaPagoProveedor,
 } from '../../../services/proveedores.service';
@@ -15,7 +16,7 @@ import { iniciarPolling } from '../../../shared/poll.util';
 @Component({
   selector: 'app-proveedores',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './proveedores.html',
   styleUrl: './proveedores.css',
 })

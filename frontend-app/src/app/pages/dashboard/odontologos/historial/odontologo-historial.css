@@ -24,8 +24,17 @@
   color: var(--muted, #6b7280);
   text-decoration: none;
   width: fit-content;
-  padding: 0.4rem 0;
   transition: color 0.15s;
+  /* Fija el link de "volver" al scrollear: en Finanzas el contenido es largo
+     y sin esto quedaba imposible volver a Odontólogos sin scrollear hasta
+     arriba del todo. Va arriba de .tabs (que también es sticky) — ver el
+     "top" de .tabs más abajo, que le deja lugar debajo de este. */
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  background: var(--bg);
+  margin: 0 -1.5rem;
+  padding: 0.4rem 1.5rem;
 }
 .back-link:hover { color: var(--text); }
 
@@ -157,9 +166,10 @@
      con saldo + trabajos activos + historial) es largo, y sin esto al bajar
      se perdía el menú y no había forma de cambiar de pestaña sin volver arriba.
      El fondo + el sangrado lateral tapan el contenido que pasa por debajo
-     (el sangrado compensa el padding de .historial-page). */
+     (el sangrado compensa el padding de .historial-page). top offset = alto
+     aproximado de .back-link (arriba, también sticky), para no superponerse. */
   position: sticky;
-  top: 0;
+  top: 2.4rem;
   z-index: 5;
   background: var(--bg);
   margin: 0 -1.5rem;
@@ -401,7 +411,8 @@
 
 @media (max-width: 768px) {
   .historial-page { padding: 1rem; }
-  /* El sangrado de la barra fija tiene que seguir al padding de la página. */
+  /* El sangrado de las barras fijas tiene que seguir al padding de la página. */
+  .back-link { margin: 0 -1rem; padding: 0.4rem 1rem; }
   .tabs { margin: 0 -1rem; padding: 0 1rem 1px; }
   .hero { padding: 1rem; }
   .hero-avatar { width: 52px; height: 52px; font-size: 1.1rem; }
