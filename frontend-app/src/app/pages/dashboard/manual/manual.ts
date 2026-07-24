@@ -234,6 +234,21 @@ export class ManualComponent {
 
     // ─────────────────── SOLO ADMINISTRATIVO Y ADMIN ───────────────────
     {
+      id: 'finanzas-resumen',
+      titulo: 'Finanzas → Resumen',
+      grupo: 'Solo Administrativo y Admin',
+      intro: 'La pantalla con la que arranca Finanzas: un pantallazo de las 4 áreas (Cajas, Cuentas corrientes, Proveedores, Sueldos) sin tener que entrar a cada una.',
+      queVes: [
+        'Tarjeta Cajas: el total entre las 3 cajas, con el desglose Física/Bancaria.',
+        'Tarjeta Cuentas corrientes: cuántos odontólogos están morosos y los 2 con más deuda, con acceso directo a "Ver todas".',
+        'Tarjeta Proveedores: la deuda total con proveedores de materiales.',
+        'Tarjeta Sueldos: el total de sueldos devengados pendientes de pago del período actual.',
+        'Un cuadro de "Alertas activas" abajo (por ejemplo, sueldos devengados a pagar) si hay algo que requiere atención.',
+      ],
+      queHaces: ['Tocás cualquiera de los 4 links ("Ver movimientos", "Ver todas", "Ver proveedores", "Ver sueldos") para ir directo a esa pestaña con el detalle completo.'],
+      captura: { id: 'cap-finanzas', descripcion: 'La pantalla de Resumen de Finanzas con las 4 tarjetas (Cajas, Cuentas corrientes, Proveedores, Sueldos) y el cuadro de alertas activas.' },
+    },
+    {
       id: 'finanzas-cajas',
       titulo: 'Finanzas → Cajas',
       grupo: 'Solo Administrativo y Admin',
