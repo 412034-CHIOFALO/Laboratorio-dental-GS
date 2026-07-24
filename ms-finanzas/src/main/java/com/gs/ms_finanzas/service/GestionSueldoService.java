@@ -93,10 +93,24 @@ public class GestionSueldoService implements IGestionSueldoService {
                     .divide(BigDecimal.valueOf(c.getFrecuencia().diasDeCiclo()), 2, java.math.RoundingMode.HALF_UP);
             BigDecimal devengo = tarifaDiaria.multiply(BigDecimal.valueOf(dias));
 
+            // El devengo nuevo primero paga el adelanto pendiente (saldoSobrante,
+            // de un ManejoSobrante.DESCONTAR_PROXIMO anterior) antes de sumar a lo
+            // que se le debe. Sin esto saldoSobrante se acumulaba para siempre sin
+            // efecto: el empleado seguía "debiéndosele" el total devengado como si
+            // nunca hubiera cobrado el adelanto.
+            BigDecimal sobrante = c.getSaldoSobrante();
+            if (sobrante.signum() > 0) {
+                BigDecimal consumido = devengo.min(sobrante);
+                c.setSaldoSobrante(sobrante.subtract(consumido));
+                devengo = devengo.subtract(consumido);
+                log.info("[Devengo] {} — ${} del devengo de hoy se descontó del adelanto pendiente (queda ${} de adelanto)",
+                        c.getEmpleadoNombre(), consumido, c.getSaldoSobrante());
+            }
+
             c.setSaldoDevengado(c.getSaldoDevengado().add(devengo));
             c.setUltimoDevengoCalculado(hoy);
             configRepo.save(c);
-            log.info("[Devengo] {} — +{} días × ${} = ${} (saldo devengado ahora: ${})",
+            log.info("[Devengo] {} — +{} días × ${} = ${} devengado neto (saldo devengado ahora: ${})",
                     c.getEmpleadoNombre(), dias, tarifaDiaria, devengo, c.getSaldoDevengado());
         }
     }
