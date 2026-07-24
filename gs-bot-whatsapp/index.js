@@ -251,23 +251,22 @@ function limpiarLocksDeSesionColgados() {
 }
 limpiarLocksDeSesionColgados();
 
-// Sin fijar webVersion, whatsapp-web.js siempre pide a WhatsApp la versión web
-// MÁS NUEVA en cada arranque — así que cualquier cambio que WhatsApp haga en su
-// frontend (algo que pasa seguido y no controlamos) nos rompe de un día para el
-// otro. Fijamos una versión concreta que sabemos que funcionó en este mismo bot
-// antes (el archivo vive en wa-web-pinned/, cacheado de una sesión real previa).
+// Habíamos fijado una versión concreta de WhatsApp Web (webVersion +
+// webVersionCache) para no depender de que WhatsApp cambie su frontend de un
+// día para el otro. Se sacó el 2026-07-24: se cumplió el riesgo que ya estaba
+// documentado acá mismo — la versión pinneada quedó tan vieja que WhatsApp
+// empezó a redirigir/recargar la página en medio de la inicialización,
+// tirando "ProtocolError: Execution context was destroyed" y el bot ni
+// siquiera llegaba a mostrar el QR. Volvemos al comportamiento por defecto
+// de whatsapp-web.js: pide siempre la versión web más nueva en cada arranque.
 //
-// Riesgo conocido: WhatsApp puede eventualmente dejar de aceptar conexiones con
-// una versión demasiado vieja y forzar la actualización — si en algún momento
-// el bot no logra ni siquiera mostrar el QR, probá sacar estas dos líneas
-// (vuelve al comportamiento anterior: siempre la última versión).
-const WA_WEB_VERSION_PINNEADA = '2.3000.1040944432';
+// Si en el futuro se vuelve a pinnear una versión, hay que mantenerla
+// actualizada (recapturar wa-web-pinned/ de una sesión real reciente) en vez
+// de dejarla fija para siempre — si no, este mismo problema vuelve a pasar.
 
 // ─── Cliente de WhatsApp ─────────────────────────────────────────────────────
 const client = new Client({
   authStrategy: new LocalAuth(),
-  webVersion: WA_WEB_VERSION_PINNEADA,
-  webVersionCache: { type: 'local', path: './wa-web-pinned' },
   puppeteer: {
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -1252,8 +1251,28 @@ function normalizarTelefono(telefono) {
   return '54' + digitos + '@c.us';
 }
 
+// Puppeteer a veces revienta con errores de protocolo (contexto de ejecución
+// destruido porque la página de WhatsApp Web se recargó/redirigió a mitad de
+// la inicialización) que no siempre se pueden atrapar con un try/catch
+// alrededor de client.initialize() — quedan como excepción no manejada y
+// tiran abajo todo el proceso de Node de forma abrupta. Con esto al menos
+// queda un log claro de qué pasó antes de salir; el "restart: unless-stopped"
+// del docker-compose se encarga de levantar el contenedor de nuevo, con un
+// Chromium totalmente limpio.
+process.on('uncaughtException', (err) => {
+  console.error('💥 Excepción no manejada — el proceso va a reiniciar (lo levanta Docker):', err && err.stack || err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('💥 Promesa rechazada sin manejar — el proceso va a reiniciar (lo levanta Docker):', err && err.stack || err);
+  process.exit(1);
+});
+
 console.log('🤖 Iniciando bot de WhatsApp GS...');
-client.initialize();
+client.initialize().catch((e) => {
+  console.error('❌ No se pudo inicializar el cliente de WhatsApp:', e && e.stack || e);
+  process.exit(1);
+});
 
 // El scraper de mails (pedidos recibidos por email) corre como servicio Docker
 // aparte (gs-mail-scraper, ver Dockerfile.mail-scraper) — así un cuelgue de

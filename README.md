@@ -253,8 +253,7 @@ TRABAJO PRACTICO INTEGRADOR/
 │   ├── index.js                    Bot: lee comprobantes del grupo, responde por WhatsApp
 │   ├── mail-scraper.js             Scraper de mails: corre como servicio Docker aparte
 │   ├── Dockerfile                  Imagen del bot (con Chromium/Puppeteer)
-│   ├── Dockerfile.mail-scraper     Imagen del scraper (sin Chromium, mucho más liviana)
-│   └── wa-web-pinned/              Versión de WhatsApp Web fijada (evita romperse con cada update de WA)
+│   └── Dockerfile.mail-scraper     Imagen del scraper (sin Chromium, mucho más liviana)
 │
 ├── docker-compose.yml        Stack completo (14 containers: DB, MinIO, ms, frontend, bot, scraper)
 ├── start-dev.ps1             Arranque local sin Docker (H2, keystore auto)
