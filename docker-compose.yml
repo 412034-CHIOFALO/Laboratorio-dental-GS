@@ -124,6 +124,9 @@ services:
     container_name: gs-discovery
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
     ports:
       - "127.0.0.1:8761:8761"
     healthcheck:
@@ -144,6 +147,9 @@ services:
     container_name: gs-auth
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_PORT: 3306
       DB_NAME: gs_auth
@@ -186,6 +192,9 @@ services:
     container_name: gs-catalogo
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_catalogo
       DB_USERNAME: root
@@ -212,6 +221,9 @@ services:
     container_name: gs-pedidos
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_pedidos
       DB_USERNAME: root
@@ -249,6 +261,9 @@ services:
     container_name: gs-finanzas
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_finanzas
       DB_USERNAME: root
@@ -284,6 +299,9 @@ services:
     container_name: gs-stock
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       DB_HOST: mysql
       DB_NAME: gs_stock
       DB_USERNAME: root
@@ -315,6 +333,9 @@ services:
     container_name: gs-gateway
     environment:
       SPRING_PROFILES_ACTIVE: prod
+      # Sin esto la JVM corre en UTC (default de la imagen) y LocalDateTime.now()
+      # guarda 3 horas adelantadas: un pago de las 11:00 quedaba registrado 13:58.
+      TZ: America/Argentina/Cordoba
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
       ALLOWED_ORIGINS: http://localhost,http://localhost:80,http://localhost:4200
@@ -363,6 +384,7 @@ services:
       dockerfile: Dockerfile
     container_name: gs-bot
     environment:
+      TZ: America/Argentina/Cordoba
       BACKEND_URL: http://api-gateway:8080
       BACKEND_ENABLED: ${BOT_BACKEND_ENABLED:-true}
       BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
@@ -399,6 +421,7 @@ services:
       dockerfile: Dockerfile.mail-scraper
     container_name: gs-mail-scraper
     environment:
+      TZ: America/Argentina/Cordoba
       BACKEND_URL: http://api-gateway:8080
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
