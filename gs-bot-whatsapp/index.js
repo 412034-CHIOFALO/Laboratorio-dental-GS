@@ -163,6 +163,15 @@ function guardarGruposConocidos() {
 
 let gruposConocidos = cargarGruposConocidos();
 
+// El stack de Puppeteer del bug de getChats()/getChatById() (ver resolverChat
+// más abajo) es larguísimo y, mientras whatsapp-web.js no lo parchee, sale
+// SIEMPRE que rompe — sin esto inundaba la consola con el mismo stack
+// repetido en cada reconciliación y en cada mensaje de un grupo no resuelto.
+// Lo mostramos completo una vez (para poder diagnosticarlo si hace falta) y
+// después solo un aviso corto, por JID en el caso de resolverChat().
+let getChatsStackYaMostrado = false;
+const jidsSinResolverYaAvisados = new Set();
+
 /**
  * Resuelve el chat de un mensaje SIN pasar por `msg.getChat()`/`client.getChatById()`
  * salvo que no quede otra — esas dos llamadas evalúan código dentro del contexto
@@ -196,7 +205,13 @@ async function resolverChat(msg) {
     }
     return chat;
   } catch (e) {
-    console.warn(`[Bot] No se pudo resolver el grupo del mensaje (jid: ${jid}) — se reintenta en la próxima reconciliación. Si este jid corresponde a "Comprobantes Transferencias" o "Comprobantes Efectivo", agregalo a GRUPOS_JIDS en el .env para no depender más de esta llamada:`, e.stack || e);
+    const aviso = `[Bot] No se pudo resolver el grupo del mensaje (jid: ${jid}) — se reintenta en la próxima reconciliación. Si este jid corresponde a "Comprobantes Transferencias" o "Comprobantes Efectivo", agregalo a GRUPOS_JIDS en el .env para no depender más de esta llamada.`;
+    if (jidsSinResolverYaAvisados.has(jid)) {
+      console.warn(aviso);
+    } else {
+      jidsSinResolverYaAvisados.add(jid);
+      console.warn(aviso + ' (stack completo, solo se muestra una vez por jid):', e.stack || e);
+    }
     return null;
   }
 }
@@ -341,7 +356,13 @@ async function reconciliarChats(limitePorGrupo) {
       // grupos que ya conocemos de reconciliaciones anteriores (persistidos
       // en chatsConBaseline) — es una llamada más chica y no siempre falla
       // aunque getChats() sí.
-      console.warn('[Reconciliación] getChats() falló (ver stack) — reintentando por ID con los grupos ya conocidos:', e.stack || e);
+      if (getChatsStackYaMostrado) {
+        console.warn('[Reconciliación] getChats() volvió a fallar (mismo bug ya reportado) — reintentando por ID con los grupos ya conocidos.');
+      } else {
+        getChatsStackYaMostrado = true;
+        console.warn('[Reconciliación] getChats() falló (stack completo, solo se muestra una vez por sesión) — reintentando por ID con los grupos ya conocidos:', e.stack || e);
+      }
+      e._yaLogueado = true;
       const idsConocidos = [...chatsConBaseline];
       const resultados = await Promise.all(
         idsConocidos.map(id => client.getChatById(id).catch(() => null))
@@ -401,7 +422,13 @@ async function reconciliarChats(limitePorGrupo) {
     // e.message a veces viene truncado/vacío en errores que vienen de adentro
     // del contexto de Puppeteer (whatsapp-web.js) — logueamos el objeto entero
     // para poder diagnosticar la próxima vez que pase (pasa siempre al conectar).
-    console.error('[Reconciliación] Error general:', e && e.stack || e);
+    // Si ya se logueó el stack completo más arriba (getChats() sin fallback
+    // posible), no lo repetimos acá — es el mismo error re-lanzado.
+    if (e && e._yaLogueado) {
+      console.error('[Reconciliación] Error general: getChats() falló y no hay grupos conocidos como fallback (ver detalle arriba).');
+    } else {
+      console.error('[Reconciliación] Error general:', e && e.stack || e);
+    }
   }
   console.log(`🔄 Reconciliación completa: ${chatsRevisados} grupo(s), ${mensajesRevisados} mensaje(s) revisado(s).\n`);
   return { chats: chatsRevisados, mensajes: mensajesRevisados };
