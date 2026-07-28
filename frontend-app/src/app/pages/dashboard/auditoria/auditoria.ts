@@ -5,6 +5,7 @@ import { AuthService } from '../../../services/auth';
 import { environment } from '../../../../environments/environment';
 import { clonar, MOCK_AUDIT, MockAuditEvent, TipoAudit } from '../../../services/mock-data';
 import { iniciarPolling } from '../../../shared/poll.util';
+import { TableSort } from '../../../shared/table-sort';
 
 @Component({
   selector: 'app-auditoria',
@@ -18,6 +19,12 @@ export class AuditoriaComponent implements OnInit {
 
   events: MockAuditEvent[] = [];
   filtros: MockAuditEvent[] = [];
+
+  readonly sort = new TableSort<MockAuditEvent>('timestamp', 'desc');
+  /** Lista filtrada Y ordenada para la tabla. */
+  get filtrosVista(): MockAuditEvent[] {
+    return this.sort.aplicar(this.filtros);
+  }
   busqueda   = '';
   tipoFiltro: TipoAudit | '' = '';
   loading    = false;

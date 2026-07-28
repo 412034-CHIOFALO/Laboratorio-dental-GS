@@ -39,16 +39,16 @@
     <table class="audit-table">
       <thead>
         <tr>
-          <th>Hora</th>
-          <th>Tipo</th>
-          <th>Usuario</th>
-          <th>Acción</th>
-          <th>Entidad</th>
+          <th class="sortable" (click)="sort.toggle('timestamp')">Hora <span class="sort-ico">{{ sort.icono('timestamp') }}</span></th>
+          <th class="sortable" (click)="sort.toggle('tipo')">Tipo <span class="sort-ico">{{ sort.icono('tipo') }}</span></th>
+          <th class="sortable" (click)="sort.toggle('usuario')">Usuario <span class="sort-ico">{{ sort.icono('usuario') }}</span></th>
+          <th class="sortable" (click)="sort.toggle('accion')">Acción <span class="sort-ico">{{ sort.icono('accion') }}</span></th>
+          <th class="sortable" (click)="sort.toggle('entidad')">Entidad <span class="sort-ico">{{ sort.icono('entidad') }}</span></th>
           <th>Detalle</th>
         </tr>
       </thead>
       <tbody>
-        @for (e of filtros; track e.id) {
+        @for (e of filtrosVista; track e.id) {
           <tr>
             <td class="ts-cell">{{ formatTs(e.timestamp) }}</td>
             <td>

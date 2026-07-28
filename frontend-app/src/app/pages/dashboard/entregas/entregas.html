@@ -116,16 +116,16 @@
         <table class="hist-table">
           <thead>
             <tr>
-              <th>Pedido</th>
-              <th>Trabajo</th>
-              <th>Paciente</th>
-              <th>Odontólogo</th>
-              <th>Recibió</th>
-              <th class="th-fecha">Entregado</th>
+              <th class="sortable" (click)="sort.toggle('nroPedido')">Pedido <span class="sort-ico">{{ sort.icono('nroPedido') }}</span></th>
+              <th class="sortable" (click)="sort.toggle('trabajo')">Trabajo <span class="sort-ico">{{ sort.icono('trabajo') }}</span></th>
+              <th class="sortable" (click)="sort.toggle('paciente')">Paciente <span class="sort-ico">{{ sort.icono('paciente') }}</span></th>
+              <th class="sortable" (click)="sort.toggle('odontologoNombre')">Odontólogo <span class="sort-ico">{{ sort.icono('odontologoNombre') }}</span></th>
+              <th class="sortable" (click)="sort.toggle('retiradoPor')">Recibió <span class="sort-ico">{{ sort.icono('retiradoPor') }}</span></th>
+              <th class="th-fecha sortable" (click)="sort.toggle('fechaEntregaReal')">Entregado <span class="sort-ico">{{ sort.icono('fechaEntregaReal') }}</span></th>
             </tr>
           </thead>
           <tbody>
-            @for (p of historial; track p.id) {
+            @for (p of historialVista; track p.id) {
               <tr>
                 <td><button class="nro-pedido nro-pedido-link" (click)="abrirDetalle(p.id)">{{ p.nroPedido }}</button></td>
                 <td>{{ p.trabajo }}</td>

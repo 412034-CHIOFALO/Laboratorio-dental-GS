@@ -8,6 +8,7 @@ import { AuthService } from '../../../services/auth';
 import { NotificationService } from '../../../services/notification.service';
 import { environment } from '../../../../environments/environment';
 import { MOCK_USUARIOS, MockUsuario, clonar } from '../../../services/mock-data';
+import { TableSort } from '../../../shared/table-sort';
 
 /** Cada cuánto se refresca la lista en segundo plano (ms). Ver nota en ngOnInit. */
 const POLL_MS = 6000;
@@ -26,6 +27,17 @@ export class UsuariosComponent implements OnInit, OnDestroy {
   usuarios: MockUsuario[] = [];
   loading = false;
   error   = '';
+
+  readonly sort = new TableSort<MockUsuario>();
+  /** Lista ordenada para la tabla (no muta this.usuarios). */
+  get usuariosVista(): MockUsuario[] {
+    return this.sort.aplicar(this.usuarios, (u, c) => {
+      const x = u as unknown as Record<string, unknown>;
+      if (c === 'nombre')  return `${x['nombre'] ?? ''} ${x['apellido'] ?? ''}`.trim();
+      if (c === 'estado')  return x['enabled'] ? 1 : 0;
+      return x[c];
+    });
+  }
 
   // ── Modal crear usuario ──────────────────────────────────────
   showModal  = false;

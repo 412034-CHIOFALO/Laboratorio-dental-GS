@@ -35,16 +35,16 @@
       <table class="tabla">
         <thead>
           <tr>
-            <th>Usuario</th>
-            <th>Nombre</th>
-            <th>Rol</th>
-            <th>Teléfono</th>
-            <th>Estado</th>
+            <th class="sortable" (click)="sort.toggle('username')">Usuario <span class="sort-ico">{{ sort.icono('username') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('nombre')">Nombre <span class="sort-ico">{{ sort.icono('nombre') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('rol')">Rol <span class="sort-ico">{{ sort.icono('rol') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('telefono')">Teléfono <span class="sort-ico">{{ sort.icono('telefono') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('estado')">Estado <span class="sort-ico">{{ sort.icono('estado') }}</span></th>
             <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          @for (u of usuarios; track u.id) {
+          @for (u of usuariosVista; track u.id) {
             <tr>
               <td class="td-username">
                 <div class="user-chip">

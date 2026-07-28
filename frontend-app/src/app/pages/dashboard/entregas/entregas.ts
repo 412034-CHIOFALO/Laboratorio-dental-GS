@@ -6,6 +6,7 @@ import { NotificationService } from '../../../services/notification.service';
 import { fechaLocal, hoyComoLocalDate } from '../../../services/date-utils';
 import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
 import { iniciarPolling } from '../../../shared/poll.util';
+import { TableSort } from '../../../shared/table-sort';
 
 type Tab = 'PENDIENTES' | 'HISTORIAL';
 
@@ -23,6 +24,12 @@ export class EntregasComponent implements OnInit {
   historial: PedidoResponse[] = [];
   loading = false;
   error = '';
+
+  readonly sort = new TableSort<PedidoResponse>('fechaEntregaReal', 'desc');
+  /** Historial ordenado para la tabla. */
+  get historialVista(): PedidoResponse[] {
+    return this.sort.aplicar(this.historial);
+  }
 
   // Modal de detalle del pedido (reusable, autocontenido)
   detalleAbiertoId: number | null = null;
