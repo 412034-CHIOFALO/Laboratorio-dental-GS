@@ -66,18 +66,18 @@
       <table class="ped-table">
         <thead>
           <tr>
-            <th>Pedido</th>
-            <th>Estado</th>
-            <th>Paciente</th>
-            <th>Odontólogo</th>
-            <th>Trabajo</th>
-            <th class="th-fecha">Entrega</th>
-            <th class="th-precio">Precio</th>
+            <th class="sortable" (click)="sort.toggle('nroPedido')">Pedido <span class="sort-ico">{{ sort.icono('nroPedido') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('estado')">Estado <span class="sort-ico">{{ sort.icono('estado') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('paciente')">Paciente <span class="sort-ico">{{ sort.icono('paciente') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('odontologoNombre')">Odontólogo <span class="sort-ico">{{ sort.icono('odontologoNombre') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('trabajo')">Trabajo <span class="sort-ico">{{ sort.icono('trabajo') }}</span></th>
+            <th class="th-fecha sortable" (click)="sort.toggle('fechaEntrega')">Entrega <span class="sort-ico">{{ sort.icono('fechaEntrega') }}</span></th>
+            <th class="th-precio sortable" (click)="sort.toggle('precioAcordado')">Precio <span class="sort-ico">{{ sort.icono('precioAcordado') }}</span></th>
             <th class="th-acciones">Acciones</th>
           </tr>
         </thead>
         <tbody>
-          @for (p of filtrados; track p.id) {
+          @for (p of filtradosVista; track p.id) {
             <tr [class.urgente]="p.prioridad === 'URGENTE'" [class.atrasado]="estaAtrasado(p)">
               <td class="celda-nro">
                 <span class="nro-pedido">{{ p.nroPedido }}</span>

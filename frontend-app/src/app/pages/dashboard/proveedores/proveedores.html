@@ -36,10 +36,16 @@
     <div class="tabla-wrap">
       <table class="tabla">
         <thead>
-          <tr><th class="chev"></th><th>Proveedor</th><th>CUIT</th><th>Teléfono</th><th class="r">Deuda pendiente</th></tr>
+          <tr>
+            <th class="chev"></th>
+            <th class="sortable" (click)="sort.toggle('nombre')">Proveedor <span class="sort-ico">{{ sort.icono('nombre') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('cuit')">CUIT <span class="sort-ico">{{ sort.icono('cuit') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('telefono')">Teléfono <span class="sort-ico">{{ sort.icono('telefono') }}</span></th>
+            <th class="r sortable" (click)="sort.toggle('deudaPendiente')">Deuda pendiente <span class="sort-ico">{{ sort.icono('deudaPendiente') }}</span></th>
+          </tr>
         </thead>
         <tbody>
-          @for (p of proveedores(); track p.id) {
+          @for (p of proveedoresVista(); track p.id) {
             <tr class="fila" (click)="toggle(p)">
               <td class="chev">{{ expandido() === p.id ? '▾' : '▸' }}</td>
               <td>

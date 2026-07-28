@@ -11,6 +11,7 @@ import { EscaneosService } from '../../../services/escaneos.service';
 import { fechaLocal, comoLocalDate } from '../../../services/date-utils';
 import { PedidoDetalleModalComponent } from './pedido-detalle-modal/pedido-detalle-modal.component';
 import { iniciarPolling } from '../../../shared/poll.util';
+import { TableSort } from '../../../shared/table-sort';
 
 type FiltroEstado = EstadoPedido | 'TODOS';
 
@@ -28,6 +29,12 @@ export class PedidosComponent implements OnInit {
   filtrados: PedidoResponse[] = [];
   loading = false;
   error = '';
+
+  readonly sort = new TableSort<PedidoResponse>();
+  /** Lista filtrada Y ordenada para la tabla. */
+  get filtradosVista(): PedidoResponse[] {
+    return this.sort.aplicar(this.filtrados);
+  }
 
   // ── Filtros ──────────────────────────────────────────────────
   busqueda = '';

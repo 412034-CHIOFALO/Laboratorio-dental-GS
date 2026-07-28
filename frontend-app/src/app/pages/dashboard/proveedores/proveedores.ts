@@ -2,6 +2,7 @@ import { Component, OnInit, inject, signal, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { TableSort } from '../../../shared/table-sort';
 import {
   ProveedoresService, Proveedor, DeudaProveedor, ProveedorRequest, DeudaProveedorRequest, CajaPagoProveedor,
 } from '../../../services/proveedores.service';
@@ -27,6 +28,12 @@ export class ProveedoresComponent implements OnInit {
 
   proveedores = signal<Proveedor[]>([]);
   cargando = signal(false);
+
+  readonly sort = new TableSort<Proveedor>();
+  /** Proveedores ordenados para la tabla. */
+  proveedoresVista(): Proveedor[] {
+    return this.sort.aplicar(this.proveedores());
+  }
 
   expandido = signal<number | null>(null);
   deudas = signal<DeudaProveedor[]>([]);
