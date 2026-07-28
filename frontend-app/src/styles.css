@@ -214,6 +214,16 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Dígitos tabulares en TODA celda de tabla y en los valores de dinero destacados:
+   así 100 y 1000 alinean columna por columna (cada dígito ocupa el mismo ancho).
+   Solo afecta a los números — el texto se ve igual. Combinado con el text-align:
+   right que ya tienen las columnas de plata, los montos quedan prolijos. */
+td, th,
+.caja-saldo, .stat-val, .big-val, .card-val, .efectivo-monto,
+.cc-saldo, .total-val, .card-num {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    SCROLLBAR
 ═══════════════════════════════════════════════════════════════════════════ */
