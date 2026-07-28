@@ -8,6 +8,7 @@ import {
 } from '../../../services/sueldos.service';
 import { BotEstadoService, EstadoBot } from '../../../services/bot-estado.service';
 import { NotificationService } from '../../../services/notification.service';
+import { TableSort } from '../../../shared/table-sort';
 
 /**
  * Historial del bot de WhatsApp + estado de conexión en vivo.
@@ -69,9 +70,12 @@ export class BotRegistrosComponent implements OnInit, OnDestroy {
 
   setFiltro(f: 'TODOS' | EstadoRegistroBot): void { this.filtroEstado.set(f); }
 
+  readonly sort = new TableSort<RegistroBot>('fechaHora', 'desc');
+
   filtrados(): RegistroBot[] {
     const f = this.filtroEstado();
-    return f === 'TODOS' ? this.registros() : this.registros().filter(r => r.estado === f);
+    const base = f === 'TODOS' ? this.registros() : this.registros().filter(r => r.estado === f);
+    return this.sort.aplicar(base);
   }
 
   contar(estado: EstadoRegistroBot): number {

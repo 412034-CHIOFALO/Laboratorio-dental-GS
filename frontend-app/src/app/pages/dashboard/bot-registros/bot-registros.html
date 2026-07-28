@@ -49,8 +49,15 @@
       <table class="tabla">
         <thead>
           <tr>
-            <th>Fecha</th><th>Estado</th><th>Tipo</th><th class="monto">Monto</th>
-            <th>Pagó</th><th>Recibió</th><th>N° op.</th><th>Grupo</th><th>Comp.</th>
+            <th class="sortable" (click)="sort.toggle('fechaHora')">Fecha <span class="sort-ico">{{ sort.icono('fechaHora') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('estado')">Estado <span class="sort-ico">{{ sort.icono('estado') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('tipoReceptor')">Tipo <span class="sort-ico">{{ sort.icono('tipoReceptor') }}</span></th>
+            <th class="monto sortable" (click)="sort.toggle('monto')">Monto <span class="sort-ico">{{ sort.icono('monto') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('emisor')">Pagó <span class="sort-ico">{{ sort.icono('emisor') }}</span></th>
+            <th class="sortable" (click)="sort.toggle('receptorNombre')">Recibió <span class="sort-ico">{{ sort.icono('receptorNombre') }}</span></th>
+            <th>N° op.</th>
+            <th class="sortable" (click)="sort.toggle('grupoOrigen')">Grupo <span class="sort-ico">{{ sort.icono('grupoOrigen') }}</span></th>
+            <th>Comp.</th>
           </tr>
         </thead>
         <tbody>

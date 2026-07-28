@@ -214,6 +214,23 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+/* Headers de tabla ordenables (ver shared/table-sort.ts). El ⇅ tenue invita a
+   clickear; la flecha llena marca la columna activa y su dirección. */
+th.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+th.sortable:hover { color: var(--gs-text, inherit); }
+.sort-ico {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.85em;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+th.sortable:hover .sort-ico { opacity: 0.9; }
+
 /* Dígitos tabulares en TODA celda de tabla y en los valores de dinero destacados:
    así 100 y 1000 alinean columna por columna (cada dígito ocupa el mismo ancho).
    Solo afecta a los números — el texto se ve igual. Combinado con el text-align:
