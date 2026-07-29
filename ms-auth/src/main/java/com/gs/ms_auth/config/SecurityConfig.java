@@ -100,6 +100,8 @@ public class SecurityConfig {
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
                 // Auditoría — exclusiva de ADMIN (ADMINISTRATIVO ve todo lo demás, esto no)
                 .requestMatchers("/api/auth/auditoria").hasRole("ADMIN")
+                // Backup manual (botón "hacer backup ahora") — exclusivo de ADMIN
+                .requestMatchers("/api/auth/backup/**").hasRole("ADMIN")
                 // Crear usuarios — exclusivo de ADMIN. Separación de poderes a propósito:
                 // quien crea la cuenta no puede ser quien la activa (ver /usuarios/{id}/aprobar
                 // y .../estado más abajo, exclusivos de ADMINISTRATIVO), así ninguno de los

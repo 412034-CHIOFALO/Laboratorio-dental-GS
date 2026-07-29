@@ -2,6 +2,7 @@ import { Component, OnInit, inject, DestroyRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { AuthService } from '../../../services/auth';
+import { NotificationService } from '../../../services/notification.service';
 import { environment } from '../../../../environments/environment';
 import { clonar, MOCK_AUDIT, MockAuditEvent, TipoAudit } from '../../../services/mock-data';
 import { iniciarPolling } from '../../../shared/poll.util';
@@ -43,7 +44,33 @@ export class AuditoriaComponent implements OnInit {
 
   private destroyRef = inject(DestroyRef);
 
+  private notif = inject(NotificationService);
+  backupCorriendo = false;
+
   constructor(private http: HttpClient, private authService: AuthService) {}
+
+  /** Dispara el backup a demanda (mismo backup que corre a las 3 AM). */
+  hacerBackup(): void {
+    if (this.backupCorriendo) return;
+    if (environment.useMocks) {
+      this.notif.info('En modo demo el backup no se ejecuta (no hay backend).');
+      return;
+    }
+    this.backupCorriendo = true;
+    this.http.post(`${this.gatewayUrl}/api/auth/backup/run`, {}, { headers: this.headers() }).subscribe({
+      next: () => {
+        this.backupCorriendo = false;
+        this.notif.exito('Backup iniciado. Puede tardar unos minutos; el resultado queda en el log del backup.', 'Backup en curso');
+        // El backup registra su propio evento en la bitácora al terminar — refrescamos.
+        setTimeout(() => this.cargar(true), 3000);
+      },
+      error: (e) => {
+        this.backupCorriendo = false;
+        if (e.status === 409) this.notif.alerta('Ya hay un backup en curso. Esperá a que termine.');
+        else this.notif.errorHttp(e, 'No se pudo iniciar el backup');
+      },
+    });
+  }
 
   ngOnInit(): void {
     this.cargar();

@@ -102,6 +102,9 @@ services:
     init: true   # crond como PID 1 sin esto tira "setpgid: Operation not permitted"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
+      # Key interna para el botón "hacer backup ahora" — la valida el mini-server
+      # de disparo; solo ms-auth la conoce (server-to-server, nunca el browser).
+      BACKUP_TRIGGER_KEY: ${GS_INTERNAL_API_KEY:-gs-internal-key-cambiar-en-prod}
     volumes:
       - minio_data:/minio_data:ro
       # Directorio, no el archivo directo: rclone reescribe su config al
@@ -163,6 +166,10 @@ services:
       GS_TECNICO_PASSWORD: ${GS_TECNICO_PASSWORD:-tecnico123}
       # Pass del usuario de servicio 'bot-pedidos' (debe coincidir con la del bot).
       GS_BOT_PEDIDOS_PASSWORD: ${GS_BOT_PEDIDOS_PASSWORD:-cambiar-en-produccion}
+      # Disparo del backup a demanda (botón de la UI): ms-auth llama al contenedor
+      # de backup con esta key. Misma key interna que valida el mini-server de backup.
+      BACKUP_URI: http://backup:3002
+      GS_INTERNAL_API_KEY: ${GS_INTERNAL_API_KEY:-gs-internal-key-cambiar-en-prod}
     ports:
       - "127.0.0.1:8081:8081"
     volumes:
