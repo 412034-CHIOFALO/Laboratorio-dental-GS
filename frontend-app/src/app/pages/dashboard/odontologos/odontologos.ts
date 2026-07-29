@@ -77,7 +77,10 @@ export class OdontologosComponent implements OnInit {
   private cargar(silencioso = false): void {
     if (silencioso && (this.showModal || this.confirmDesactivarId != null)) return;
     if (!silencioso) { this.loading = true; this.error = ''; }
-    this.service.buscar().subscribe({
+    // incluirInactivos=true: el panel de gestión necesita ver también los
+    // desactivados para que la pestaña "Inactivos" (filtra por o.activo)
+    // tenga algo que mostrar — listarActivos() del backend nunca los incluye.
+    this.service.buscar(undefined, true).subscribe({
       next: data => {
         this.odontologos = data.sort((a, b) => a.nombre.localeCompare(b.nombre));
         this.filtrar();
@@ -93,17 +96,36 @@ export class OdontologosComponent implements OnInit {
     });
   }
 
+  /**
+   * Filtra en memoria contra `this.odontologos` (ya trae activos + inactivos,
+   * ver cargar()) en vez de volver a pegarle al backend: la búsqueda por
+   * nombre/DNI/CUIT/matrícula del backend solo resuelve contra activos, y
+   * quería usarse también con la pestaña "Inactivos" seleccionada.
+   */
   filtrar(): void {
     const q = this.busqueda.trim();
     this.tipoMatch = this.detectarTipo(q);
-    if (!q) {
-      this.filtrados = this.aplicarFiltroActividad(this.odontologos);
-      return;
+    const porTexto = this.filtrarPorTexto(q, this.odontologos);
+    this.filtrados = this.aplicarFiltroActividad(porTexto);
+  }
+
+  private filtrarPorTexto(q: string, lista: OdontologoResponse[]): OdontologoResponse[] {
+    if (!q) return lista;
+    const lower = q.toLowerCase();
+    if (/^[0-9]{7,8}$/.test(q)) return lista.filter(o => o.dni === q);
+    if (/^[0-9]{2}-?[0-9]{8}-?[0-9]{1}$/.test(q)) {
+      const norm = this.normalizarCuit(q);
+      return lista.filter(o => o.cuit === norm);
     }
-    this.service.buscar(q).subscribe({
-      next: data => this.filtrados = this.aplicarFiltroActividad(data),
-      error: err => console.error(err),
-    });
+    if (/^(MN|MP|MAT)[\s-]*[0-9]+$/i.test(q)) return lista.filter(o => o.matricula?.toLowerCase() === lower);
+    return lista.filter(o => o.nombre.toLowerCase().includes(lower));
+  }
+
+  /** Convierte cualquier formato de CUIT a XX-XXXXXXXX-X (mismo criterio que el backend). */
+  private normalizarCuit(cuit: string): string {
+    const digitos = cuit.replace(/[^0-9]/g, '');
+    if (digitos.length !== 11) return cuit;
+    return `${digitos.slice(0, 2)}-${digitos.slice(2, 10)}-${digitos.slice(10)}`;
   }
 
   /**
@@ -318,7 +340,9 @@ export class OdontologosComponent implements OnInit {
     const nombre = odontologo?.nombre ?? 'Odontólogo';
     this.service.desactivar(id).subscribe({
       next: () => {
-        this.odontologos = this.odontologos.filter(o => o.id !== id);
+        // No se saca de this.odontologos: sigue existiendo, solo pasa a
+        // aparecer bajo la pestaña "Inactivos" en vez de desaparecer del todo.
+        if (odontologo) odontologo.activo = false;
         this.confirmDesactivarId = null;
         this.filtrar();
         if (this.detalleAbierto?.id === id) this.detalleAbierto = null;

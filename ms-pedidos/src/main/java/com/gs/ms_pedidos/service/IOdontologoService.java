@@ -27,6 +27,18 @@ public interface IOdontologoService {
     List<OdontologoResponse> listarActivos();
 
     /**
+     * Devuelve TODOS los odontólogos, activos e inactivos, ordenados por nombre.
+     *
+     * <p>A diferencia de {@link #listarActivos()}, incluye los desactivados —
+     * pensado exclusivamente para el panel de gestión (filtro Activos/Inactivos).
+     * No usar para selectores ni para el autocomplete de "Nuevo pedido": esos
+     * deben seguir resolviendo solo contra odontólogos activos.</p>
+     *
+     * @return lista completa de odontólogos
+     */
+    List<OdontologoResponse> listarTodos();
+
+    /**
      * Busca odontólogos cuyo nombre contenga el fragmento indicado (búsqueda case-insensitive).
      * Diseñado para el autocomplete del formulario "Nuevo pedido".
      *

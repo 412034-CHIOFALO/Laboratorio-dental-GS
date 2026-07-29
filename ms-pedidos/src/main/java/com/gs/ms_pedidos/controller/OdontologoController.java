@@ -45,11 +45,13 @@ public class OdontologoController {
     @GetMapping
     public ResponseEntity<List<OdontologoResponse>> listar(
             @Parameter(description = "Fragmento de nombre para filtrar (autocomplete). Ej: 'garcia'", example = "garcia")
-            @RequestParam(name = "q", required = false) String query) {
+            @RequestParam(name = "q", required = false) String query,
+            @Parameter(description = "Si es true, incluye también los odontólogos desactivados. Solo para el panel de gestión — no usar en selectores de 'Nuevo pedido'.")
+            @RequestParam(name = "incluirInactivos", required = false, defaultValue = "false") boolean incluirInactivos) {
         if (query != null && !query.isBlank()) {
             return ResponseEntity.ok(service.buscarPorNombre(query));
         }
-        return ResponseEntity.ok(service.listarActivos());
+        return ResponseEntity.ok(incluirInactivos ? service.listarTodos() : service.listarActivos());
     }
 
     @Operation(

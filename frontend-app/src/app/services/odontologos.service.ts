@@ -49,9 +49,10 @@ export class OdontologosService {
    * Búsqueda inteligente: el backend detecta automáticamente si lo enviado es
    * DNI, CUIT, matrícula o fragmento de nombre. En modo mocks replicamos esa lógica.
    */
-  buscar(q?: string): Observable<OdontologoResponse[]> {
+  buscar(q?: string, incluirInactivos = false): Observable<OdontologoResponse[]> {
     if (environment.useMocks) {
-      let resultados = this.mockStore.filter(o => o.activo).map(o => this.enriquecerActividad(o));
+      let resultados = (incluirInactivos ? this.mockStore : this.mockStore.filter(o => o.activo))
+        .map(o => this.enriquecerActividad(o));
       if (q && q.trim()) {
         const valor = q.trim();
         const lower = valor.toLowerCase();
@@ -76,6 +77,7 @@ export class OdontologosService {
 
     let params = new HttpParams();
     if (q && q.trim()) params = params.set('q', q.trim());
+    if (incluirInactivos) params = params.set('incluirInactivos', 'true');
     return this.http.get<OdontologoResponse[]>(this.base, { params });
   }
 

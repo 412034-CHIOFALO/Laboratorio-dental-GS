@@ -13,6 +13,9 @@ public interface OdontologoRepository extends JpaRepository<Odontologo, Long> {
     /** Listado completo de activos para selectores. */
     List<Odontologo> findByActivoTrueOrderByNombreAsc();
 
+    /** Listado completo, activos + inactivos — solo para el panel de gestión. */
+    List<Odontologo> findAllByOrderByNombreAsc();
+
     /** Autocomplete por fragmento de nombre (case-insensitive). */
     List<Odontologo> findByActivoTrueAndNombreContainingIgnoreCaseOrderByNombreAsc(String fragmento);
 

@@ -61,11 +61,20 @@ public class OdontologoService implements IOdontologoService {
         // (inactivoPorTiempo) se calcula a partir del último pedido, así no
         // hace falta desactivar a mano: con 100+ odontólogos, se filtra por
         // actividad desde el frontend.
+        return construirRespuestas(repository.findByActivoTrueOrderByNombreAsc());
+    }
+
+    @Override
+    public List<OdontologoResponse> listarTodos() {
+        return construirRespuestas(repository.findAllByOrderByNombreAsc());
+    }
+
+    /** Arma las respuestas con el estado de actividad (por tiempo) calculado. */
+    private List<OdontologoResponse> construirRespuestas(List<Odontologo> odontologos) {
         Map<Long, LocalDateTime> ultimaActividad = mapaUltimaActividad();
         LocalDateTime corte = LocalDateTime.now().minusMonths(mesesInactividad);
 
-        return repository.findByActivoTrueOrderByNombreAsc()
-                .stream()
+        return odontologos.stream()
                 .map(o -> {
                     LocalDateTime ultimo = ultimaActividad.get(o.getId());
                     boolean inactivo = (ultimo == null) || ultimo.isBefore(corte);
