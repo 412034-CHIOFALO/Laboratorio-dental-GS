@@ -40,6 +40,7 @@ public class StockService implements IStockService {
 
     private final MaterialRepository materialRepo;
     private final MovimientoStockRepository movimientoRepo;
+    private final AuditoriaClient auditoria;
 
     public List<MaterialResponse> listarActivos() {
         return materialRepo.findByActivoTrue().stream().map(MaterialResponse::from).toList();
@@ -69,7 +70,10 @@ public class StockService implements IStockService {
                 .proveedor(request.getProveedor())
                 .descuentaStock(request.getDescuentaStock() == null || request.getDescuentaStock())
                 .build();
-        return MaterialResponse.from(materialRepo.save(m));
+        MaterialResponse resp = MaterialResponse.from(materialRepo.save(m));
+        auditoria.registrar("CREAR", "Material creado", "Material " + m.getNombre(),
+                "Stock inicial " + m.getStockActual() + " " + m.getUnidadMedida());
+        return resp;
     }
 
     @Override
@@ -118,6 +122,10 @@ public class StockService implements IStockService {
                 .pedidoId(request.getPedidoId())
                 .build();
         movimientoRepo.save(mov);
+
+        auditoria.registrar("STOCK", "Movimiento de stock", "Material " + material.getNombre(),
+                request.getTipo() + " " + request.getCantidad() + " " + material.getUnidadMedida()
+                        + " → " + nuevoStock + (request.getMotivo() != null ? " · " + request.getMotivo() : ""));
 
         return MaterialResponse.from(material);
     }

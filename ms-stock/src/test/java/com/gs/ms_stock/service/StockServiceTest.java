@@ -30,6 +30,7 @@ class StockServiceTest {
 
     @Mock private MaterialRepository materialRepo;
     @Mock private MovimientoStockRepository movimientoRepo;
+    @Mock private AuditoriaClient auditoria;
 
     @InjectMocks private StockService service;
 

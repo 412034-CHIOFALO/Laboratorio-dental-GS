@@ -33,6 +33,9 @@ class TipoTrabajoServiceTest {
     @Mock
     private TipoTrabajoRepository repository;
 
+    @Mock
+    private AuditoriaClient auditoria;
+
     @InjectMocks
     private TipoTrabajoService service;
 

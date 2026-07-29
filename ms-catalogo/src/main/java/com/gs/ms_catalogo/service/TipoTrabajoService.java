@@ -29,6 +29,7 @@ import java.util.List;
 public class TipoTrabajoService implements ITipoTrabajoService {
 
     private final TipoTrabajoRepository repository;
+    private final AuditoriaClient auditoria;
 
     public List<TipoTrabajoResponse> listarActivos() {
         return repository.findByActivoTrue()
@@ -68,7 +69,10 @@ public class TipoTrabajoService implements ITipoTrabajoService {
                 .fotoUrl(request.getFotoUrl())
                 .build();
         t.reemplazarReceta(toIngredientes(request));
-        return TipoTrabajoResponse.from(repository.save(t));
+        TipoTrabajoResponse resp = TipoTrabajoResponse.from(repository.save(t));
+        auditoria.registrar("CREAR", "Tipo de trabajo creado", "Catálogo: " + t.getNombre(),
+                "Precio $" + t.getPrecio());
+        return resp;
     }
 
     @Transactional
@@ -84,7 +88,10 @@ public class TipoTrabajoService implements ITipoTrabajoService {
         t.setFotoUrl(request.getFotoUrl());
         t.reemplazarReceta(toIngredientes(request));
 
-        return TipoTrabajoResponse.from(repository.save(t));
+        TipoTrabajoResponse resp = TipoTrabajoResponse.from(repository.save(t));
+        auditoria.registrar("EDITAR", "Tipo de trabajo editado", "Catálogo: " + t.getNombre(),
+                "Precio $" + t.getPrecio());
+        return resp;
     }
 
     /** Convierte la lista de DTOs en entidades (sin setearles el TipoTrabajo dueño todavía). */
@@ -108,5 +115,6 @@ public class TipoTrabajoService implements ITipoTrabajoService {
         // Soft delete — no borramos físicamente para no romper referencias en pedidos
         t.setActivo(false);
         repository.save(t);
+        auditoria.registrar("ELIMINAR", "Tipo de trabajo dado de baja", "Catálogo: " + t.getNombre(), "");
     }
 }

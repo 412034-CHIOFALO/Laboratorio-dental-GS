@@ -208,6 +208,9 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      # Auditoría centralizada: manda los eventos de catálogo a ms-auth.
+      AUTH_URI: http://ms-auth:8081
+      GS_INTERNAL_API_KEY: ${GS_INTERNAL_API_KEY:-gs-internal-key-cambiar-en-prod}
     depends_on:
       mysql: { condition: service_healthy }
       discovery-server: { condition: service_healthy }
@@ -321,6 +324,9 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      # Auditoría centralizada: manda los eventos de stock a ms-auth.
+      AUTH_URI: http://ms-auth:8081
+      GS_INTERNAL_API_KEY: ${GS_INTERNAL_API_KEY:-gs-internal-key-cambiar-en-prod}
       # Bot de WhatsApp — para enviar alertas de stock bajo al admin
       BOT_URI: http://gs-bot:3001
       BOT_API_KEY: ${GS_BOT_API_KEY:-gs-bot-dev-key-cambiar-en-prod}
