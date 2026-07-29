@@ -5,17 +5,20 @@ FROM debian:bookworm-slim
 # de Debian sí lo incluye.
 ENV TZ=America/Argentina/Cordoba
 
-# python3 (mínimo) para el mini-servidor de disparo del backup a demanda.
+# JDK 17 (mismo que el resto del proyecto) para el mini-servidor de disparo del
+# backup a demanda — TriggerServer.java, sin Maven ni dependencias: se compila
+# acá mismo con javac (usa solo com.sun.net.httpserver, parte del JDK).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      bash default-mysql-client rclone cron tzdata ca-certificates python3-minimal \
+      bash default-mysql-client rclone cron tzdata ca-certificates openjdk-17-jdk-headless \
     && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backup.sh /backup.sh
 COPY entrypoint.sh /entrypoint.sh
-COPY trigger-server.py /trigger-server.py
+COPY TriggerServer.java /TriggerServer.java
 COPY crontab /etc/cron.d/backup-cron
-RUN chmod +x /backup.sh /entrypoint.sh /trigger-server.py && chmod 0644 /etc/cron.d/backup-cron
+RUN chmod +x /backup.sh /entrypoint.sh && chmod 0644 /etc/cron.d/backup-cron \
+    && javac /TriggerServer.java -d /
 
 # El entrypoint vuelca el entorno del contenedor a /etc/cron-env (cron no lo
 # hereda) y después arranca cron en foreground.

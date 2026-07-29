@@ -24,7 +24,7 @@ touch /var/log/backup.log
 # Servidor de disparo a demanda (el botón de la UI) en segundo plano. El backup
 # automático de las 3 AM lo maneja cron; esto agrega el "correr ahora".
 echo "[entrypoint] Arrancando servidor de disparo del backup..."
-python3 /trigger-server.py &
+java -cp / TriggerServer &
 
 echo "[entrypoint] Arrancando cron en foreground..."
 exec cron -f
