@@ -45,6 +45,7 @@ public class PedidoService implements IPedidoService {
     private final ConsumoStockService consumoStockService;
     private final NotificacionBotService notificacionBotService;
     private final EmisionComprobanteService emisionComprobanteService;
+    private final AuditoriaClient auditoria;
 
     /**
      * Umbral de días hábiles a partir del cual un pedido se considera "atrasado".
@@ -122,7 +123,10 @@ public class PedidoService implements IPedidoService {
                 .observaciones(request.getObservaciones())
                 .build();
 
-        return toResponse(pedidoRepository.save(pedido));
+        Pedido guardado = pedidoRepository.save(pedido);
+        auditoria.registrar("CREAR", "Pedido creado", "Pedido " + guardado.getNroPedido(),
+                "Odontólogo " + guardado.getOdontologoNombre() + " · " + guardado.getTrabajo());
+        return toResponse(guardado);
     }
 
     @Override
@@ -152,6 +156,8 @@ public class PedidoService implements IPedidoService {
             );
         }
 
+        auditoria.registrar("ESTADO", "Cambio de estado de pedido", "Pedido " + guardado.getNroPedido(),
+                estadoAnterior + " → " + nuevoEstado);
         return toResponse(guardado);
     }
 
@@ -217,7 +223,10 @@ public class PedidoService implements IPedidoService {
             : pedido.getPrecioAcordado();
         emisionComprobanteService.emitirSiCorresponde(pedido, monto);
 
-        return toResponse(pedidoRepository.save(pedido));
+        Pedido guardado = pedidoRepository.save(pedido);
+        auditoria.registrar("ENTREGA", "Pedido entregado", "Pedido " + guardado.getNroPedido(),
+                "Retiró: " + guardado.getRetiradoPor() + " · facturado $" + (monto != null ? monto : "—"));
+        return toResponse(guardado);
     }
 
     @Override

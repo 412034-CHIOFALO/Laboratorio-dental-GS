@@ -237,6 +237,9 @@ services:
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-gs_root_2025}
       EUREKA_URI: http://discovery-server:8761/eureka/
       JWT_JWK_URI: http://ms-auth:8081/oauth2/jwks
+      # Auditoría centralizada: manda los eventos de pedidos a ms-auth.
+      AUTH_URI: http://ms-auth:8081
+      GS_INTERNAL_API_KEY: ${GS_INTERNAL_API_KEY:-gs-internal-key-cambiar-en-prod}
       # MinIO para documentos y escaneos de pedidos (host interno; los archivos
       # se sirven en streaming a traves del propio backend, sin exponer MinIO)
       MINIO_ENDPOINT: http://minio:9000

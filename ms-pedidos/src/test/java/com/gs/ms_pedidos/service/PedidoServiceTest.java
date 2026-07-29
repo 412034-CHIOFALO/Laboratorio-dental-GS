@@ -36,6 +36,7 @@ class PedidoServiceTest {
     @Mock private ConsumoStockService consumoStockService;
     @Mock private NotificacionBotService notificacionBotService;
     @Mock private EmisionComprobanteService emisionComprobanteService;
+    @Mock private AuditoriaClient auditoria;
     @InjectMocks private PedidoService service;
 
     @BeforeEach
