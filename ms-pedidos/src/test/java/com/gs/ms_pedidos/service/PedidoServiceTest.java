@@ -93,7 +93,7 @@ class PedidoServiceTest {
     void crear_conOdontologoId_usaExistente() {
         when(odontologoService.buscarPorId(7L)).thenReturn(new OdontologoResponse(
                 7L, "Garcia", null, null, null, null, null, null, null, true, null, null, null, false));
-        when(pedidoRepository.count()).thenReturn(0L);
+        when(pedidoRepository.maxNroPedidoConPrefijo(anyString())).thenReturn(null);
         when(pedidoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         var res = service.crear(reqConId());
@@ -108,7 +108,7 @@ class PedidoServiceTest {
         r.setTrabajo("Placa");
         when(odontologoService.buscarOCrearPorNombre("Nuevo Dentista"))
                 .thenReturn(Odontologo.builder().id(9L).nombre("Nuevo Dentista").build());
-        when(pedidoRepository.count()).thenReturn(3L);
+        when(pedidoRepository.maxNroPedidoConPrefijo(anyString())).thenReturn(null);
         when(pedidoRepository.save(any())).thenAnswer(i -> i.getArgument(0));
 
         service.crear(r);

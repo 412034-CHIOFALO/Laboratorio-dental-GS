@@ -253,10 +253,27 @@ public class PedidoService implements IPedidoService {
         return odontologoService.buscarOCrearPorNombre(request.getOdontologoNombre());
     }
 
-    // ── Helper: genera NRO-YYYYMMDD-XXXX ──────────────────────────
+    /**
+     * Genera PED-yyyyMMdd-XXXX siguiendo al último número DEL DÍA, no contando
+     * filas de toda la tabla. {@code count()+1} se rompe apenas se borra un
+     * pedido — el contador retrocede y regenera un número ya usado. Como
+     * nroPedido es UNIQUE, esa inserción tira una excepción sin capturar acá:
+     * crear() queda roto hasta que se corrija a mano. Mismo bug (y mismo fix)
+     * que tuvo el número de comprobante en ms-finanzas.
+     */
     private String generarNroPedido() {
         String fecha = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-        long count = pedidoRepository.count() + 1;
-        return String.format("PED-%s-%04d", fecha, count);
+        String prefijo = String.format("PED-%s-", fecha);
+        String ultimo = pedidoRepository.maxNroPedidoConPrefijo(prefijo);
+
+        long siguiente = 1;
+        if (ultimo != null && ultimo.length() > prefijo.length()) {
+            try {
+                siguiente = Long.parseLong(ultimo.substring(prefijo.length())) + 1;
+            } catch (NumberFormatException e) {
+                siguiente = pedidoRepository.count() + 1;
+            }
+        }
+        return String.format("%s%04d", prefijo, siguiente);
     }
 }
