@@ -37,6 +37,7 @@ class GestionSueldoServiceTest {
     @Mock private ComprobanteRepository comprobanteRepo;
     @Mock private DeudaProveedorRepository deudaProveedorRepo;
     @Mock private CajaMovimientoRepository cajaMovimientoRepo;
+    @Mock private AuditoriaClient auditoria;
 
     @InjectMocks
     private GestionSueldoService service;

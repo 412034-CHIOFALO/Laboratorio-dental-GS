@@ -55,6 +55,7 @@ public class GestionSueldoService implements IGestionSueldoService {
     private final ComprobanteRepository comprobanteRepo;
     private final DeudaProveedorRepository deudaProveedorRepo;
     private final CajaMovimientoRepository cajaMovimientoRepo;
+    private final AuditoriaClient auditoria;
 
     @Override
     public List<EmpleadoSueldoResponse> listarEmpleados() {
@@ -150,6 +151,8 @@ public class GestionSueldoService implements IGestionSueldoService {
         // Egreso de caja: el pago manual sale de la caja fisica por defecto.
         registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, req.getMonto(),
                 "Sueldo (manual) a " + c.getEmpleadoNombre(), null);
+        auditoria.registrar("SUELDO", "Pago de sueldo (manual)", "Empleado " + c.getEmpleadoNombre(),
+                "$" + req.getMonto());
         return PagoSueldoResponse.from(guardado);
     }
 

@@ -36,6 +36,7 @@ class FinanzasServiceTest {
     @Mock private ComprobanteRepository repository;
     @Mock private CajaMovimientoRepository cajaRepo;
     @Mock private PagoCuentaCorrienteRepository pagoRepo;
+    @Mock private AuditoriaClient auditoria;
     @InjectMocks private FinanzasService service;
 
     private Comprobante comp(EstadoPago estado) {

@@ -13,6 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Implementación de {@link IProveedorService} para la gestión de proveedores del laboratorio.
+ *
+ * <p>Cada proveedor puede tener deudas asociadas ({@link com.gs.ms_finanzas.model.DeudaProveedor}).
+ * El listado enriquece cada respuesta con el saldo de deuda pendiente calculado al momento
+ * de la consulta. La baja es lógica ({@code activo = false}).</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)

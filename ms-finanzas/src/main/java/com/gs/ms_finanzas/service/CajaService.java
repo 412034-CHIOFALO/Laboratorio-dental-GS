@@ -22,6 +22,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * Implementación de {@link ICajaService} para la gestión del sistema de tres cajas del laboratorio G&amp;S.
+ *
+ * <p>El laboratorio opera con tres cajas diferenciadas:</p>
+ * <ul>
+ *   <li>{@code FISICA} — dinero en efectivo en el local.</li>
+ *   <li>{@code BANCARIA} — saldo en cuenta bancaria (transferencias).</li>
+ *   <li>{@code COMPENSACION} — caja auxiliar para triangulados: pagos que ingresan
+ *       en una forma (ej: transferencia) y se trasladan internamente a otra (ej: efectivo).
+ *       Cada triangulado genera un ingreso y un egreso equivalentes con la misma
+ *       {@code referencia}, cuya suma neta debe ser siempre $0; cualquier descuadre
+ *       se detecta y reporta en {@link #obtenerResumen()}.</li>
+ * </ul>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -30,6 +44,7 @@ public class CajaService implements ICajaService {
     private final CajaMovimientoRepository cajaRepo;
     private final DeudaProveedorRepository deudaRepo;
     private final ConfiguracionSueldoRepository configSueldoRepo;
+    private final AuditoriaClient auditoria;
 
     public ResumenCajasResponse obtenerResumen() {
         BigDecimal saldoFisica = cajaRepo.calcularSaldo(TipoCaja.FISICA);
@@ -131,6 +146,10 @@ public class CajaService implements ICajaService {
             .fechaMovimiento(req.fechaMovimiento() != null ? req.fechaMovimiento() : LocalDate.now())
             .creadoPor(creadoPor)
             .build();
-        return CajaMovimientoResponse.from(cajaRepo.save(mov));
+        CajaMovimientoResponse resp = CajaMovimientoResponse.from(cajaRepo.save(mov));
+        auditoria.registrar("CAJA", "Movimiento de caja manual",
+                "Caja " + req.tipoCaja(),
+                req.tipo() + " $" + req.monto() + " · " + req.concepto().trim());
+        return resp;
     }
 }

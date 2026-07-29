@@ -31,6 +31,7 @@ class DeudaProveedorServiceTest {
     @Mock private DeudaProveedorRepository deudaRepo;
     @Mock private ProveedorRepository proveedorRepo;
     @Mock private CajaMovimientoRepository cajaMovimientoRepo;
+    @Mock private AuditoriaClient auditoria;
     @InjectMocks private DeudaProveedorService service;
 
     private Proveedor proveedor() {

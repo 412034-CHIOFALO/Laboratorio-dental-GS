@@ -27,6 +27,7 @@ class CajaServiceTest {
     @Mock private CajaMovimientoRepository cajaRepo;
     @Mock private DeudaProveedorRepository deudaRepo;
     @Mock private ConfiguracionSueldoRepository configSueldoRepo;
+    @Mock private AuditoriaClient auditoria;
     @InjectMocks private CajaService service;
 
     private CajaMovimiento mov() {

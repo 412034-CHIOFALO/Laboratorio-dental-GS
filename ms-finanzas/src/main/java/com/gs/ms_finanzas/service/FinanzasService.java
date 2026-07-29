@@ -52,6 +52,7 @@ public class FinanzasService implements IFinanzasService {
     private final ComprobanteRepository repository;
     private final CajaMovimientoRepository cajaRepo;
     private final PagoCuentaCorrienteRepository pagoRepo;
+    private final AuditoriaClient auditoria;
 
     public List<ComprobanteResponse> listarTodos() {
         return repository.findAll().stream().map(ComprobanteResponse::from).toList();
@@ -116,7 +117,10 @@ public class FinanzasService implements IFinanzasService {
         c.setEstadoPago(EstadoPago.COBRADO);
         c.setMontoPagado(c.getMonto());
         c.setFechaCobro(LocalDate.now());
-        return ComprobanteResponse.from(repository.save(c));
+        ComprobanteResponse resp = ComprobanteResponse.from(repository.save(c));
+        auditoria.registrar("COBRO", "Comprobante cobrado", "Comprobante " + c.getNroComprobante(),
+                "Odontólogo " + c.getOdontologoNombre() + " · $" + c.getMonto());
+        return resp;
     }
 
     /**
@@ -227,6 +231,9 @@ public class FinanzasService implements IFinanzasService {
         if (restante.compareTo(BigDecimal.ZERO) > 0) {
             mensaje += ". Excedente no imputado (sin saldo a favor): $" + restante;
         }
+
+        auditoria.registrar("PAGO", "Pago a cuenta corriente", "Odontólogo " + nombre,
+                "$" + imputado + " por " + req.medio() + " · " + afectados + " comprobante(s)");
 
         return new PagoCuentaCorrienteResponse(
                 pago.getId(), odontologoId, nombre,

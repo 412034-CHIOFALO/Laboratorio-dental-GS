@@ -20,6 +20,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.util.List;
 
+/**
+ * Implementación de {@link IDeudaProveedorService} para el seguimiento de deudas con proveedores.
+ *
+ * <p>Registra facturas o pagos pendientes a proveedores de materiales del laboratorio.
+ * Al registrar un pago, descuenta la deuda ({@code PENDIENTE} → {@code PAGADA}) y genera
+ * el egreso correspondiente en la caja (Física para efectivo, Bancaria para transferencias).</p>
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -28,6 +35,7 @@ public class DeudaProveedorService implements IDeudaProveedorService {
     private final DeudaProveedorRepository deudaRepo;
     private final ProveedorRepository proveedorRepo;
     private final CajaMovimientoRepository cajaMovimientoRepo;
+    private final AuditoriaClient auditoria;
 
     public List<DeudaProveedorResponse> listarPorProveedor(Long proveedorId) {
         return deudaRepo.findByProveedorIdOrderByFechaCreacionDesc(proveedorId).stream()
@@ -94,6 +102,9 @@ public class DeudaProveedorService implements IDeudaProveedorService {
                 .creadoPor("panel")
                 .build());
         }
+
+        auditoria.registrar("PROVEEDOR", "Pago a proveedor", "Proveedor " + d.getProveedor().getNombre(),
+                "$" + restante + " por " + caja + " · " + d.getDescripcion());
 
         return DeudaProveedorResponse.from(guardada);
     }
