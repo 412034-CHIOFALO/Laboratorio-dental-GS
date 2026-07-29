@@ -55,6 +55,7 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
 
     private final CustomUserDetailsService userDetailsService;
+    private final InternalApiKeyFilter internalApiKeyFilter;
 
     // Keystore PKCS12 persistido en classpath:keys/gs-auth.p12
     // La contraseña se inyecta desde env var GS_KEYSTORE_PASSWORD (con default de desarrollo)
@@ -67,8 +68,10 @@ public class SecurityConfig {
     @Value("${gs.auth.keystore.alias:gs-auth}")
     private String keystoreAlias;
 
-    public SecurityConfig(CustomUserDetailsService userDetailsService) {
+    public SecurityConfig(CustomUserDetailsService userDetailsService,
+                          InternalApiKeyFilter internalApiKeyFilter) {
         this.userDetailsService = userDetailsService;
+        this.internalApiKeyFilter = internalApiKeyFilter;
     }
 
     // 1. Filtro del Servidor de Autorización OAuth2 (flujo OIDC estándar)
@@ -92,14 +95,20 @@ public class SecurityConfig {
             // CORS lo maneja unicamente el gateway (unico punto de entrada del browser).
             .cors(cors -> cors.disable())
             .csrf(csrf -> csrf.disable())
+            // Autenticación por key interna (X-Internal-Key) para la ingesta de
+            // auditoría desde otros MS, antes de la validación de JWT normal.
+            .addFilterBefore(internalApiKeyFilter,
+                org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                 // H2 Console solo en desarrollo — requiere autenticación básica
                 .requestMatchers("/h2-console/**").hasRole("ADMIN")
-                // Auditoría — exclusiva de ADMIN (ADMINISTRATIVO ve todo lo demás, esto no)
-                .requestMatchers("/api/auth/auditoria").hasRole("ADMIN")
+                // Ingesta de auditoría desde otros MS — la autentica InternalApiKeyFilter (ROLE_INTERNAL)
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/auth/auditoria/ingest").hasRole("INTERNAL")
+                // Ver la bitácora — exclusiva de ADMIN (ADMINISTRATIVO ve todo lo demás, esto no)
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/auth/auditoria").hasRole("ADMIN")
                 // Backup manual (botón "hacer backup ahora") — exclusivo de ADMIN
                 .requestMatchers("/api/auth/backup/**").hasRole("ADMIN")
                 // Crear usuarios — exclusivo de ADMIN. Separación de poderes a propósito:

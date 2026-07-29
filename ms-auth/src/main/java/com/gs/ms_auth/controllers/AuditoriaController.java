@@ -1,5 +1,6 @@
 package com.gs.ms_auth.controllers;
 
+import com.gs.ms_auth.dto.AuditoriaIngestRequest;
 import com.gs.ms_auth.service.AuditoriaService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -7,8 +8,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -64,5 +69,22 @@ public class AuditoriaController {
             })
             .toList();
         return ResponseEntity.ok(eventos);
+    }
+
+    @Operation(
+        summary = "Ingesta de un evento de auditoría desde otro microservicio",
+        description = "Centraliza en ms-auth los eventos de auditoría del resto del sistema (pagos, entregas, " +
+                      "movimientos de caja, cambios de stock, etc.). Se autentica por key interna " +
+                      "(header X-Internal-Key), no por JWT de usuario — lo llaman los MS server-to-server. " +
+                      "El campo 'usuario' lo resuelve el MS origen desde el JWT del request."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Evento registrado"),
+        @ApiResponse(responseCode = "403", description = "Key interna inválida o ausente", content = @Content)
+    })
+    @PostMapping("/auditoria/ingest")
+    public ResponseEntity<Void> ingerir(@Valid @RequestBody AuditoriaIngestRequest req) {
+        auditoriaService.registrar(req.usuario(), req.tipo(), req.accion(), req.entidad(), req.detalle());
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 }
