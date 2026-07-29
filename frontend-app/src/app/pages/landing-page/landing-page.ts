@@ -8,7 +8,6 @@ interface ItemGaleria {
   archivo: string;
   alt: string;
   caption: string;
-  layout?: 'tall' | 'wide';
 }
 
 /**

@@ -255,9 +255,7 @@
     <div class="trabajos-split">
       <div class="gallery-grid">
         @for (item of galeria; track item.archivo) {
-          <div class="gallery-item"
-               [class.gallery-item--tall]="item.layout === 'tall'"
-               [class.gallery-item--wide]="item.layout === 'wide'">
+          <div class="gallery-item">
             @if (item.tipo === 'video') {
               <video [src]="'instagram/' + item.archivo" [attr.aria-label]="item.alt"
                      autoplay muted controls loop playsinline preload="metadata"></video>
