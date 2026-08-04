@@ -313,8 +313,13 @@ export class FinanzasComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // 'proveedores' está en `secciones` solo para el ícono del pill, que
+    // redirige a /dashboard/proveedores en vez de renderizar contenido acá
+    // (el @switch de abajo no tiene @case para esa sección) — si un link
+    // viejo llega con ?seccion=proveedores, cae a 'resumen' en vez de dejar
+    // la pantalla en blanco para siempre.
     const seccion = this.route.snapshot.queryParamMap.get('seccion') as SeccionFinanzas | null;
-    if (seccion && this.secciones.some(s => s.id === seccion)) {
+    if (seccion && seccion !== 'proveedores' && this.secciones.some(s => s.id === seccion)) {
       this.seccionActiva = seccion;
     }
     this.cargarResumen();
