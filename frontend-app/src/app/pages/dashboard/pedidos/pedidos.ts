@@ -467,6 +467,10 @@ export class PedidosComponent implements OnInit {
   /** Sube en segundo plano los escaneos que se adjuntaron al crear el pedido. */
   private subirEscaneosPedidoNuevo(pedidoId: number, nroPedido: string, archivos: File[]): void {
     this.subiendoEscaneos = true;
+    // Aviso al arrancar, no solo al terminar: el modal ya se cerró para este
+    // punto, así que sin esto el usuario no tiene ninguna señal de que algo
+    // está pasando hasta que termina de subir (o falla) varios segundos después.
+    this.notif.info(`Subiendo ${archivos.length} escaneo(s)…`, `Pedido ${nroPedido}`);
     let subidos = 0;
     let fallidos = 0;
 
