@@ -18,7 +18,7 @@ COPY entrypoint.sh /entrypoint.sh
 COPY TriggerServer.java /TriggerServer.java
 COPY crontab /etc/cron.d/backup-cron
 RUN chmod +x /backup.sh /entrypoint.sh && chmod 0644 /etc/cron.d/backup-cron \
-    && javac /TriggerServer.java -d /
+    && javac -encoding UTF-8 /TriggerServer.java -d /
 
 # El entrypoint vuelca el entorno del contenedor a /etc/cron-env (cron no lo
 # hereda) y después arranca cron en foreground.
