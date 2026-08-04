@@ -38,34 +38,6 @@
   flex-wrap: wrap;
 }
 
-/* Segmented control (Hoy / Semana / Mes) */
-.seg {
-  display: flex;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  overflow: hidden;
-}
-.seg button {
-  background: none;
-  border: none;
-  padding: 5px 11px;
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--muted);
-  cursor: pointer;
-  font-family: var(--font-sans);
-  transition: background 0.15s, color 0.15s;
-  border-right: 1px solid var(--border);
-}
-.seg button:last-child { border-right: none; }
-.seg button:hover { color: var(--text); }
-.seg button.active {
-  background: var(--neutral-tint);
-  color: var(--text);
-  font-weight: 600;
-}
-
 /* Botón primario */
 .btn-primary {
   display: inline-flex;
@@ -385,7 +357,6 @@
   .home-header h1 { font-size: 15px; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .kpi-value { font-size: 22px; }
-  .home-actions .seg button { padding: 5px 9px; font-size: 11px; }
   .ped-table th, .ped-table td { padding: 7px 11px; }
   .td-trab { max-width: 130px; }
   /* Sin un ancho mínimo, el navegador comprime las 6 columnas hasta que

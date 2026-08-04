@@ -11,8 +11,6 @@ import { fechaLocal } from '../../../services/date-utils';
 import { PedidoDetalleModalComponent } from '../pedidos/pedido-detalle-modal/pedido-detalle-modal.component';
 import { iniciarPolling } from '../../../shared/poll.util';
 
-type Periodo = 'HOY' | 'SEMANA' | 'MES';
-
 interface KpiCard {
   label: string;
   value: string;
@@ -51,7 +49,6 @@ export class DashboardHomeComponent implements OnInit {
   detalleAbiertoId: number | null = null;
 
   loading = true;
-  periodoActivo: Periodo = 'HOY';
 
   // Data crudo
   pedidos: PedidoResponse[] = [];
@@ -99,11 +96,14 @@ export class DashboardHomeComponent implements OnInit {
   }
 
   private calcular(): void {
-    // Filtra pedidos por el período activo (HOY/SEMANA/MES) según fechaCreacion
-    const pedidosPeriodo = this.pedidos.filter(p => this.estaEnPeriodo(p.fechaCreacion));
-
-    const activos      = pedidosPeriodo.filter(p => this.esActivo(p.estado));
-    const listos       = pedidosPeriodo.filter(p => p.estado === 'LISTO');
+    // Estado actual del laboratorio — nunca se filtra por fecha de creación:
+    // un pedido creado hace dos semanas y todavía activo sigue siendo tan
+    // "activo" como uno creado hoy. Antes esto se filtraba por un período
+    // Hoy/Semana/Mes según fechaCreacion, lo que hacía que pedidos activos
+    // reales (y sus alertas de vencido/atrasado) desaparecieran del inicio
+    // apenas pasaban unos días desde que se cargaron.
+    const activos      = this.pedidos.filter(p => this.esActivo(p.estado));
+    const listos       = this.pedidos.filter(p => p.estado === 'LISTO');
     const urgentes     = activos.filter(p => p.prioridad === 'URGENTE');
     const stockBajo    = this.materiales.filter(m => m.bajoStock);
     const stockAgotado = this.materiales.filter(m => m.stockActual === 0);
@@ -162,23 +162,12 @@ export class DashboardHomeComponent implements OnInit {
       },
     ];
 
-    this.pedidosRecientes = pedidosPeriodo
+    this.pedidosRecientes = this.pedidos
       .filter(p => this.esActivo(p.estado) || p.estado === 'LISTO')
       .sort((a, b) => new Date(b.fechaCreacion).getTime() - new Date(a.fechaCreacion).getTime())
       .slice(0, 6);
 
     this.alertas = this.calcularAlertas(activos, listos, urgentes, stockBajo, stockAgotado);
-  }
-
-  /** Devuelve true si la fecha cae dentro del período activo (HOY/SEMANA/MES). */
-  private estaEnPeriodo(fechaIso: string): boolean {
-    const ahora = new Date();
-    const fecha = new Date(fechaIso);
-    const diffMs = ahora.getTime() - fecha.getTime();
-    const diffDias = diffMs / 86_400_000;
-    if (this.periodoActivo === 'HOY')    return diffDias <= 1;
-    if (this.periodoActivo === 'SEMANA') return diffDias <= 7;
-    return diffDias <= 30;  // MES
   }
 
   private calcularAlertas(
@@ -279,12 +268,6 @@ export class DashboardHomeComponent implements OnInit {
   }
 
   // ── Helpers ───────────────────────────────────────────────
-
-  setPeriodo(p: Periodo): void {
-    if (this.periodoActivo === p) return;
-    this.periodoActivo = p;
-    this.calcular();  // recalcula KPIs, pedidos recientes y alertas
-  }
 
   esActivo(estado: EstadoPedido): boolean {
     return estado === 'RECIBIDO' || estado === 'EN_PROCESO' || estado === 'CONTROL';
