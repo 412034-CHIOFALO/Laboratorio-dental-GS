@@ -113,7 +113,7 @@ export class NotificacionesService {
           titulo: n === 1 ? 'Efectivo pendiente de confirmar' : `${n} efectivos pendientes de confirmar`,
           detalle: r.receptorNombre ? `Declarado para ${r.receptorNombre}${monto} por el bot` : `Declarado${monto} por el bot`,
           ruta: '/dashboard/finanzas',
-          queryParams: { seccion: 'sueldos' },
+          queryParams: { seccion: 'cajas' },
         });
       }
 
