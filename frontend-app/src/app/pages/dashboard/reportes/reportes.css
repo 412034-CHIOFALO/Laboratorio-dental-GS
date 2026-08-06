@@ -116,5 +116,5 @@ h1 { font-size: 1.4rem; font-weight: 700; color: var(--text); margin: 0; }
 .morosos-table td { padding: 0.65rem 0.75rem; color: var(--gs-text); border-bottom: 1px solid var(--gs-border); }
 .morosos-table tbody tr:last-child td { border-bottom: none; }
 .morosos-table tbody tr:hover { background: var(--gs-card-2); }
-.monto-col { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #f59e0b; }
+.monto-col { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #f59e0b; text-align: right; }
 .dias-alto { color: #dc2626; font-weight: 700; }

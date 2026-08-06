@@ -174,7 +174,8 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.ped-table th.th-fecha, .ped-table th.th-precio { white-space: nowrap; }
+.ped-table th.th-fecha { white-space: nowrap; }
+.ped-table th.th-precio { white-space: nowrap; text-align: right; }
 .ped-table th.th-acciones { text-align: right; }
 .ped-table tbody tr {
   border-bottom: 1px solid var(--gs-border);
@@ -245,6 +246,7 @@ tr.urgente.atrasado td:first-child {
   font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
+  text-align: right;
 }
 
 .estado-chip {
