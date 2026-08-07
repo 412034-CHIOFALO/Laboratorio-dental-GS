@@ -36,6 +36,15 @@ public interface IDeudaProveedorService {
     List<DeudaProveedorResponse> listarPendientes();
 
     /**
+     * Lista todas las deudas ya pagadas (manualmente desde el panel), más
+     * recientes primero — se usa para completar el historial de "Triangulados"
+     * de Finanzas, que hasta ahora solo mostraba los pagos que detectó el bot.
+     *
+     * @return lista de deudas pagadas; vacía si no hay ninguna.
+     */
+    List<DeudaProveedorResponse> listarPagadas();
+
+    /**
      * Busca una deuda por su ID interno.
      *
      * @param id ID de la deuda.

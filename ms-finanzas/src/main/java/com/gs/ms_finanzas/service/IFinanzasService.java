@@ -108,6 +108,17 @@ public interface IFinanzasService {
     List<CuentaCorrienteOdontologoResponse> rankingMorosos();
 
     /**
+     * Igual que {@link #rankingMorosos()} pero incluye también a los
+     * odontólogos que ya saldaron toda su deuda (quedan con {@code totalDeuda
+     * = 0} y severidad {@code AL_DIA}). Es la fuente para la pestaña "Todos"
+     * de Cuentas Corrientes — antes esa pestaña usaba el mismo dato que "Solo
+     * morosos" y por eso nunca mostraba diferencia alguna.
+     *
+     * @return lista de cuentas corrientes de todos los odontólogos con al menos un comprobante emitido.
+     */
+    List<CuentaCorrienteOdontologoResponse> listarTodasCuentas();
+
+    /**
      * Registra un pago manual a la cuenta corriente de un odontólogo, imputándolo
      * a sus comprobantes con saldo (más viejos primero, parcial o total) e
      * ingresando el dinero a la caja según el medio.

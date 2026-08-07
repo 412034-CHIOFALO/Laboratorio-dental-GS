@@ -168,11 +168,25 @@ export class FinanzasService {
    * Ranking de odontólogos con deuda pendiente. Ordenado de mayor deuda a menor.
    * Mocks: se generan desde el listado de pedidos sin pagar.
    */
-  rankingMorosos(): Observable<CuentaCorrienteOdontologoResponse[]> {
+  /**
+   * @param todos si es true, incluye también a los odontólogos que ya saldaron
+   *   toda su deuda (quedan con totalDeuda = 0) — antes esta pantalla siempre
+   *   traía solo deudores, así que la pestaña "Todos" nunca mostraba nada
+   *   distinto de "Solo morosos".
+   */
+  rankingMorosos(todos = false): Observable<CuentaCorrienteOdontologoResponse[]> {
     if (environment.useMocks) {
-      return of(this.generarRankingMock()).pipe(delay(220));
+      const base = this.generarRankingMock();
+      return of(todos ? [...base, this.alDiaMock()] : base).pipe(delay(220));
     }
-    return this.http.get<CuentaCorrienteOdontologoResponse[]>(`${this.base}/cuentas-corrientes`);
+    let params = new HttpParams();
+    if (todos) params = params.set('todos', 'true');
+    return this.http.get<CuentaCorrienteOdontologoResponse[]>(`${this.base}/cuentas-corrientes`, { params });
+  }
+
+  /** Un odontólogo "al día" para que la demo muestre la diferencia entre "Todos" y "Solo morosos". */
+  private alDiaMock(): CuentaCorrienteOdontologoResponse {
+    return { odontologoId: 9, odontologoNombre: 'Dra. Camila Ferrero', totalDeuda: 0, comprobantesPendientes: 0, fechaMasAntigua: null, diasSinPagar: 0, severidad: 'AL_DIA' };
   }
 
   /** Genera datos demo para el ranking (solo en modo mocks). */

@@ -130,6 +130,17 @@ public class ProveedorController {
         return ResponseEntity.ok(deudaService.listarPendientes());
     }
 
+    @Operation(summary = "Lista todas las deudas a proveedores ya pagadas",
+               description = "Devuelve las deudas en estado PAGADO de todos los proveedores, más recientes primero — para completar el historial de pagos manuales en la pantalla de Triangulados.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Deudas pagadas obtenidas"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    @GetMapping("/deudas/pagadas")
+    public ResponseEntity<List<DeudaProveedorResponse>> deudasPagadas() {
+        return ResponseEntity.ok(deudaService.listarPagadas());
+    }
+
     @Operation(summary = "Registra una deuda con un proveedor",
                description = "Crea un registro de deuda por compra de materiales al proveedor indicado. El estado inicial es PENDIENTE.")
     @ApiResponses({

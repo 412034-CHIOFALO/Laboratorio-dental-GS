@@ -49,6 +49,12 @@ public class DeudaProveedorService implements IDeudaProveedorService {
             .toList();
     }
 
+    public List<DeudaProveedorResponse> listarPagadas() {
+        return deudaRepo.findByEstadoOrderByFechaPagoDesc(EstadoDeuda.PAGADO).stream()
+            .map(DeudaProveedorResponse::from)
+            .toList();
+    }
+
     public DeudaProveedorResponse buscarPorId(Long id) {
         return deudaRepo.findById(id)
             .map(DeudaProveedorResponse::from)

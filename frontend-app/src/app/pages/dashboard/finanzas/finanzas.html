@@ -202,8 +202,10 @@
           }
         </div>
 
-        <!-- ── Efectivo declarado pendiente (el bot lo detecta, entra/sale por caja) ── -->
-        @if (pendientesEfectivo.length > 0 || loadingPendientes) {
+        <!-- ── Efectivo declarado pendiente (el bot lo detecta, entra/sale por caja) ──
+             Solo tiene sentido en Física: un pago en efectivo nunca puede afectar
+             la caja Bancaria ni la de Compensación. -->
+        @if (cajaActiva === 'FISICA' && (pendientesEfectivo.length > 0 || loadingPendientes)) {
           <div class="efectivo-section">
             <div class="efectivo-header">
               <h3>

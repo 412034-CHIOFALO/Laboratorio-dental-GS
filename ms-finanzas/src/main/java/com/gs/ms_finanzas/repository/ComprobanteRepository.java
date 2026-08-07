@@ -65,4 +65,23 @@ public interface ComprobanteRepository extends JpaRepository<Comprobante, Long> 
         ORDER BY SUM(c.monto - c.montoPagado) DESC
     """)
     List<Object[]> rankingDeudoresRaw();
+
+    /**
+     * Misma proyección que {@link #rankingDeudoresRaw()} pero sin filtrar por
+     * estado — incluye también a los odontólogos que ya saldaron todo (quedan
+     * con totalDeuda = 0). Sin esto, la pestaña "Todos" de Cuentas Corrientes
+     * mostraba exactamente lo mismo que "Solo morosos": el dato de origen ya
+     * venía pre-filtrado a deudores, así que no había nada que diferenciar.
+     */
+    @Query("""
+        SELECT c.odontologoId,
+               MAX(c.odontologoNombre),
+               SUM(c.monto - c.montoPagado),
+               COUNT(c),
+               MIN(c.fechaEmision)
+        FROM Comprobante c
+        GROUP BY c.odontologoId
+        ORDER BY SUM(c.monto - c.montoPagado) DESC
+    """)
+    List<Object[]> rankingTodosRaw();
 }

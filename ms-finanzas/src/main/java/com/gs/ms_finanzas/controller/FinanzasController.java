@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.math.BigDecimal;
@@ -173,8 +174,10 @@ public class FinanzasController {
         @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
     @GetMapping("/cuentas-corrientes")
-    public ResponseEntity<List<CuentaCorrienteOdontologoResponse>> rankingMorosos() {
-        return ResponseEntity.ok(service.rankingMorosos());
+    public ResponseEntity<List<CuentaCorrienteOdontologoResponse>> rankingMorosos(
+            @Parameter(description = "Si es true, incluye también a los odontólogos sin deuda pendiente (ya saldada).")
+            @RequestParam(name = "todos", required = false, defaultValue = "false") boolean todos) {
+        return ResponseEntity.ok(todos ? service.listarTodasCuentas() : service.rankingMorosos());
     }
 
     /**

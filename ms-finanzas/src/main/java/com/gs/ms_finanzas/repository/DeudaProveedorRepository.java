@@ -16,6 +16,9 @@ public interface DeudaProveedorRepository extends JpaRepository<DeudaProveedor, 
 
     List<DeudaProveedor> findByEstadoOrderByFechaVencimientoAsc(EstadoDeuda estado);
 
+    /** Deudas pagadas manualmente, más recientes primero — para el historial de Triangulados. */
+    List<DeudaProveedor> findByEstadoOrderByFechaPagoDesc(EstadoDeuda estado);
+
     /** Deudas con saldo (PENDIENTE o PARCIAL) de un proveedor, más viejas primero. */
     List<DeudaProveedor> findByProveedorIdAndEstadoInOrderByFechaCreacionAsc(Long proveedorId, List<EstadoDeuda> estados);
 

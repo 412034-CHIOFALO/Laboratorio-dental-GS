@@ -250,7 +250,16 @@ public class FinanzasService implements IFinanzasService {
 
     @Override
     public List<CuentaCorrienteOdontologoResponse> rankingMorosos() {
-        List<Object[]> rows = repository.rankingDeudoresRaw();
+        return mapearCuentas(repository.rankingDeudoresRaw());
+    }
+
+    @Override
+    public List<CuentaCorrienteOdontologoResponse> listarTodasCuentas() {
+        return mapearCuentas(repository.rankingTodosRaw());
+    }
+
+    /** Mapeo común de la proyección de cuenta corriente — compartido entre "solo morosos" y "todos". */
+    private List<CuentaCorrienteOdontologoResponse> mapearCuentas(List<Object[]> rows) {
         LocalDate hoy = LocalDate.now();
 
         return rows.stream()
@@ -261,7 +270,10 @@ public class FinanzasService implements IFinanzasService {
                     long comprobantes        = (Long) r[3];
                     LocalDate fechaMasVieja  = (LocalDate) r[4];
 
-                    long diasSinPagar = fechaMasVieja != null
+                    // Si ya no tiene deuda (pagó todo), "días sin pagar" no aplica —
+                    // sin este chequeo quedaba calculado contra el comprobante más
+                    // viejo de su historial entero, aunque esté saldado hace rato.
+                    long diasSinPagar = (totalDeuda.signum() > 0 && fechaMasVieja != null)
                             ? ChronoUnit.DAYS.between(fechaMasVieja, hoy)
                             : 0;
 

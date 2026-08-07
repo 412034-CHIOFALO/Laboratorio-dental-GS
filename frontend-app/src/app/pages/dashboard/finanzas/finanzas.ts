@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, ActivatedRoute } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { iniciarPolling } from '../../../shared/poll.util';
+import { fechaLocal } from '../../../services/date-utils';
 import {
   FinanzasService, ResumenCajasResponse, CajaMovimientoResponse, TipoCaja,
   CuentaCorrienteOdontologoResponse, SeveridadDeuda,
@@ -14,6 +15,7 @@ import {
 } from '../../../services/sueldos.service';
 import { NotificationService } from '../../../services/notification.service';
 import { AuthService, UsuarioListado } from '../../../services/auth';
+import { ProveedoresService } from '../../../services/proveedores.service';
 import { PagoCuentaCorrienteModalComponent } from '../odontologos/pago-cuenta-corriente-modal/pago-cuenta-corriente-modal.component';
 
 export type FiltroMorosos = 'TODOS' | 'MOROSOS' | 'MAS_30' | 'MAS_60';
@@ -37,12 +39,14 @@ interface SortState<K> {
 
 /**
  * Fila unificada para "Comprobantes recibidos": junta pagos de sueldo (PagoSueldo,
- * tabla de empleados) con registros del bot a proveedores/triangulados (RegistroPagoBot),
- * que son dos tablas de backend distintas. Sin esto la pestaña solo mostraba sueldos.
+ * tabla de empleados), registros del bot a proveedores/triangulados (RegistroPagoBot)
+ * y pagos manuales a proveedores (DeudaProveedor con estado PAGADO) — tres tablas
+ * de backend distintas. Antes solo se juntaban las dos primeras, así que un pago a
+ * proveedor cargado a mano desde la pantalla de Proveedores nunca aparecía acá.
  */
 interface ComprobanteRecibido {
   id: number;
-  fuente: 'SUELDO' | 'BOT_REGISTRO';
+  fuente: 'SUELDO' | 'BOT_REGISTRO' | 'PROVEEDOR_MANUAL';
   fecha: string;
   origen: 'MANUAL' | 'BOT_WHATSAPP';
   tipoReceptor: 'EMPLEADO' | 'PROVEEDOR';
@@ -217,6 +221,7 @@ export class FinanzasComponent implements OnInit {
     private finanzasService: FinanzasService,
     private sueldosService: SueldosService,
     private authService: AuthService,
+    private proveedoresService: ProveedoresService,
   ) {}
 
   private movFormVacio(): CajaMovimientoRequest {
@@ -359,8 +364,9 @@ export class FinanzasComponent implements OnInit {
     forkJoin({
       sueldos: this.sueldosService.historialPagosGlobal(),
       registrosBot: this.sueldosService.registrosBot(),
+      deudasPagadas: this.proveedoresService.deudasPagadas(),
     }).subscribe({
-      next: ({ sueldos, registrosBot }) => {
+      next: ({ sueldos, registrosBot, deudasPagadas }) => {
         const deSueldos: ComprobanteRecibido[] = sueldos.map(p => ({
           id: p.id,
           fuente: 'SUELDO',
@@ -387,7 +393,21 @@ export class FinanzasComponent implements OnInit {
             monto: r.monto ?? 0,
             tieneComprobante: r.tieneComprobante,
           }));
-        this.comprobantes = [...deSueldos, ...deProveedores]
+        // Pagos a proveedores cargados a mano desde "Marcar pagada" (Proveedores) —
+        // no pasan por RegistroPagoBot, así que sin esto quedaban invisibles acá.
+        const deProveedoresManual: ComprobanteRecibido[] = deudasPagadas.map(d => ({
+          id: d.id,
+          fuente: 'PROVEEDOR_MANUAL',
+          fecha: d.fechaPago ?? '',
+          origen: 'MANUAL',
+          tipoReceptor: 'PROVEEDOR',
+          receptorNombre: d.proveedorNombre,
+          emisor: null,
+          cargadoPorNombre: null,
+          monto: d.montoPagado,
+          tieneComprobante: false,
+        }));
+        this.comprobantes = [...deSueldos, ...deProveedores, ...deProveedoresManual]
           .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
         this.aplicarFiltroComprobantes();
         if (!silencioso) this.loadingComprobantes = false;
@@ -738,7 +758,9 @@ export class FinanzasComponent implements OnInit {
 
   cargarCuentasCorrientes(silencioso = false): void {
     if (!silencioso) this.loadingCuentas = true;
-    this.finanzasService.rankingMorosos().subscribe({
+    // true: trae también a los que ya saldaron todo, para que "Todos" y
+    // "Solo morosos" muestren listas realmente distintas (ver aplicarFiltroMorosos).
+    this.finanzasService.rankingMorosos(true).subscribe({
       next: data => {
         this.cuentasCorrientes = data;
         this.aplicarFiltroMorosos();
@@ -927,7 +949,11 @@ export class FinanzasComponent implements OnInit {
   private estaEnPeriodo(fechaIso: string): boolean {
     if (this.periodoMovimientos === 'TODO') return true;
     const ahora = new Date();
-    const fecha = new Date(fechaIso);
+    // fechaMovimiento es un LocalDate ("YYYY-MM-DD", sin hora) — new Date(str)
+    // lo interpreta como medianoche UTC, que en Argentina cae en el día
+    // anterior. Por eso el filtro "Hoy" nunca traía nada. fechaLocal() lo
+    // parsea como medianoche LOCAL en su lugar.
+    const fecha = fechaLocal(fechaIso);
     if (isNaN(fecha.getTime())) return true;
 
     if (this.periodoMovimientos === 'HOY') {

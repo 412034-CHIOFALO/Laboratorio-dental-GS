@@ -103,6 +103,14 @@ export class ProveedoresService {
     return this.http.post<DeudaProveedor>(`${this.base}/deudas`, req);
   }
 
+  /** Deudas ya pagadas manualmente (no por el bot), más recientes primero — usado en Finanzas → Triangulados para completar el historial. */
+  deudasPagadas(): Observable<DeudaProveedor[]> {
+    if (environment.useMocks) {
+      return of(this.mockDeudas().filter(d => d.estado === 'PAGADO')).pipe(delay(180));
+    }
+    return this.http.get<DeudaProveedor[]>(`${this.base}/deudas/pagadas`);
+  }
+
   /** Marca una deuda como pagada (fecha de pago = hoy) y registra el egreso en la caja indicada. */
   pagarDeuda(id: number, caja: CajaPagoProveedor): Observable<DeudaProveedor> {
     if (environment.useMocks) {
