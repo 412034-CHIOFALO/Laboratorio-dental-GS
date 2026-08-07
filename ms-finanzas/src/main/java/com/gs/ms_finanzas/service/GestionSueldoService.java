@@ -247,12 +247,16 @@ public class GestionSueldoService implements IGestionSueldoService {
                             + " (odontólogo -$" + settOdo.toBigInteger() + ")");
                     log.info("[BOT] Triangulado sueldo: {} pagó a {} por {}",
                             oc.getOdontologoNombre(), c.getEmpleadoNombre(), req.getMonto());
+                    auditoria.registrar("SUELDO", "Pago de sueldo (bot, triangulado)", "Empleado " + c.getEmpleadoNombre(),
+                            oc.getOdontologoNombre() + " pagó $" + req.getMonto() + " por cuenta del laboratorio");
                 } else {
                     // El bot lee comprobantes de transferencia → egresa de la caja bancaria.
                     registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.BANCARIA, req.getMonto(),
                             "Sueldo (transferencia) a " + c.getEmpleadoNombre(), req.getIdOperacion());
                     reg.setMensaje("Sueldo registrado para " + c.getEmpleadoNombre());
                     log.info("[BOT] Sueldo: {} recibió {} (emisor: {})", c.getEmpleadoNombre(), req.getMonto(), req.getEmisor());
+                    auditoria.registrar("SUELDO", "Pago de sueldo (bot)", "Empleado " + c.getEmpleadoNombre(),
+                            "Transferencia recibida de " + req.getEmisor() + " por $" + req.getMonto());
                     // Vuelve a la misma caja de la que salió, así el neto queda bien.
                     registrarExcedenteEnCaja(pago, TipoCaja.BANCARIA, req.getIdOperacion());
                 }
@@ -291,6 +295,8 @@ public class GestionSueldoService implements IGestionSueldoService {
                 reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → " + p.getNombre()
                         + " (odontólogo -$" + settOdo.toBigInteger() + ", proveedor -$" + settProv.toBigInteger() + ")");
                 log.info("[BOT] Triangulado: {} → {} por {}", oc.getOdontologoNombre(), p.getNombre(), req.getMonto());
+                auditoria.registrar("PROVEEDOR", "Pago a proveedor (bot, triangulado)", "Proveedor " + p.getNombre(),
+                        oc.getOdontologoNombre() + " pagó $" + req.getMonto() + " por cuenta del laboratorio");
                 return RegistroPagoBotResponse.from(registroRepo.save(reg));
             }
 
@@ -301,6 +307,8 @@ public class GestionSueldoService implements IGestionSueldoService {
             reg.setMensaje("Pago a proveedor: " + p.getNombre()
                     + (settProv.signum() > 0 ? " (deuda -$" + settProv.toBigInteger() + ")" : ""));
             log.info("[BOT] Pago a proveedor {}: {} (emisor: {})", p.getNombre(), req.getMonto(), req.getEmisor());
+            auditoria.registrar("PROVEEDOR", "Pago a proveedor (bot)", "Proveedor " + p.getNombre(),
+                    "Transferencia recibida de " + req.getEmisor() + " por $" + req.getMonto());
             return RegistroPagoBotResponse.from(registroRepo.save(reg));
         }
 
@@ -685,11 +693,15 @@ public class GestionSueldoService implements IGestionSueldoService {
                             + " (odontólogo -$" + settOdo.toBigInteger() + ")");
                     log.info("[BOT-EFECTIVO] Triangulado sueldo: {} pagó a {} por ${}",
                             oc.getOdontologoNombre(), c.getEmpleadoNombre(), reg.getMonto());
+                    auditoria.registrar("SUELDO", "Pago de sueldo (efectivo, triangulado)", "Empleado " + c.getEmpleadoNombre(),
+                            oc.getOdontologoNombre() + " pagó $" + reg.getMonto() + " en efectivo por cuenta del laboratorio");
                 } else {
                     registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.FISICA, reg.getMonto(),
                             "Efectivo confirmado: sueldo a " + c.getEmpleadoNombre(), null);
                     reg.setMensaje("Efectivo confirmado: sueldo para " + c.getEmpleadoNombre());
                     log.info("[BOT-EFECTIVO] Confirmado: {} recibió ${} en efectivo", c.getEmpleadoNombre(), reg.getMonto());
+                    auditoria.registrar("SUELDO", "Pago de sueldo (efectivo)", "Empleado " + c.getEmpleadoNombre(),
+                            "Efectivo confirmado por $" + reg.getMonto() + " (emisor: " + reg.getEmisor() + ")");
                     // Solo en el pago directo: el triangulado usa DESCONTAR_PROXIMO,
                     // que no genera movimiento de caja (queda como adelanto interno).
                     registrarExcedenteEnCaja(pago, TipoCaja.FISICA, null);
@@ -726,6 +738,8 @@ public class GestionSueldoService implements IGestionSueldoService {
                 reg.setMensaje("Triangulado: " + oc.getOdontologoNombre() + " → " + p.getNombre()
                         + " (odontólogo -$" + settOdo.toBigInteger() + ", proveedor -$" + settProv.toBigInteger() + ")");
                 log.info("[BOT-EFECTIVO] Triangulado: {} → {} por ${}", oc.getOdontologoNombre(), p.getNombre(), reg.getMonto());
+                auditoria.registrar("PROVEEDOR", "Pago a proveedor (efectivo, triangulado)", "Proveedor " + p.getNombre(),
+                        oc.getOdontologoNombre() + " pagó $" + reg.getMonto() + " en efectivo por cuenta del laboratorio");
                 return RegistroPagoBotResponse.from(registroRepo.save(reg));
             }
 
@@ -736,6 +750,8 @@ public class GestionSueldoService implements IGestionSueldoService {
             reg.setMensaje("Efectivo a proveedor: " + p.getNombre()
                     + (settled.signum() > 0 ? " (deuda -$" + settled.toBigInteger() + ")" : ""));
             log.info("[BOT-EFECTIVO] Confirmado: proveedor {} recibió ${}", p.getNombre(), reg.getMonto());
+            auditoria.registrar("PROVEEDOR", "Pago a proveedor (efectivo)", "Proveedor " + p.getNombre(),
+                    "Efectivo confirmado por $" + reg.getMonto() + " (emisor: " + reg.getEmisor() + ")");
             return RegistroPagoBotResponse.from(registroRepo.save(reg));
         }
 
