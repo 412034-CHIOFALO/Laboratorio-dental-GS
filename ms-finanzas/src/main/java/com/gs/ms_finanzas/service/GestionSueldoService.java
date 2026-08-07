@@ -594,22 +594,45 @@ public class GestionSueldoService implements IGestionSueldoService {
         Proveedor p = proveedorRepo.findById(req.proveedorId())
                 .orElseThrow(() -> new ResourceNotFoundException("Proveedor", req.proveedorId()));
 
+        String odontologoNombre = comprobanteRepo
+                .findByOdontologoIdAndEstadoPagoIn(odontologoId, List.of(EstadoPago.PENDIENTE, EstadoPago.PARCIAL))
+                .stream().findFirst().map(Comprobante::getOdontologoNombre)
+                .orElse("Odontólogo #" + odontologoId);
+
         BigDecimal settOdo  = settleDeudaOdontologo(odontologoId, req.monto());
         BigDecimal settProv = settleDeudaProveedor(p.getId(), req.monto());
 
         String ref = "manual-odo" + odontologoId + "-" + System.currentTimeMillis();
         String notaSufijo = (req.nota() != null && !req.nota().isBlank()) ? " · " + req.nota() : "";
         registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, req.monto(),
-                "Triangulado manual: odontólogo paga a " + p.getNombre() + notaSufijo, ref, "panel");
+                "Triangulado manual: " + odontologoNombre + " paga a " + p.getNombre() + notaSufijo, ref, "panel");
         registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, req.monto(),
-                "Triangulado manual: a proveedor " + p.getNombre() + notaSufijo, ref, "panel");
+                "Triangulado manual: a proveedor " + p.getNombre() + " por cuenta de " + odontologoNombre + notaSufijo, ref, "panel");
+
+        // Sin esto el pago manual no aparecía en "Triangulados": esa pestaña se
+        // arma a partir de RegistroPagoBot, y este flujo (a diferencia del que
+        // dispara el bot) no dejaba ningún registro ahí — quedaba invisible
+        // aunque la conciliación (settle + movimientos de caja) sí se aplicaba bien.
+        String mensajeLog = "Triangulado manual: " + odontologoNombre + " → " + p.getNombre()
+                + " (odontólogo -$" + settOdo.toBigInteger() + ", proveedor -$" + settProv.toBigInteger() + ")" + notaSufijo;
+        RegistroPagoBot reg = RegistroPagoBot.builder()
+                .monto(req.monto())
+                .emisor(odontologoNombre)
+                .receptorNombre(p.getNombre())
+                .tipoReceptor(TipoReceptorBot.PROVEEDOR)
+                .receptorId(p.getId())
+                .receptorResuelto(p.getNombre())
+                .estado(EstadoRegistroBot.REGISTRADO)
+                .mensaje(mensajeLog)
+                .build();
+        registroRepo.save(reg);
 
         auditoria.registrar("PROVEEDOR", "Pago a proveedor (triangulado manual)", "Proveedor " + p.getNombre(),
-                "Odontólogo ID " + odontologoId + " pagó $" + req.monto() + " por cuenta del laboratorio" + notaSufijo);
+                odontologoNombre + " pagó $" + req.monto() + " por cuenta del laboratorio" + notaSufijo);
 
-        String mensaje = "Se imputaron $" + settOdo + " a la cuenta del odontólogo y $" + settProv
+        String mensajeUi = "Se imputaron $" + settOdo + " a la cuenta del odontólogo y $" + settProv
                 + " a la deuda con " + p.getNombre() + ".";
-        return new PagoTrianguladoProveedorResponse(odontologoId, p.getId(), p.getNombre(), req.monto(), settOdo, settProv, mensaje);
+        return new PagoTrianguladoProveedorResponse(odontologoId, p.getId(), p.getNombre(), req.monto(), settOdo, settProv, mensajeUi);
     }
 
     // ── Lógica común de aplicación de un pago de sueldo ──────────────

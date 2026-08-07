@@ -385,7 +385,11 @@ export class FinanzasComponent implements OnInit {
             id: r.id,
             fuente: 'BOT_REGISTRO',
             fecha: r.fechaHora,
-            origen: 'BOT_WHATSAPP',
+            // El bot siempre trae grupoOrigen (nombre del grupo de WhatsApp); los
+            // triangulados a proveedor cargados a mano desde Cuentas Corrientes
+            // usan este mismo RegistroPagoBot para no quedar invisibles acá, pero
+            // nunca tienen grupoOrigen — así los distinguimos sin tocar el modelo.
+            origen: r.grupoOrigen ? 'BOT_WHATSAPP' : 'MANUAL',
             tipoReceptor: 'PROVEEDOR',
             receptorNombre: r.receptorResuelto ?? r.receptorNombre ?? '—',
             emisor: r.emisor,

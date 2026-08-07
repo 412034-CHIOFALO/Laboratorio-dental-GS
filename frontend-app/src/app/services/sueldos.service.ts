@@ -141,6 +141,8 @@ export class SueldosService {
   private store: EmpleadoSueldo[] = this.seedMock();
   private pagosMock: PagoSueldoResponse[] = this.seedPagosMock();
   private nextPagoId = 7000;
+  private registrosBotMock: RegistroBot[] = this.seedRegistrosBotMock();
+  private nextRegistroBotId = 5000;
 
   constructor(private http: HttpClient) {}
 
@@ -218,7 +220,7 @@ export class SueldosService {
   /** Historial de TODO lo que procesó el bot (sueldos, proveedores y rechazos). */
   registrosBot(): Observable<RegistroBot[]> {
     if (environment.useMocks) {
-      return of(this.seedRegistrosBotMock()).pipe(delay(220));
+      return of(this.registrosBotMock.map(r => ({ ...r }))).pipe(delay(220));
     }
     return this.http.get<RegistroBot[]>(`${this.base}/registros-bot`);
   }
@@ -317,6 +319,25 @@ export class SueldosService {
     if (environment.useMocks) {
       const nombres: Record<number, string> = { 1: 'Dental Import SRL', 2: 'Luciano Giménez', 3: 'Protésica del Sur' };
       const proveedorNombre = nombres[req.proveedorId] ?? 'Proveedor';
+      // Sin esto el pago manual no aparecía en el mock de "Triangulados": esa
+      // tabla se arma leyendo registrosBot(), y este flujo no dejaba nada ahí.
+      this.registrosBotMock.unshift({
+        id: this.nextRegistroBotId++,
+        fechaHora: new Date().toISOString(),
+        monto: req.monto,
+        idOperacion: null,
+        emisor: `Odontólogo #${odontologoId}`,
+        receptorNombre: proveedorNombre,
+        tipoReceptor: 'PROVEEDOR',
+        receptorId: req.proveedorId,
+        receptorResuelto: proveedorNombre,
+        estado: 'REGISTRADO',
+        mensaje: `Triangulado manual: Odontólogo #${odontologoId} → ${proveedorNombre}`,
+        cargadoPorNombre: null,
+        grupoOrigen: null,
+        tieneComprobante: false,
+        fuente: 'TRANSFERENCIA',
+      });
       return of({
         odontologoId,
         proveedorId: req.proveedorId,
