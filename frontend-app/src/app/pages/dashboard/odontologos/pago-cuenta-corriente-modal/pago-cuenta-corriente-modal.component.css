@@ -87,6 +87,20 @@
 .form-hint { display: block; color: var(--gs-text-muted); font-size: 0.78rem; margin-top: 3px; }
 .cc-saldo-info { color: var(--gs-text-dim); margin: 0; }
 
+.modo-toggle { flex-direction: row; gap: 1rem; }
+.modo-opcion {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--gs-text);
+  cursor: pointer;
+}
+.modo-opcion input[type="radio"] { accent-color: var(--gs-green); cursor: pointer; }
+
 .modal-footer {
   display: flex;
   justify-content: flex-end;

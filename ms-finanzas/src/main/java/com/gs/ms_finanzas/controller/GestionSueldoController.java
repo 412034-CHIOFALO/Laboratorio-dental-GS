@@ -163,6 +163,24 @@ public class GestionSueldoController {
         return ResponseEntity.ok(service.registrarPagoAutomatico(req));
     }
 
+    @Operation(summary = "Registra a mano un pago triangulado a proveedor",
+               description = "El odontólogo indicado le paga directamente a un proveedor una deuda del laboratorio, en vez de pagarle al laboratorio. " +
+                             "Salda la cuenta corriente del odontólogo y la deuda del proveedor por el mismo importe, y registra el movimiento neteado " +
+                             "en la caja de Compensación — mismo mecanismo que ya usa el bot cuando detecta este patrón en WhatsApp, pero disparado a " +
+                             "mano desde el panel (por ejemplo, desde Cuentas Corrientes).")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pago triangulado registrado"),
+        @ApiResponse(responseCode = "404", description = "El proveedor indicado no existe"),
+        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    @PostMapping("/odontologos/{odontologoId}/pago-proveedor")
+    public ResponseEntity<PagoTrianguladoProveedorResponse> registrarPagoTrianguladoProveedor(
+            @Parameter(description = "ID del odontólogo que paga", required = true)
+            @PathVariable @Positive Long odontologoId,
+            @Valid @RequestBody PagoTrianguladoProveedorRequest req) {
+        return ResponseEntity.ok(service.registrarPagoTrianguladoProveedor(odontologoId, req));
+    }
+
     @Operation(summary = "Historial de pagos de un empleado",
                description = "Lista todos los pagos realizados a un empleado específico, ordenados por fecha descendente.")
     @ApiResponses({

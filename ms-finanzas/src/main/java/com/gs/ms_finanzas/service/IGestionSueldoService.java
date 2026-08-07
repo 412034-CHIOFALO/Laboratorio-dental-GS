@@ -213,4 +213,20 @@ public interface IGestionSueldoService {
      * invocar manualmente sin miedo a duplicar devengado.</p>
      */
     void devengarDiario();
+
+    /**
+     * Registra manualmente un pago triangulado a un proveedor: el odontólogo
+     * indicado paga directamente al proveedor una deuda del laboratorio, en
+     * vez de pagarle al laboratorio. Salda la cuenta corriente del odontólogo
+     * y la deuda del proveedor por el mismo importe, y neteando el movimiento en
+     * la caja de Compensación — mismo mecanismo que ya usa el bot cuando
+     * detecta este patrón en un comprobante de WhatsApp, pero disparado a
+     * mano desde el panel (por ejemplo, desde Cuentas Corrientes).
+     *
+     * @param odontologoId ID del odontólogo que pagó.
+     * @param request proveedor que cobró, monto y nota opcional.
+     * @return resumen del pago con lo efectivamente imputado a cada lado.
+     * @throws com.gs.ms_finanzas.exception.ResourceNotFoundException si el proveedor no existe.
+     */
+    PagoTrianguladoProveedorResponse registrarPagoTrianguladoProveedor(Long odontologoId, PagoTrianguladoProveedorRequest request);
 }

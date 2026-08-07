@@ -579,9 +579,37 @@ public class GestionSueldoService implements IGestionSueldoService {
 
     /** Registra un movimiento de caja (lo usan el triangulado y el pago directo a proveedor). */
     private void registrarMovimiento(TipoMovimientoCaja tipo, TipoCaja caja, BigDecimal monto, String concepto, String ref) {
+        registrarMovimiento(tipo, caja, monto, concepto, ref, "bot");
+    }
+
+    private void registrarMovimiento(TipoMovimientoCaja tipo, TipoCaja caja, BigDecimal monto, String concepto, String ref, String creadoPor) {
         cajaMovimientoRepo.save(CajaMovimiento.builder()
                 .tipo(tipo).tipoCaja(caja).monto(monto)
-                .concepto(concepto).referencia(ref).creadoPor("bot").build());
+                .concepto(concepto).referencia(ref).creadoPor(creadoPor).build());
+    }
+
+    @Override
+    @Transactional
+    public PagoTrianguladoProveedorResponse registrarPagoTrianguladoProveedor(Long odontologoId, PagoTrianguladoProveedorRequest req) {
+        Proveedor p = proveedorRepo.findById(req.proveedorId())
+                .orElseThrow(() -> new ResourceNotFoundException("Proveedor", req.proveedorId()));
+
+        BigDecimal settOdo  = settleDeudaOdontologo(odontologoId, req.monto());
+        BigDecimal settProv = settleDeudaProveedor(p.getId(), req.monto());
+
+        String ref = "manual-odo" + odontologoId + "-" + System.currentTimeMillis();
+        String notaSufijo = (req.nota() != null && !req.nota().isBlank()) ? " · " + req.nota() : "";
+        registrarMovimiento(TipoMovimientoCaja.INGRESO, TipoCaja.COMPENSACION, req.monto(),
+                "Triangulado manual: odontólogo paga a " + p.getNombre() + notaSufijo, ref, "panel");
+        registrarMovimiento(TipoMovimientoCaja.EGRESO, TipoCaja.COMPENSACION, req.monto(),
+                "Triangulado manual: a proveedor " + p.getNombre() + notaSufijo, ref, "panel");
+
+        auditoria.registrar("PROVEEDOR", "Pago a proveedor (triangulado manual)", "Proveedor " + p.getNombre(),
+                "Odontólogo ID " + odontologoId + " pagó $" + req.monto() + " por cuenta del laboratorio" + notaSufijo);
+
+        String mensaje = "Se imputaron $" + settOdo + " a la cuenta del odontólogo y $" + settProv
+                + " a la deuda con " + p.getNombre() + ".";
+        return new PagoTrianguladoProveedorResponse(odontologoId, p.getId(), p.getNombre(), req.monto(), settOdo, settProv, mensaje);
     }
 
     // ── Lógica común de aplicación de un pago de sueldo ──────────────

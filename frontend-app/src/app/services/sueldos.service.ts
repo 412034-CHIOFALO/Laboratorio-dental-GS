@@ -92,6 +92,23 @@ export interface PagoSueldoResponse {
   grupoOrigen: string | null;
 }
 
+/** Pago triangulado a proveedor cargado a mano desde Cuentas Corrientes: el odontólogo pagó directo al proveedor por el laboratorio. */
+export interface PagoTrianguladoProveedorRequest {
+  proveedorId: number;
+  monto: number;
+  nota?: string | null;
+}
+
+export interface PagoTrianguladoProveedorResponse {
+  odontologoId: number;
+  proveedorId: number;
+  proveedorNombre: string;
+  monto: number;
+  settOdontologo: number;
+  settProveedor: number;
+  mensaje: string;
+}
+
 export type TipoReceptorBot = 'EMPLEADO' | 'PROVEEDOR' | 'DESCONOCIDO';
 export type EstadoRegistroBot = 'REGISTRADO' | 'RECHAZADO' | 'DUPLICADO' | 'PENDIENTE';
 export type FuentePago = 'TRANSFERENCIA' | 'EFECTIVO';
@@ -288,6 +305,29 @@ export class SueldosService {
       return of({ ...e }).pipe(delay(220));
     }
     return this.http.post<EmpleadoSueldo>(`${this.base}/pago`, req);
+  }
+
+  /**
+   * Registra a mano que un odontólogo pagó directo a un proveedor por el
+   * laboratorio: salda su cuenta corriente y la deuda del proveedor por el
+   * mismo importe (mismo mecanismo que ya aplica el bot cuando detecta esto
+   * en un comprobante de WhatsApp).
+   */
+  registrarPagoTrianguladoProveedor(odontologoId: number, req: PagoTrianguladoProveedorRequest): Observable<PagoTrianguladoProveedorResponse> {
+    if (environment.useMocks) {
+      const nombres: Record<number, string> = { 1: 'Dental Import SRL', 2: 'Luciano Giménez', 3: 'Protésica del Sur' };
+      const proveedorNombre = nombres[req.proveedorId] ?? 'Proveedor';
+      return of({
+        odontologoId,
+        proveedorId: req.proveedorId,
+        proveedorNombre,
+        monto: req.monto,
+        settOdontologo: req.monto,
+        settProveedor: req.monto,
+        mensaje: `Pago registrado: se saldó ${proveedorNombre} por $${req.monto} a cuenta del odontólogo.`,
+      }).pipe(delay(220));
+    }
+    return this.http.post<PagoTrianguladoProveedorResponse>(`${this.base}/odontologos/${odontologoId}/pago-proveedor`, req);
   }
 
   /**
