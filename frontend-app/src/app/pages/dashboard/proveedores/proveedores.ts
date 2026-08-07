@@ -76,6 +76,13 @@ export class ProveedoresComponent implements OnInit {
   totalProveedores(): number { return this.proveedores().length; }
   totalDeuda(): number { return this.proveedores().reduce((s, p) => s + (p.deudaPendiente || 0), 0); }
 
+  /** Mismo formato que el resto del panel (es-AR, sin decimales) — antes esta pantalla usaba el pipe "number" a secas, que cae al locale por defecto (en-US, coma de miles). */
+  formatMoney(n: number | null | undefined): string {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency', currency: 'ARS', maximumFractionDigits: 0
+    }).format(n ?? 0);
+  }
+
   toggle(p: Proveedor): void {
     if (this.expandido() === p.id) { this.expandido.set(null); return; }
     this.expandido.set(p.id);

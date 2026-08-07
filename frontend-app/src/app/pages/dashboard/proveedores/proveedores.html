@@ -24,7 +24,7 @@
     </div>
     <div class="card">
       <span class="card-label">Deuda pendiente total</span>
-      <span class="card-val" [class.deuda]="totalDeuda() > 0">${{ totalDeuda() | number:'1.0-0' }}</span>
+      <span class="card-val" [class.deuda]="totalDeuda() > 0">{{ formatMoney(totalDeuda()) }}</span>
     </div>
   </div>
 
@@ -56,7 +56,7 @@
               <td class="nowrap">{{ p.telefono || '—' }}</td>
               <td class="r">
                 @if (p.deudaPendiente > 0) {
-                  <span class="badge pend">${{ p.deudaPendiente | number:'1.0-0' }}</span>
+                  <span class="badge pend">{{ formatMoney(p.deudaPendiente) }}</span>
                 } @else {
                   <span class="badge ok">al día</span>
                 }
@@ -86,8 +86,8 @@
                               @if (d.observaciones) { <div class="obs">{{ d.observaciones }}</div> }
                             </td>
                             <td class="r mono">
-                              ${{ d.saldoPendiente | number:'1.0-0' }}
-                              @if (d.estado === 'PARCIAL') { <div class="obs">de ${{ d.monto | number:'1.0-0' }}</div> }
+                              {{ formatMoney(d.saldoPendiente) }}
+                              @if (d.estado === 'PARCIAL') { <div class="obs">de {{ formatMoney(d.monto) }}</div> }
                             </td>
                             <td><span class="badge" [class.ok]="d.estado==='PAGADO'" [class.pend]="d.estado==='PENDIENTE'" [class.parcial]="d.estado==='PARCIAL'">{{ d.estado }}</span></td>
                             <td class="nowrap">{{ d.fechaVencimiento ? (d.fechaVencimiento | date:'dd/MM/yy') : '—' }}</td>
@@ -155,7 +155,7 @@
     <div class="modal-overlay" (click)="cerrarModalPago()">
       <div class="modal" (click)="$event.stopPropagation()">
         <h2>¿De qué caja salió el pago?</h2>
-        <p class="obs">{{ deudaAPagar?.descripcion }} — ${{ deudaAPagar?.monto | number:'1.0-0' }}</p>
+        <p class="obs">{{ deudaAPagar?.descripcion }} — {{ formatMoney(deudaAPagar?.monto) }}</p>
         <div class="modal-acciones">
           <button class="btn-ghost" (click)="cerrarModalPago()">Cancelar</button>
           <button class="btn-primary" [disabled]="pagandoId() !== null" (click)="confirmarPago('FISICA')">
