@@ -32,14 +32,20 @@ export class AuditoriaComponent implements OnInit {
   error      = '';
 
   readonly tiposAudit: { valor: TipoAudit | ''; label: string }[] = [
-    { valor: '',         label: 'Todos los eventos' },
-    { valor: 'LOGIN',    label: 'Inicio de sesión'  },
-    { valor: 'CREAR',    label: 'Crear'             },
-    { valor: 'EDITAR',   label: 'Editar'            },
-    { valor: 'ELIMINAR', label: 'Eliminar'          },
-    { valor: 'PAGO',     label: 'Pagos'             },
-    { valor: 'ESTADO',   label: 'Cambio de estado'  },
-    { valor: 'BACKUP',   label: 'Backups'           },
+    { valor: '',          label: 'Todos los eventos'    },
+    { valor: 'LOGIN',     label: 'Inicio de sesión'     },
+    { valor: 'CREAR',     label: 'Crear'                },
+    { valor: 'EDITAR',    label: 'Editar'               },
+    { valor: 'ELIMINAR',  label: 'Eliminar'             },
+    { valor: 'PAGO',      label: 'Pagos'                },
+    { valor: 'COBRO',     label: 'Cobros'               },
+    { valor: 'SUELDO',    label: 'Sueldos'              },
+    { valor: 'PROVEEDOR', label: 'Pagos a proveedores'  },
+    { valor: 'CAJA',      label: 'Movimientos de caja'  },
+    { valor: 'STOCK',     label: 'Movimientos de stock' },
+    { valor: 'ESTADO',    label: 'Cambio de estado'     },
+    { valor: 'ENTREGA',   label: 'Entregas'             },
+    { valor: 'BACKUP',    label: 'Backups'              },
   ];
 
   private destroyRef = inject(DestroyRef);
@@ -132,9 +138,17 @@ export class AuditoriaComponent implements OnInit {
   colorTipo(tipo: TipoAudit): string {
     const m: Record<TipoAudit, string> = {
       LOGIN: 'cyan', CREAR: 'green', EDITAR: 'blue',
-      ELIMINAR: 'rose', PAGO: 'amber', ESTADO: 'purple', BACKUP: 'neutral',
+      ELIMINAR: 'rose', PAGO: 'green', ESTADO: 'purple', BACKUP: 'neutral',
+      // Ingresos a la cuenta corriente del odontólogo (cobro) — misma familia que PAGO.
+      COBRO: 'green',
+      // Egresos: sueldos y pagos a proveedores, directos o triangulados.
+      SUELDO: 'amber', PROVEEDOR: 'amber',
+      // Ajustes/movimientos de un recurso (caja o stock) — misma familia que EDITAR.
+      CAJA: 'blue', STOCK: 'blue',
+      // Entrega de un pedido — parte del mismo ciclo de vida que ESTADO.
+      ENTREGA: 'purple',
     };
-    return m[tipo] ?? 'muted';
+    return m[tipo] ?? 'neutral';
   }
 
   iconTipo(tipo: TipoAudit): string {
@@ -146,6 +160,14 @@ export class AuditoriaComponent implements OnInit {
       PAGO:     'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
       ESTADO:   'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4',
       BACKUP:   'M4 4h16v6H4V4zm0 10h16v6H4v-6zm4-6h.01M8 18h.01',
+      // Cobro/pago/sueldo/proveedor comparten el ícono de dinero — la columna
+      // ENTIDAD ya distingue de qué se trata cada evento puntual.
+      COBRO:     'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      SUELDO:    'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      PROVEEDOR: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      CAJA:      'M20 12V7H4v5m16 0v7a1 1 0 01-1 1H5a1 1 0 01-1-1v-7m16 0H4',
+      STOCK:     'M21 8l-9-5-9 5 9 5 9-5zM3 8v8l9 5 9-5V8M12 13v8',
+      ENTREGA:   'M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4',
     };
     return m[tipo] ?? '';
   }

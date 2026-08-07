@@ -38,7 +38,8 @@
   gap: 0.4rem;
   flex-wrap: wrap;
   flex-shrink: 0;
-  padding: 0.6rem 0 0.85rem;
+  margin-bottom: 1.2rem;
+  padding: 0.85rem 0;
   border-bottom: 1px solid var(--border);
 }
 .fin-pill {
@@ -70,7 +71,7 @@
 
 .prov-header {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem;
-  margin-bottom: 1.2rem; flex-shrink: 0;
+  flex-shrink: 0;
   padding: 0.9rem 0 0;
 }
 .prov-header h1 { font-size: 1.5rem; font-weight: 700; color: var(--text); }
